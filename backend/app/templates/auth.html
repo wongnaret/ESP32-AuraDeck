@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraDeck Control Center & Developer Sandbox</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0a0b10;
+            --bg-surface: rgba(18, 20, 29, 0.7);
+            --bg-card: rgba(26, 29, 43, 0.6);
+            --border-glow: rgba(124, 58, 237, 0.2);
+            --primary: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.4);
+            --secondary: #06b6d4;
+            --secondary-glow: rgba(6, 182, 212, 0.4);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.3);
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --font-display: 'Outfit', sans-serif;
+            --font-sans: 'Inter', sans-serif;
+            --font-mono: 'Fira Code', monospace;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(6, 182, 212, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 280px;
+            background: rgba(12, 14, 23, 0.85);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            padding: 32px 24px;
+            position: fixed;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 48px;
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        .brand-name {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            list-style: none;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 500;
+            text-decoration: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .nav-item:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .nav-item.active {
+            color: var(--text-main);
+            background: linear-gradient(to right, rgba(139, 92, 246, 0.15), transparent);
+            border-left: 3px solid var(--primary);
+            padding-left: 15px; /* Adjust padding due to border */
+        }
+
+        /* Main Content Panel */
+        .main-panel {
+            margin-left: 280px;
+            flex: 1;
+            padding: 48px 64px;
+            min-height: 100vh;
+        }
+
+        header {
+            margin-bottom: 48px;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, #ffffff, #f3f4f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        /* Tabs Container */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Grid Layouts */
+        .grid-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        /* Premium Card Design (Glassmorphism) */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(225deg, transparent 80%, rgba(139, 92, 246, 0.05));
+            pointer-events: none;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-glow);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .card-title {
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.connected {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-badge.disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .card-desc {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        /* Buttons and Interactive Elements */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 600;
+            padding: 14px 24px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            transition: var(--transition);
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            color: white;
+            box-shadow: 0 4px 18px rgba(124, 58, 237, 0.35);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 24px rgba(124, 58, 237, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        /* Sandbox Sandbox & Testing Panel */
+        .sandbox-container {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 32px;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+            letter-spacing: 0.25px;
+        }
+
+        select, input, textarea {
+            background: rgba(10, 11, 16, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 15px;
+            transition: var(--transition);
+            outline: none;
+        }
+
+        select:focus, input:focus, textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        /* Terminal Console */
+        .terminal-panel {
+            background: #06070a;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            height: 520px;
+            overflow: hidden;
+            box-shadow: inset 0 4px 30px rgba(0,0,0,0.5);
+        }
+
+        .terminal-header {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 14px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .term-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .term-dot.red { background: var(--danger); }
+        .term-dot.yellow { background: var(--warning); }
+        .term-dot.green { background: var(--success); }
+
+        .terminal-title {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .terminal-body {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.6;
+            color: #38bdf8; /* Soft blue console color */
+        }
+
+        .json-editor {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            background: #06070a;
+            color: #a78bfa;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            resize: vertical;
+            min-height: 250px;
+            line-height: 1.5;
+        }
+
+        .console-line {
+            margin-bottom: 8px;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+
+        .console-line.success { color: var(--success); }
+        .console-line.error { color: var(--danger); }
+        .console-line.info { color: var(--text-muted); }
+        .console-line.time { color: var(--secondary); }
+
+        /* API Sync Panel */
+        .sync-bench-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .sync-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sync-card:hover {
+            background: rgba(139, 92, 246, 0.05);
+            border-color: var(--primary-glow);
+        }
+
+        .sync-card h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-family: var(--font-display);
+        }
+
+        .sync-icon {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        /* Success modal / Toast overlay */
+        .toast {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            background: rgba(16, 185, 129, 0.95);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 16px 24px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: var(--transition);
+            z-index: 100;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">🧬</div>
+            <div class="brand-name">AuraDeck</div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active" onclick="switchTab('integrations', this)">🔌 Integration Hub</li>
+            <li class="nav-item" onclick="switchTab('sandbox', this)">🛠️ Developer Sandbox</li>
+            <li class="nav-item" onclick="window.open('/docs', '_blank')">📖 OpenAPI Documentation ↗</li>
+        </ul>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="main-panel">
+        
+        <!-- Tab 1: Integration Hub -->
+        <div id="integrations" class="tab-content active">
+            <header>
+                <h1>Integration Hub</h1>
+                <p class="subtitle">Secure Google Cloud and Spotify API accounts to synchronize real-time widgets.</p>
+            </header>
+
+            <div class="grid-cards">
+                <!-- Google APIs Connection Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">📅 Google Workspace</span>
+                        <span id="google-status" class="status-badge disconnected">
+                            <span class="status-dot"></span><span class="status-text">Disconnected</span>
+                        </span>
+                    </div>
+                    <p class="card-desc">Grants read-only access to Google Calendar agendas and Google Tasks checklists. Connect once and tokens are safely cached on disk.</p>
+                    <button id="google-btn" class="btn btn-primary" onclick="authorizeService('google')">Authorize Google</button>
+                </div>
+
+                <!-- Spotify Connection Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">🎵 Spotify Premium</span>
+                        <span id="spotify-status" class="status-badge disconnected">
+                            <span class="status-dot"></span><span class="status-text">Disconnected</span>
+                        </span>
+                    </div>
+                    <p class="card-desc">Tracks real-time track metadata (Track Name, Artist, duration, playback status) to render progress-bar widgets on the Smart LCD.</p>
+                    <button id="spotify-btn" class="btn btn-primary" onclick="authorizeService('spotify')">Authorize Spotify</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Developer Sandbox -->
+        <div id="sandbox" class="tab-content">
+            <header>
+                <h1>Developer Sandbox & API Sandbox</h1>
+                <p class="subtitle">Manually trigger, inspect, and push mocked JSON payloads directly to Mosquitto to test ESP32 displays.</p>
+            </header>
+
+            <div class="sandbox-container">
+                <!-- Control Side -->
+                <div class="control-panel">
+                    
+                    <!-- Quick API triggers -->
+                    <div class="card" style="padding: 24px;">
+                        <h3 class="card-title" style="font-size: 16px; margin-bottom: 16px;">🔄 Fast API Trigger Sandbox</h3>
+                        <div class="sync-bench-grid">
+                            <div class="sync-card" onclick="triggerSync('spotify')">
+                                <div class="sync-icon">🎵</div>
+                                <h4>Spotify</h4>
+                            </div>
+                            <div class="sync-card" onclick="triggerSync('calendar')">
+                                <div class="sync-icon">📅</div>
+                                <h4>Calendar</h4>
+                            </div>
+                            <div class="sync-card" onclick="triggerSync('todos')">
+                                <div class="sync-icon">✅</div>
+                                <h4>Tasks</h4>
+                            </div>
+                        </div>
+                        <div class="sync-bench-grid">
+                            <div class="sync-card" onclick="triggerSync('stocks')">
+                                <div class="sync-icon">📈</div>
+                                <h4>Stocks</h4>
+                            </div>
+                            <div class="sync-card" onclick="triggerSync('antigravity')">
+                                <div class="sync-icon">🤖</div>
+                                <h4>Antigravity</h4>
+                            </div>
+                            <div class="sync-card" onclick="triggerSync('analytics')">
+                                <div class="sync-icon">📊</div>
+                                <h4>Analytics</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MQTT Publisher -->
+                    <div class="card" style="padding: 24px;">
+                        <h3 class="card-title" style="font-size: 16px; margin-bottom: 16px;">🟢 Publish Mock MQTT Payload</h3>
+                        
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <label for="mqtt-topic">Target MQTT Topic</label>
+                            <select id="mqtt-topic" onchange="loadMockTemplate()">
+                                <option value="auradeck/spotify">auradeck/spotify</option>
+                                <option value="auradeck/calendar">auradeck/calendar</option>
+                                <option value="auradeck/todos">auradeck/todos</option>
+                                <option value="auradeck/stocks">auradeck/stocks</option>
+                                <option value="auradeck/antigravity">auradeck/antigravity</option>
+                                <option value="auradeck/analytics">auradeck/analytics</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 24px;">
+                            <label for="mqtt-payload">Payload JSON</label>
+                            <textarea id="mqtt-payload" class="json-editor" spellcheck="false"></textarea>
+                        </div>
+
+                        <button class="btn btn-primary" onclick="publishMqtt()">Publish to Mosquitto</button>
+                    </div>
+
+                </div>
+
+                <!-- Console Display Side -->
+                <div class="terminal-panel">
+                    <div class="terminal-header">
+                        <div class="terminal-buttons">
+                            <span class="term-dot red"></span>
+                            <span class="term-dot yellow"></span>
+                            <span class="term-dot green"></span>
+                        </div>
+                        <div class="terminal-title">AuraDeck Live Logs</div>
+                        <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 10px; width: auto; border-radius: 4px;" onclick="clearConsole()">Clear</button>
+                    </div>
+                    <div id="terminal-body" class="terminal-body">
+                        <div class="console-line info">[SYSTEM] Ready to monitor logs and APIs.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast">
+        <span id="toast-icon">✨</span>
+        <span id="toast-message">Success!</span>
+    </div>
+
+    <script>
+        // Tab switching logic
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            element.classList.add('active');
+            
+            if (tabId === 'sandbox') {
+                loadMockTemplate();
+            }
+        }
+
+        // Notification mechanism
+        function showToast(message, isSuccess = true) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = message;
+            document.getElementById('toast-icon').innerText = isSuccess ? '✅' : '❌';
+            toast.style.background = isSuccess ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Redirect to authorization pathways
+        function authorizeService(service) {
+            window.location.href = `/${service}/login`;
+        }
+
+        // Fetch current connected states on load
+        async function fetchStatus() {
+            try {
+                const r = await fetch('/api/status');
+                const data = await r.json();
+                
+                updateBadge('google-status', 'google-btn', data.google);
+                updateBadge('spotify-status', 'spotify-btn', data.spotify);
+            } catch (e) {
+                console.error("Failed to fetch integration states: ", e);
+            }
+        }
+
+        function updateBadge(badgeId, btnId, isConnected) {
+            const badge = document.getElementById(badgeId);
+            const btn = document.getElementById(btnId);
+            if (isConnected) {
+                badge.className = "status-badge connected";
+                badge.querySelector('.status-text').innerText = "Connected";
+                btn.innerText = "Re-authorize Service";
+                btn.className = "btn btn-secondary";
+            } else {
+                badge.className = "status-badge disconnected";
+                badge.querySelector('.status-text').innerText = "Disconnected";
+                btn.innerText = `Authorize ${btnId.includes('google') ? 'Google' : 'Spotify'}`;
+                btn.className = "btn btn-primary";
+            }
+        }
+
+        // Console logger
+        function writeToConsole(message, type = 'info') {
+            const body = document.getElementById('terminal-body');
+            const now = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.innerHTML = `<span class="console-line time">[${now}]</span> ${message}`;
+            body.appendChild(line);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('terminal-body').innerHTML = '<div class="console-line info">[SYSTEM] Console cleared.</div>';
+        }
+
+        // Trigger manual OAuth endpoint fetches and output response payload to console
+        async function triggerSync(service) {
+            writeToConsole(`Triggering live REST synchronization for: <strong>${service}</strong>...`, 'info');
+            try {
+                const response = await fetch(`/api/sync/${service}`, { method: 'POST' });
+                const data = await response.json();
+                if (response.status === 200) {
+                    writeToConsole(`Live Sync SUCCESS for <strong>${service}</strong>. Response:`, 'success');
+                    writeToConsole(JSON.stringify(data, null, 2), 'success');
+                    showToast(`${service.toUpperCase()} sync successfully triggered.`);
+                } else {
+                    writeToConsole(`Live Sync FAILED: ${data.detail || JSON.stringify(data)}`, 'error');
+                    showToast(`Failed to sync ${service}`, false);
+                }
+            } catch(e) {
+                writeToConsole(`Request exception: ${e}`, 'error');
+                showToast(`Request error: ${e}`, false);
+            }
+        }
+
+        // Mocks definition dictionary
+        const mockTemplates = {
+            "auradeck/spotify": {
+                "is_playing": true,
+                "title": "เพลงรักในสายลม",
+                "artist": "วงดนตรีสากล",
+                "progress_ms": 128000,
+                "duration_ms": 240000
+            },
+            "auradeck/calendar": {
+                "month_days_with_events": [1, 5, 12, 15, 20, 21, 22, 28],
+                "events": [
+                    { "time": "14:00", "title": "ประชุมทีมสถาปัตยกรรม", "is_today": true },
+                    { "time": "Tomorrow 10:00", "title": "สแตนด์อัปรายวัน", "is_today": false }
+                ]
+            },
+            "auradeck/todos": [
+                { "id": "1", "title": "ตรวจทาน Pull Request #42", "completed": false },
+                { "id": "2", "title": "ติดตั้งโปรแกรมปรับปรุงระบบฐานข้อมูล", "completed": false }
+            ],
+            "auradeck/stocks": [
+                { "symbol": "CPALL", "price": 57.25, "change_pct": 1.33, "type": "TH_STOCK" },
+                { "symbol": "BTC/THB", "price": 2350000.00, "change_pct": 2.15, "type": "CRYPTO" },
+                { "symbol": "GOLD_TH", "price": 41200.00, "change_pct": -0.24, "type": "GOLD" }
+            ],
+            "auradeck/antigravity": {
+                "limit_5h": { "used": 12.5, "total": 50.0, "percentage": 25.0 },
+                "limit_weekly": { "used": 140.0, "total": 500.0, "percentage": 28.0 },
+                "next_reset": "02h 15m"
+            },
+            "auradeck/analytics": {
+                "gcp_status": "OK",
+                "ga4_active_users": 34,
+                "gsc_clicks": 1420,
+                "gsc_impressions": 28500,
+                "gcp_billing": [
+                    { "project_name": "AuraDeck Dev", "cost_mtd": 12.50, "currency": "USD" },
+                    { "project_name": "Client Prod", "cost_mtd": 148.20, "currency": "USD" }
+                ]
+            }
+        };
+
+        function loadMockTemplate() {
+            const topic = document.getElementById('mqtt-topic').value;
+            const template = mockTemplates[topic];
+            document.getElementById('mqtt-payload').value = JSON.stringify(template, null, 4);
+        }
+
+        // Send mock publish events to backend
+        async function publishMqtt() {
+            const topic = document.getElementById('mqtt-topic').value;
+            const payloadStr = document.getElementById('mqtt-payload').value;
+            
+            try {
+                const payload = JSON.parse(payloadStr);
+                writeToConsole(`Publishing test payload to topic: <strong>${topic}</strong>...`, 'info');
+                
+                const response = await fetch('/api/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, payload })
+                });
+                
+                const data = await response.json();
+                if (response.status === 200) {
+                    writeToConsole(`MQTT Publish SUCCESS on <strong>${topic}</strong>. Payload:`, 'success');
+                    writeToConsole(JSON.stringify(payload), 'success');
+                    showToast(`Successfully published mock to ${topic}!`);
+                } else {
+                    writeToConsole(`MQTT Publish FAILED: ${data.detail || JSON.stringify(data)}`, 'error');
+                    showToast(`Failed to publish message.`, false);
+                }
+            } catch(e) {
+                writeToConsole(`Invalid JSON payload format: ${e.message}`, 'error');
+                showToast(`JSON parsing error!`, false);
+            }
+        }
+
+        // On document load
+        fetchStatus();
+        // Check states periodically
+        setInterval(fetchStatus, 10000);
+    </script>
+</body>
+</html>

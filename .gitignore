@@ -53,3 +53,18 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Python and Environment overrides
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Credentials and Token storage
+backend/.env
+backend/tokens/
+
+# Local Mosquitto persistence and diagnostics
+mosquitto/data/
+mosquitto/log/
