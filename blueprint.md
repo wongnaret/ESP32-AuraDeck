@@ -79,12 +79,16 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 2: Stock Watchlist
-* **Purpose:** Track selected stocks and financial instruments.
-* **Behavior:** Managed dynamically from the server side (add/remove stocks without updating ESP32 code).
+### Page 2: Stock Watchlist (Multi-Asset Ticker)
+* **Purpose:** Track selected equities, commodities, and digital assets.
+* **Behavior:** Managed dynamically from the server side (add/remove assets without changing ESP32 client code).
+* **Asset Support:**
+  * **Thai Stocks:** Live SET indexes (e.g. `CPALL.BK`).
+  * **Thai Gold Prices:** Live local gold bar spot prices (`GOLD_TH`).
+  * **Cryptocurrencies:** Major global trading pairs (e.g. `BTC/THB`).
 * **Layout Elements:**
-  * Vertical list or structured table of stock symbols.
-  * Attributes per stock: `Symbol`, `Current Price`, `Change Amount`, `% Change` (Indicated with up/down arrows or clean text symbols).
+  * High-contrast table with columns: `Symbol`, `Price`, and `% Change`.
+  * Distinct trajectory characters (up/down arrows) representing price actions.
 
 ---
 
@@ -97,13 +101,12 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 4: Calendar
-* **Purpose:** Overview of scheduled events and meetings.
+### Page 4: Calendar (Two-Part Split View)
+* **Purpose:** High-level monthly overview paired with immediate chronological agendas.
 * **Source:** Google Calendar API.
-* **Display Mode:** Agenda / List view for upcoming days (preferred over month grid due to 300x400 size constraints).
-* **Layout Elements:**
-  * Grouped by Date (e.g., `Today`, `Tomorrow`).
-  * Time range (`09:00 - 10:00`) and Event Title.
+* **Layout Elements (Split Screen):**
+  * **Top Section (Monthly Grid):** A visual compact month calendar displaying days of the current month. Days containing scheduled events are marked with bold high-contrast square outline pixels.
+  * **Bottom Section (Agenda List):** A list showing chronological event agendas for **Today** and **Tomorrow** (e.g., `14:00 - Meeting`).
 
 ---
 
@@ -117,12 +120,13 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 6: DevOps & Web Analytics
-* **Purpose:** System health and website performance metrics.
+### Page 6: DevOps, Analytics & GCP Billing
+* **Purpose:** System health, web traffic metrics, and Google Cloud operational cost insights.
 * **Layout Elements:**
   * **GCP Status:** System operational state indicator (`OK` / `DEGRADED` / `ISSUE`).
-  * **Google Analytics 4 (GA4):** Real-time Active Users on site.
-  * **Google Search Console (GSC):** Daily Clicks & Impressions summary.
+  * **Google Analytics 4 (GA4):** Real-time Active Users.
+  * **Google Search Console (GSC):** Daily GSC search clicks & impressions count.
+  * **GCP Multi-Project Billing Summary:** Displays month-to-date (MTD) accumulated spending metrics aggregated across multiple selected target projects and billing accounts.
 
 ---
 
@@ -133,38 +137,45 @@ The Raspberry Pi exposes a single GET endpoint (e.g., `GET /api/v1/dashboard`) r
 
 ```json
 {
-  "timestamp": 1784589784,
+  "spotify": {
+    "is_playing": true,
+    "title": "เพลงรักในสายลม",
+    "artist": "วงดนตรีสากล",
+    "progress_ms": 128000,
+    "duration_ms": 240000
+  },
+  "calendar": {
+    "month_days_with_events": [1, 5, 12, 15, 20, 21, 22, 28],
+    "events": [
+      { "time": "14:00", "title": "ประชุมทีมสถาปัตยกรรม", "is_today": true },
+      { "time": "Tomorrow 10:00", "title": "สแตนด์อัปรายวัน", "is_today": false }
+    ]
+  },
+  "todos": [
+    { "id": "1", "title": "ตรวจทาน Pull Request #42", "completed": false },
+    { "id": "2", "title": "ติดตั้งโปรแกรมปรับปรุงระบบฐานข้อมูล", "completed": false }
+  ],
+  "stocks": [
+    { "symbol": "CPALL", "price": 57.25, "change_pct": 1.33, "type": "TH_STOCK" },
+    { "symbol": "BTC/THB", "price": 2350000.00, "change_pct": 2.15, "type": "CRYPTO" },
+    { "symbol": "GOLD_TH", "price": 41200.00, "change_pct": -0.24, "type": "GOLD" }
+  ],
   "antigravity": {
     "limit_5h": { "used": 12.5, "total": 50.0, "percentage": 25.0 },
     "limit_weekly": { "used": 140.0, "total": 500.0, "percentage": 28.0 },
     "next_reset": "02h 15m"
   },
-  "stocks": [
-    { "symbol": "NVDA", "price": 125.40, "change_pct": 2.15 },
-    { "symbol": "GOOGL", "price": 178.20, "change_pct": -0.85 }
-  ],
-  "todos": [
-    { "id": "1", "title": "Review Pull Request #42", "completed": false },
-    { "id": "2", "title": "Deploy Backend updates", "completed": false }
-  ],
-  "calendar": [
-    { "time": "14:00", "title": "Architecture Sync", "is_today": true }
-  ],
-  "spotify": {
-    "is_playing": true,
-    "title": "Starboy",
-    "artist": "The Weeknd",
-    "progress_ms": 65000,
-    "duration_ms": 230000
-  },
   "analytics": {
     "gcp_status": "OK",
     "ga4_active_users": 34,
     "gsc_clicks": 1420,
-    "gsc_impressions": 28500
+    "gsc_impressions": 28500,
+    "gcp_billing": [
+      { "project_name": "AuraDeck Dev", "cost_mtd": 12.50, "currency": "USD" },
+      { "project_name": "Client Prod", "cost_mtd": 148.20, "currency": "USD" }
+    ]
   }
 }
-
 ```
 
 ---
@@ -243,6 +254,20 @@ The Raspberry Pi exposes a single GET endpoint (e.g., `GET /api/v1/dashboard`) r
 * [ ] Implement State Machine for Page 0 through Page 6.
 * [ ] Bind JSON response fields to respective LVGL widgets.
 * [ ] Optimize render loop for smooth screen transitions.
+
+---
+
+## 7. Special Graphics & Thai Character Handling (แก้ปัญหาสระลอย)
+
+### The Stacking Vowel Challenge
+Standard LVGL v8 lacks a complex text-shaping engine (like HarfBuzz). When rendering Thai UTF-8 scripts, combining characters—including upper/lower vowels (e.g., สระอุ, สระอู, สระอี) and tone marks (e.g., ไม้เอก, ไม้โท)—collide vertically, causing "สระลอย" (floating/overlapping glyphs).
+
+### Reshaping and Font PUA Mapping Solution
+To fix this, the ESP32-S3 client utilizes a custom **C++ ThaiReshaper** library. 
+1.  **UTF-8 to Unicode Conversion:** The reshaping engine intercepts Thai string payloads and decodes UTF-8 byte streams into 16-bit Unicode characters.
+2.  **Glyph Rules Examination:** It inspects adjacent character types. If an upper vowel is followed by a tone mark, or if characters clash with tall-consonants (like ป, ฝ, ฟ), the engine swaps the standard Unicode code points with pre-compiled **Private Use Area (PUA) codes (`0xF700` to `0xF71F`)**.
+3.  **Special Thai Font Asset:** These PUA code points map to specially shifted and vertically adjusted glyph versions baked into our legacy Thai font files, enabling pixel-perfect, overlapping-free multi-layer vowel stacking directly on the 1-bit screen.
+
 
 ```
 
