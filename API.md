@@ -9,39 +9,33 @@ This document describes all local REST endpoints, OAuth2 flows, and MQTT pub-sub
 ### 1. Multi-Profile Session Management
 
 #### `GET /api/profiles`
-Lists all profiles configured on the server.
+Lists the active user's profile (restricted to the logged-in user).
+*   **Request Cookies:** `active_profile_id`
 *   **Response (`200 OK`):**
     ```json
     [
-      { "id": "default", "name": "Default Profile" },
-      { "id": "profile_office_studio", "name": "Office Studio" }
+      { "id": "john_gmail_com", "name": "John Doe" }
     ]
     ```
 
-#### `POST /api/profiles`
-Creates a new profile.
-*   **Request Body (`application/json`):**
+#### `POST /api/profiles` [DEPRECATED]
+Disabled. Manual profile creation is forbidden. Profiles are auto-provisioned upon Google Sign-In.
+*   **Response (`403 Forbidden`):**
     ```json
-    { "profile_name": "Office Studio" }
-    ```
-*   **Response (`200 OK`):**
-    ```json
-    {
-      "status": "success",
-      "profile_id": "profile_office_studio",
-      "profile_name": "Office Studio"
-    }
+    { "detail": "Manual profile creation is disabled. Use Google Login to auto-provision profiles." }
     ```
 
 #### `DELETE /api/profiles/{profile_id}`
-Deletes a profile, its tokens, configurations, and unpairs any screens linked to it.
+Deletes the profile's tokens and configurations, and unpairs any screens. Requires the `active_profile_id` cookie to match `{profile_id}`.
+*   **Request Cookies:** `active_profile_id`
 *   **Response (`200 OK`):**
     ```json
     {
       "status": "success",
-      "message": "Successfully deleted profile profile_office_studio"
+      "message": "Successfully deleted profile john_gmail_com"
     }
     ```
+*   **Error Response (`403 Forbidden`):** If the session cookie does not match `{profile_id}`.
 
 #### `GET /api/profiles/{profile_id}/config`
 Retrieves a profile's current safe configuration (secrets are omitted or represented as boolean states).
@@ -94,18 +88,29 @@ Accepts a JSON upload of OAuth client secrets or Service Account credentials.
 
 ---
 
-### 2. OAuth2 Redirection Endpoints (Multi-User State)
+### 2. Unified Google Login & OAuth2 Redirection Endpoints
 
-#### `GET /google/login?profile_id={profile_id}`
-Redirects the administrator's web browser to the Google Consent screen to obtain permission for Calendar and Tasks access. Passes `profile_id` as the state parameter.
+#### `GET /google/login`
+Redirects the user's web browser to the Google Consent screen to login or grant additional scopes.
+*   **Query Parameters (Optional):** `profile_id` (fallback is `"login_session"`)
+*   **If `profile_id` is `"login_session"`:** Requests openid identity scopes (`openid`, `email`, `profile`) in addition to integration scopes (`calendar.readonly`, `tasks.readonly`).
 
-#### `GET /google/callback?code={code}&state={profile_id}`
-Processes the authorization code returned by Google, performs the authorization code exchange, and persists the refresh token securely in `backend/tokens/profiles/{profile_id}/google_tokens.json`.
+#### `GET /google/callback?code={code}&state={state}`
+Processes the authorization code returned by Google.
+*   **If `state == "login_session"`:**
+    *   Exchanges the authorization code.
+    *   Queries Google's Userinfo API to verify their email address.
+    *   Sanitizes the email to obtain the `profile_id` (e.g., `john_gmail_com`).
+    *   Auto-provisions the directory `/backend/tokens/profiles/john_gmail_com/` and safe default configurations if they don't exist.
+    *   Sets the `active_profile_id=john_gmail_com` cookie.
+    *   Redirects the user directly to the home dashboard `/`.
+*   **If `state == {profile_id}`:**
+    *   Integrates calendar/tasks credentials for that specific profile directory, persisting `google_tokens.json`.
 
 ---
 
 #### `GET /spotify/login?profile_id={profile_id}`
-Redirects the administrator's web browser to the Spotify Account login screen to authorize player metadata access. Passes `profile_id` as the state parameter.
+Redirects the user's web browser to the Spotify Account login screen to authorize player metadata access. Passes `profile_id` as the state parameter.
 
 #### `GET /spotify/callback?code={code}&state={profile_id}`
 Processes the authorization code returned by Spotify, performs the authorization code exchange, and persists the credentials in `backend/tokens/profiles/{profile_id}/spotify_tokens.json`.

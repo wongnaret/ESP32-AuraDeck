@@ -19,6 +19,7 @@ from app.services.google_auth import (
     get_google_auth_url,
     get_spotify_auth_url,
     exchange_google_code,
+    exchange_google_code_for_login,
     exchange_spotify_code,
     load_profile_settings,
     save_profile_settings
@@ -275,11 +276,11 @@ def get_root(request: Request, active_profile_id: Optional[str] = Cookie(None)):
     if not active_profile_id:
         return RedirectResponse(url="/login")
     
-    # Confirm profile still exists
-    profiles = [p["id"] for p in list_all_profiles()]
-    if active_profile_id not in profiles:
+    # Confirm profile still exists on disk
+    profile_dir = os.path.join(settings.TOKENS_DIR, "profiles", active_profile_id)
+    if not os.path.exists(profile_dir):
         response = RedirectResponse(url="/login")
-        response.delete_cookie("active_profile_id")
+        response.delete_cookie("active_profile_id", path="/")
         return response
         
     return templates.TemplateResponse("auth.html", {"request": request, "profile_id": active_profile_id})
@@ -288,21 +289,13 @@ def get_root(request: Request, active_profile_id: Optional[str] = Cookie(None)):
 @app.get("/login", response_class=HTMLResponse)
 def get_login_page(request: Request):
     """Renders the beautifully styled landing login screen."""
-    profiles = list_all_profiles()
-    return templates.TemplateResponse("login.html", {"request": request, "profiles": profiles})
+    return templates.TemplateResponse("login.html", {"request": request})
 
 
 @app.get("/select-profile/{profile_id}")
 def select_profile(profile_id: str):
-    """Sets session cookie and logs user into integration panel."""
-    profiles = [p["id"] for p in list_all_profiles()]
-    if profile_id not in profiles:
-        raise HTTPException(status_code=404, detail="Profile not found.")
-    
-    response = RedirectResponse(url="/")
-    # Expire in 30 days
-    response.set_cookie(key="active_profile_id", value=profile_id, max_age=30 * 24 * 3600, path="/")
-    return response
+    """Deprecated profile selection route."""
+    raise HTTPException(status_code=403, detail="AuraDeck 2.0 requires secure Google Authentication Sign-In.")
 
 
 @app.get("/logout")
@@ -318,19 +311,30 @@ def logout_user():
 @app.get("/google/login")
 def login_google(profile_id: Optional[str] = None, active_profile_id: Optional[str] = Cookie(None)):
     """Redirects profile auth trigger to Google OAuth screen passing state."""
-    pid = profile_id or active_profile_id or "default"
+    pid = profile_id or active_profile_id or "login_session"
     return RedirectResponse(url=get_google_auth_url(pid))
 
 
 @app.get("/google/callback")
 async def callback_google(code: str, state: str = "default"):
     """Accepts authorized code callback, maps it back to correct profile."""
-    tokens = await exchange_google_code(state, code)
-    if tokens:
-        logger.info(f"Successfully completed Google OAuth2 authentication flow for profile {state}.")
-        return RedirectResponse(url="/?google=success")
+    if state == "login_session":
+        res = await exchange_google_code_for_login(code)
+        if res:
+            profile_id = res["profile_id"]
+            response = RedirectResponse(url="/")
+            # Expire in 30 days
+            response.set_cookie(key="active_profile_id", value=profile_id, max_age=30 * 24 * 3600, path="/")
+            return response
+        else:
+            raise HTTPException(status_code=400, detail="Google authentication failed.")
     else:
-        raise HTTPException(status_code=400, detail="Google authentication failed.")
+        tokens = await exchange_google_code(state, code)
+        if tokens:
+            logger.info(f"Successfully completed Google OAuth2 authentication flow for profile {state}.")
+            return RedirectResponse(url="/?google=success")
+        else:
+            raise HTTPException(status_code=400, detail="Google authentication failed.")
 
 
 @app.get("/spotify/login")
@@ -354,31 +358,26 @@ async def callback_spotify(code: str, state: str = "default"):
 # --- Profiles REST API Management ---
 
 @app.get("/api/profiles")
-def api_get_profiles():
-    """Endpoint listing all active profiles."""
-    return list_all_profiles()
+def api_get_profiles(active_profile_id: Optional[str] = Cookie(None)):
+    """Endpoint listing all active profiles (restricted to logged-in user)."""
+    if not active_profile_id:
+        return []
+    profiles = list_all_profiles()
+    return [p for p in profiles if p["id"] == active_profile_id]
 
 
 @app.post("/api/profiles")
 def api_create_profile(request: ProfileCreateRequest):
-    """Creates a new unique, slugified profile."""
-    name = request.profile_name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Profile name cannot be blank.")
-        
-    pid = "profile_" + "".join(c if c.isalnum() else "_" for c in name.lower()).replace("__", "_").strip("_")
-    profiles_dir = os.path.join(settings.TOKENS_DIR, "profiles", pid)
-    if os.path.exists(profiles_dir):
-        raise HTTPException(status_code=400, detail="Profile with this name or ID already exists.")
-        
-    os.makedirs(profiles_dir, exist_ok=True)
-    save_profile_settings(pid, {"profile_name": name})
-    return {"status": "success", "profile_id": pid, "profile_name": name}
+    """Deprecated manual profile creation endpoint."""
+    raise HTTPException(status_code=403, detail="Manual profile creation is disabled. Use Google Login to auto-provision profiles.")
 
 
 @app.delete("/api/profiles/{profile_id}")
 def api_delete_profile(profile_id: str, active_profile_id: Optional[str] = Cookie(None)):
     """Deletes profile tokens and config directory, and clears any paired devices."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+        
     if profile_id == "default":
         raise HTTPException(status_code=400, detail="The default profile cannot be deleted.")
         
@@ -403,8 +402,11 @@ def api_delete_profile(profile_id: str, active_profile_id: Optional[str] = Cooki
 
 
 @app.get("/api/profiles/{profile_id}/config")
-def api_get_profile_config(profile_id: str):
+def api_get_profile_config(profile_id: str, active_profile_id: Optional[str] = Cookie(None)):
     """Retrieves safe settings metadata for profile dashboard UI (hides Client Secrets)."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+        
     settings_data = load_profile_settings(profile_id)
     return {
         "profile_name": settings_data.get("profile_name", profile_id),
@@ -422,8 +424,11 @@ def api_get_profile_config(profile_id: str):
 
 
 @app.post("/api/profiles/{profile_id}/config")
-def api_save_profile_config(profile_id: str, config: ProfileConfigRequest):
+def api_save_profile_config(profile_id: str, config: ProfileConfigRequest, active_profile_id: Optional[str] = Cookie(None)):
     """Merges and saves user config inputs to the target profile's settings.json."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+        
     settings_data = load_profile_settings(profile_id)
     
     updated_fields = config.dict(exclude_unset=True)
@@ -435,8 +440,11 @@ def api_save_profile_config(profile_id: str, config: ProfileConfigRequest):
 
 
 @app.post("/api/profiles/{profile_id}/upload-secrets")
-async def api_upload_secrets(profile_id: str, type: str = Query(...), file: UploadFile = File(...)):
+async def api_upload_secrets(profile_id: str, type: str = Query(...), file: UploadFile = File(...), active_profile_id: Optional[str] = Cookie(None)):
     """Handles secure JSON credential uploads for OAuth Client Secrets or Service Accounts."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+        
     profile_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
     if not os.path.exists(profile_dir):
         raise HTTPException(status_code=444, detail="Profile directory does not exist.")
@@ -480,8 +488,11 @@ async def api_upload_secrets(profile_id: str, type: str = Query(...), file: Uplo
 
 
 @app.get("/api/profiles/{profile_id}/google-lists")
-async def api_get_google_lists(profile_id: str):
+async def api_get_google_lists(profile_id: str, active_profile_id: Optional[str] = Cookie(None)):
     """Fetches Google Task lists dynamically for checklist building on the dashboard."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+        
     lists = await get_google_task_lists(profile_id)
     return lists
 
@@ -524,13 +535,16 @@ def api_request_pairing_code(mac: str = Query(...)):
 
 
 @app.post("/api/pairing/verify")
-def api_verify_pairing_code(request: DevicePairRequest):
+def api_verify_pairing_code(request: DevicePairRequest, active_profile_id: Optional[str] = Cookie(None)):
     """
     Called by Web Dashboard to pair a 6-digit PIN to the active profile.
     """
     pin = request.pin.strip()
     profile_id = request.profile_id.strip()
     
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only pair screens to your own profile.")
+        
     now = time.time()
     if pin not in PAIRING_CODES_CACHE or PAIRING_CODES_CACHE[pin]["expires_at"] < now:
          raise HTTPException(status_code=400, detail="Invalid or expired pairing PIN code.")

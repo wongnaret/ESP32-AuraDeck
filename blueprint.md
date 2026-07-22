@@ -230,20 +230,25 @@ To fix this, the ESP32-S3 client utilizes a custom **C++ ThaiReshaper** library:
 
 ---
 
-## 6. Multi-Profile Workspace & Screen Pairing (AuraDeck 2.0)
+## 6. AuraDeck 2.0 Secure Google Sign-In & Workspace Isolation
 
-AuraDeck 2.0 introduces support for multi-user session isolation, customized per-profile Google Cloud environments, and TV-style wireless screen pairing.
+AuraDeck 2.0 introduces secure, multi-tenant workspace isolation gated by unified **Google OAuth Sign-In** using global server credentials, coupled with strict directory sandboxes and TV-style screen pairing.
 
-### Multi-Profile Workspace Sandbox
-*   **No Database Dependency:** Configured settings, credentials, and OAuth tokens are stored as lightweight directory files in `backend/tokens/profiles/{profile_id}/settings.json`.
-*   **Stateless OAuth Context Routing:** Since Google and Spotify callbacks are stateless redirects, the state query parameter (`state=profile_id`) acts as a secure cryptographic loop to bind resulting OAuth credentials with the target profile context.
-*   **Dynamic Task Lists Checklist Selector:** Multi-list aggregation gathers and prefix-merges tasks from all selected task lists (e.g., `[Work] Write report` and `[Home] Get milk`) in parallel using `asyncio.gather` for optimal performance.
+### Unified Google Identity Gateway & Auto-Provisioning
+*   **Zero Profile Leakage:** The landing page (`/login`) is a completely secure gate containing no public list or database leakage of existing users. 
+*   **Identity Mapping:** Authenticating with Google triggers OAuth with `openid` and `email` scopes. On successful code exchange, the backend queries Google's Userinfo API to extract the user's email.
+*   **Sanitized Sandbox Directory:** The verified email is slugified (e.g. `user@gmail.com` -> `user_gmail_com`) and maps to an isolated directory at `backend/tokens/profiles/{profile_id}/`. Initial workspace configurations are auto-provisioned upon first-time login.
+
+### Deep Session Authorization Checks
+*   **Cookie Session Tracking:** On successful authentication, the backend sets an `active_profile_id` cookie.
+*   **Endpoint Isolation Guards:** Every endpoint matching `/api/profiles/{profile_id}/*` parses this cookie and validates that `active_profile_id == profile_id`. Unauthorized cross-workspace actions trigger a strict `403 Forbidden` response.
+*   **Pairing Gating:** Users can only pair physically displayed screens (obtained via `GET /api/pairing/request`) to their active workspace session during the verification phase (`POST /api/pairing/verify`).
 
 ### TV-Style Wireless Screen Pairing Flow
 When an unconfigured ESP32 screen boots up, it communicates with the Raspberry Pi to register its physical MAC address and obtain a temporary 6-digit numeric pairing PIN code.
 
 1.  **PIN Allocation:** ESP32 requests a PIN via `GET /api/pairing/request?mac=...`.
-2.  **Web Verification:** The user opens the AuraDeck Web Portal, enters the PIN, and pairs the physical screen with their logged profile (`POST /api/pairing/verify`).
+2.  **Web Verification:** The user opens the secure AuraDeck Web Portal, enters the PIN, and pairs the physical screen with their logged profile (`POST /api/pairing/verify`).
 3.  **Session Binding:** Once paired, the background schedulers retrieve API states per-profile and publish to device-specific MQTT channels: `auradeck/device/{mac}/{service}` (e.g. `auradeck/device/84:F3:EB:C9:4A:E1/spotify`).
 
 ### Container-to-Host D-Bus AP Communication

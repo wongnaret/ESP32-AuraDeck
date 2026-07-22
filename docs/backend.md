@@ -97,14 +97,14 @@ We provide an automated setup script that installs ngrok (if missing) and regist
     *   **Google Cloud Console (Audience/Audience details):** Add `https://xxxx-xxxx.ngrok-free.app/google/callback` to your **Authorized redirect URIs**.
     *   **Spotify Developer Dashboard:** Add `https://xxxx-xxxx.ngrok-free.app/spotify/callback` to your App's **Redirect URIs** (remember to click **Add** and **Save**).
 5.  **Perform Login:**
-    Access your dashboard by going to `https://xxxx-xxxx.ngrok-free.app` from your phone or laptop on the same network, and click the Login buttons to safely obtain and write the persistent credential tokens directly onto the Pi!
+    Access your dashboard by going to `https://xxxx-xxxx.ngrok-free.app` from your phone or laptop on the same network, click **Sign In with Google**, and the server will automatically authenticate you, set up your secure cookie session, and auto-provision your private dashboard!
 
 ### 6. Alternative: Local Token Mirroring (Offline / No-ngrok Shortcut)
 If you already completed the OAuth logins on your local computer and do not want to set up public tunnels, you can use the offline mirror shortcut:
 1.  Complete the login flow on your local computer (`http://127.0.0.1:8000`).
-2.  Navigate to your local `backend/tokens/` directory. You will see cached JSON files (e.g., `google_token.json`, `spotify_token.json`).
-3.  Copy/FTP the entire `tokens` folder directly to the `/backend/tokens/` path on your Raspberry Pi.
-4.  The backend service on the Pi will immediately detect these files and automatically manage refreshing access tokens silently without requiring any browser interactions!
+2.  Navigate to your local `backend/tokens/profiles/` directory. You will see cached user workspace folders (e.g., `profiles/john_gmail_com/` containing `google_tokens.json`, `settings.json`, and `spotify_tokens.json`).
+3.  Copy/FTP the entire `profiles` folder directly to the `/backend/tokens/profiles/` path on your Raspberry Pi.
+4.  The backend service on the Pi will immediately detect these directories, and you can log in directly or allow paired screens to fetch synchronized widgets without further setup!
 
 ---
 
