@@ -65,12 +65,15 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "🔒 Setting up WPA2-Personal Security and Sharing mode..."
+# Disable PMF (Protected Management Frames) and Wi-Fi Power Save to prevent "802.1X supplicant took too long to authenticate" timeouts on Raspberry Pi
 nmcli connection modify "$CON_NAME" \
   802-11-wireless.mode ap \
   802-11-wireless.band bg \
+  802-11-wireless.powersave 2 \
   ipv4.method shared \
   wifi-sec.key-mgmt wpa-psk \
-  wifi-sec.psk "$PASSWORD"
+  wifi-sec.psk "$PASSWORD" \
+  wifi-sec.pmf 1
 
 # 5. Activate the Hotspot
 echo "🚀 Starting AuraDeck Local Hotspot..."

@@ -61,6 +61,10 @@ This script configures a persistent hotspot on the Pi with:
 *   **Password:** `AuraDeck1234`
 *   **Pi Server IP:** `10.42.0.1` (which acts as the static gateway, API endpoint, and MQTT broker for the ESP32 screen!)
 
+> [!TIP]
+> **Troubleshooting Supplicant/Authentication Timeouts:**
+> If you encounter `Error: Connection activation failed: 802.1X supplicant took too long to authenticate` on your Raspberry Pi, the setup script automatically mitigates this by disabling **PMF (Protected Management Frames)** and **Wi-Fi Power Save mode**, which commonly cause Broadcom driver-level handshaking timeouts. If the issue persists, run `sudo systemctl restart NetworkManager` and try executing the script again.
+
 ### 3. Spin Up Container Cluster
 To check environment variables and launch the API server + MQTT broker cluster in the background, run the control script:
 ```bash
