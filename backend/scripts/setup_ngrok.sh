@@ -51,8 +51,29 @@ fi
 # 2. Get auth token
 TOKEN=$1
 
+# If no token passed as argument, try to read from local .env files
 if [ -z "$TOKEN" ]; then
-    echo -e "${YELLOW}No auth token provided as argument.${NC}"
+    ENV_PATH=""
+    if [ -f ".env" ]; then
+        ENV_PATH=".env"
+    elif [ -f "backend/.env" ]; then
+        ENV_PATH="backend/.env"
+    elif [ -f "../.env" ]; then
+        ENV_PATH="../.env"
+    fi
+
+    if [ -n "$ENV_PATH" ]; then
+        # Parse NGROK_AUTHTOKEN from the .env file, removing carriage returns and quotes
+        PARSED_TOKEN=$(grep -E "^NGROK_AUTHTOKEN=" "$ENV_PATH" | cut -d'=' -f2- | tr -d '\r' | tr -d '"' | tr -d "'")
+        if [ -n "$PARSED_TOKEN" ] && [ "$PARSED_TOKEN" != "your_ngrok_authtoken" ]; then
+            TOKEN=$PARSED_TOKEN
+            echo -e "${GREEN}[✔] Loaded NGROK_AUTHTOKEN from $ENV_PATH${NC}"
+        fi
+    fi
+fi
+
+if [ -z "$TOKEN" ]; then
+    echo -e "${YELLOW}No auth token provided as argument and no valid token found in .env files.${NC}"
     read -p "Please enter/paste your ngrok Auth Token: " TOKEN
 fi
 
