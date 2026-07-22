@@ -68,3 +68,9 @@ backend/tokens/
 # Local Mosquitto persistence and diagnostics
 mosquitto/data/
 mosquitto/log/
+
+# Local secrets and credential directories
+secret/
+tokens/
+.env
+*.env
