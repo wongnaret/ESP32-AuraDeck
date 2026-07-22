@@ -25,14 +25,20 @@ fi
 if ! command -v ngrok &> /dev/null; then
     echo -e "${YELLOW}[+] ngrok is not installed. Setting up official repository and installing...${NC}"
     
-    # Ensure curl and gnupg are installed
-    echo -e "${YELLOW}[+] Verifying dependencies (curl, gnupg, ca-certificates)...${NC}"
-    sudo apt update && sudo apt install -y curl gnupg ca-certificates
+    # Ensure curl and ca-certificates are installed
+    echo -e "${YELLOW}[+] Verifying dependencies (curl, ca-certificates)...${NC}"
+    sudo apt update && sudo apt install -y curl ca-certificates
     
-    # Add ngrok's official GPG key and repository
-    echo -e "${YELLOW}[+] Adding ngrok repository and signing key...${NC}"
-    curl -s https://ngrok-agent.s3.amazonaws.com/files.pub.key | gpg --dearmor | sudo tee /usr/share/keyrings/ngrok.gpg > /dev/null
-    echo "deb [signed-by=/usr/share/keyrings/ngrok.gpg] https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+    # Clean up old invalid keys or repositories to prevent apt-update crashes
+    echo -e "${YELLOW}[+] Cleaning up old ngrok key and repository configurations...${NC}"
+    sudo rm -f /etc/apt/sources.list.d/ngrok.list
+    sudo rm -f /usr/share/keyrings/ngrok.gpg
+    sudo rm -f /etc/apt/trusted.gpg.d/ngrok.asc
+    
+    # Add ngrok's official ASCII armored GPG key and repository
+    echo -e "${YELLOW}[+] Adding ngrok repository and official signing key (ngrok.asc)...${NC}"
+    curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc > /dev/null
+    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
     
     # Update package lists and install ngrok
     echo -e "${YELLOW}[+] Installing ngrok...${NC}"
