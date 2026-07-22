@@ -44,10 +44,10 @@ Receives an arbitrary payload and publishes it directly to a local Mosquitto top
       "topic": "auradeck/spotify",
       "payload": {
         "is_playing": true,
-        "title": "เพลงรักในสายลม",
+        "track": "เพลงรักในสายลม",
         "artist": "วงดนตรีสากล",
-        "progress_ms": 120000,
-        "duration_ms": 240000
+        "progress": 120,
+        "duration": 240
       }
     }
     ```
@@ -66,10 +66,10 @@ Instructs the server to manually poll a specific API, immediately publish the co
     ```json
     {
       "is_playing": true,
-      "title": "เพลงรักในสายลม",
+      "track": "เพลงรักในสายลม",
       "artist": "วงดนตรีสากล",
-      "progress_ms": 134000,
-      "duration_ms": 240000
+      "progress": 134,
+      "duration": 240
     }
     ```
 
@@ -84,21 +84,21 @@ Contains playback tracking metrics.
 ```json
 {
   "is_playing": true,
-  "title": "เพลงรักในสายลม",
+  "track": "เพลงรักในสายลม",
   "artist": "วงดนตรีสากล",
-  "progress_ms": 128000,
-  "duration_ms": 240000
+  "progress": 128,
+  "duration": 240
 }
 ```
 
-### 2. Two-Part Calendar Agenda (`auradeck/calendar`)
+### 2. Calendar Agenda (`auradeck/calendar`)
 Combines a monthly grid marker list with specific details for Today and Tomorrow.
 ```json
 {
   "month_days_with_events": [1, 5, 12, 15, 20, 21, 22, 28],
   "events": [
     { "time": "14:00", "title": "ประชุมทีมสถาปัตยกรรม", "is_today": true },
-    { "time": "Tomorrow 10:00", "title": "สแตนด์อัปรายวัน", "is_today": false }
+    { "time": "10:00", "title": "สแตนด์อัปรายวัน", "is_today": false }
   ]
 }
 ```
@@ -106,43 +106,41 @@ Combines a monthly grid marker list with specific details for Today and Tomorrow
 ### 3. Google Tasks Checklist (`auradeck/todos`)
 A flat array of top task items.
 ```json
-[
-  { "id": "1", "title": "ตรวจทาน Pull Request #42", "completed": false },
-  { "id": "2", "title": "ติดตั้งโปรแกรมปรับปรุงระบบฐานข้อมูล", "completed": false }
-]
+{
+  "todos": [
+    "ตรวจทาน Pull Request #42",
+    "ติดตั้งโปรแกรมปรับปรุงระบบฐานข้อมูล"
+  ]
+}
 ```
 
 ### 4. Multi-Asset Stocks & Commodities Watchlist (`auradeck/stocks`)
-Holds current prices, percentage change direction, and assets categories (Thai Equities, Gold bars, Cryptocurrencies).
+Holds current prices, percentage change direction, and asset categories (Thai Equities, Gold bars, Cryptocurrencies).
 ```json
-[
-  { "symbol": "CPALL", "price": 57.25, "change_pct": 1.33, "type": "TH_STOCK" },
-  { "symbol": "BTC/THB", "price": 2350000.00, "change_pct": 2.15, "type": "CRYPTO" },
-  { "symbol": "GOLD_TH", "price": 41200.00, "change_pct": -0.24, "type": "GOLD" }
-]
+{
+  "stocks": [
+    { "symbol": "SET50", "price": 942.50, "change_percent": 1.33 },
+    { "symbol": "CPALL.BK", "price": 57.25, "change_percent": -0.45 },
+    { "symbol": "GOLD", "price": 41200.00, "change_percent": 0.24 },
+    { "symbol": "BTC-THB", "price": 2350000.00, "change_percent": 2.15 }
+  ]
+}
 ```
 
 ### 5. Antigravity Quota Usage (`auradeck/antigravity`)
 Monitors hourly and weekly AI credits.
 ```json
 {
-  "limit_5h": { "used": 12.5, "total": 50.0, "percentage": 25.0 },
-  "limit_weekly": { "used": 140.0, "total": 500.0, "percentage": 28.0 },
-  "next_reset": "02h 15m"
+  "credit_hours_remaining": 4.5,
+  "percent_quota_used": 72.0
 }
 ```
 
 ### 6. GCP Billing & Web Analytics (`auradeck/analytics`)
-Monitors overall multi-project MTD spending (from different billing accounts) alongside standard web traffic indicators.
+Monitors overall multi-project MTD spending alongside standard web traffic indicators.
 ```json
 {
-  "gcp_status": "OK",
-  "ga4_active_users": 34,
-  "gsc_clicks": 1420,
-  "gsc_impressions": 28500,
-  "gcp_billing": [
-    { "project_name": "AuraDeck Dev", "cost_mtd": 12.50, "currency": "USD" },
-    { "project_name": "Client Prod", "cost_mtd": 148.20, "currency": "USD" }
-  ]
+  "active_users": 15,
+  "mtd_billing": 160.70
 }
 ```

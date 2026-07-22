@@ -2,7 +2,7 @@ import logging
 import os
 import asyncio
 from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import HTML_Response, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -152,8 +152,8 @@ def trigger_antigravity_polling():
 
 # --- Page Routing ---
 
-@app.get("/", response_class=HTML_Response)
-@app.get("/auth", response_class=HTML_Response)
+@app.get("/", response_class=HTMLResponse)
+@app.get("/auth", response_class=HTMLResponse)
 def get_control_panel(request: Request):
     """Renders the main AuraDeck integration dashboard and developer sandbox."""
     return templates.TemplateResponse("auth.html", {"request": request})
