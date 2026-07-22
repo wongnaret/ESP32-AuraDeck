@@ -14,20 +14,30 @@ _simulated_costs: Dict[str, float] = {}
 
 def get_google_sa_credentials(profile_id: str):
     """
-    Attempts to load Google Service Account Credentials from the configured path
-    or from the profile's dedicated directory.
+    Attempts to load Google Service Account Credentials from the first key in the profile's dedicated gcp_projects directory.
     Returns None if missing, unconfigured, or if google-auth fails to load.
     """
-    # Check if a custom service account key exists in the profile folder
-    profile_sa_path = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "service_account.json")
+    import json
+    gcp_projects_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "gcp_projects")
+    sa_path = None
     
-    if os.path.exists(profile_sa_path):
-        sa_path = profile_sa_path
-    else:
+    if os.path.exists(gcp_projects_dir):
+        files = [f for f in os.listdir(gcp_projects_dir) if f.endswith(".json")]
+        if files:
+            sa_path = os.path.join(gcp_projects_dir, files[0])
+            
+    # Fallback to legacy path
+    if not sa_path:
+        profile_sa_path = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "service_account.json")
+        if os.path.exists(profile_sa_path):
+            sa_path = profile_sa_path
+            
+    # Global fallback
+    if not sa_path:
         sa_path = settings.GCP_SERVICE_ACCOUNT_PATH or "./keys/gcp-sa.json"
-    
+        
     if not os.path.exists(sa_path):
-        logger.debug(f"Google Service Account key not found at: {sa_path} for profile {profile_id}. Running in demo/simulation mode.")
+        logger.debug(f"Google Service Account key not found for profile {profile_id}. Running in demo/simulation mode.")
         return None
         
     try:
@@ -89,58 +99,86 @@ async def get_ga4_active_users(profile_id: str, creds) -> int:
         return _last_active_users
 
 
-async def get_gcp_billing_costs(profile_id: str, creds) -> List[Dict[str, Any]]:
+async def get_gcp_billing_costs(profile_id: str) -> List[Dict[str, Any]]:
     """
-    Aggregates GCP Billing Costs.
-    Loads project names from GCP_BILLING_PROJECT_IDS and fetches cost,
+    Aggregates GCP Billing Costs across all uploaded Service Account Keys.
+    Loads project keys from gcp_projects directory and fetches cost,
     using validated service account check + micro-increments simulation.
     """
     global _simulated_costs
+    import json
     
-    from app.services.google_auth import load_profile_settings
-    prof_settings = load_profile_settings(profile_id)
-    gcp_project_ids = prof_settings.get("gcp_project_id") or settings.GCP_BILLING_PROJECT_IDS
+    gcp_projects_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "gcp_projects")
+    project_keys = {}  # project_id -> sa_path
+    
+    if os.path.exists(gcp_projects_dir):
+        for fname in os.listdir(gcp_projects_dir):
+            if fname.endswith(".json"):
+                path = os.path.join(gcp_projects_dir, fname)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        key_data = json.load(f)
+                    proj_id = key_data.get("project_id")
+                    if proj_id:
+                        project_keys[proj_id] = path
+                except Exception as e:
+                    logger.error(f"Failed to parse SA key file {fname} in gcp_projects: {e}")
 
-    projects = [p.strip() for p in gcp_project_ids.split(",") if p.strip()]
-    if not projects:
+    # Fallback to legacy or default/demo
+    if not project_keys:
+        legacy_path = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "service_account.json")
+        if os.path.exists(legacy_path):
+            try:
+                with open(legacy_path, "r", encoding="utf-8") as f:
+                    key_data = json.load(f)
+                proj_id = key_data.get("project_id")
+                if proj_id:
+                    project_keys[proj_id] = legacy_path
+            except Exception:
+                pass
+                
+    if not project_keys:
         projects = ["AuraDeck Dev", "Client Prod"]
+    else:
+        projects = list(project_keys.keys())
         
     billing_data = []
     
-    # Initialize simulation base if not exists
     for p in projects:
+        # Initialize simulation base if not exists
         if p not in _simulated_costs:
             if "prod" in p.lower() or "client" in p.lower():
                 _simulated_costs[p] = round(random.uniform(120.0, 160.0), 2)
             else:
                 _simulated_costs[p] = round(random.uniform(8.0, 15.0), 2)
         else:
-            # Increment slightly to simulate running MTD costs
             _simulated_costs[p] = round(_simulated_costs[p] + random.uniform(0.001, 0.005), 4)
             
-    has_sa = creds is not None
-    
-    for p in projects:
-        # If SA exists, we can do a sanity check to verify billing is enabled for the project
         is_enabled = "OK"
-        if has_sa:
-            # Clean project ID format for API
-            clean_p = p.lower().replace(" ", "-")
-            url = f"https://cloudbilling.googleapis.com/v1/projects/{clean_p}/billingInfo"
-            headers = {"Authorization": f"Bearer {creds.token}"}
+        sa_path = project_keys.get(p)
+        
+        if sa_path:
             try:
+                from google.oauth2 import service_account
+                from google.auth.transport.requests import Request
+                
+                scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+                creds = service_account.Credentials.from_service_account_file(sa_path, scopes=scopes)
+                creds.refresh(Request())
+                
+                clean_p = p.lower().replace(" ", "-")
+                url = f"https://cloudbilling.googleapis.com/v1/projects/{clean_p}/billingInfo"
+                headers = {"Authorization": f"Bearer {creds.token}"}
                 async with httpx.AsyncClient() as client:
                     response = await client.get(url, headers=headers, timeout=3.0)
                     if response.status_code == 200:
                         b_info = response.json()
                         if not b_info.get("billingEnabled", False):
                             is_enabled = "BILLING_DISABLED"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Billing SA verification check bypassed for {p}: {e}")
                 
-        # Format project names nicely
         display_name = p.title() if " " in p else p
-        
         billing_data.append({
             "project_name": display_name,
             "cost_mtd": round(_simulated_costs[p], 2),
@@ -158,9 +196,8 @@ async def get_combined_analytics(profile_id: str) -> Dict[str, Any]:
         creds = get_google_sa_credentials(profile_id)
         
         active_users = await get_ga4_active_users(profile_id, creds)
-        billing_costs = await get_gcp_billing_costs(profile_id, creds)
+        billing_costs = await get_gcp_billing_costs(profile_id)
         
-        # Simulate Google Search Console metrics (Clicks and Impressions)
         gsc_clicks = int(random.uniform(1200, 1500))
         gsc_impressions = int(gsc_clicks * random.uniform(18, 22))
         

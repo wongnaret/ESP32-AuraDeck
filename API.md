@@ -44,13 +44,9 @@ Retrieves a profile's current safe configuration (secrets are omitted or represe
     {
       "profile_name": "Office Studio",
       "ga_property_id": "453120000",
-      "gcp_project_id": "auradeck-dashboard",
       "google_client_id": "your-client-id.apps.googleusercontent.com",
       "google_client_secret_configured": true,
       "google_redirect_uri": "http://localhost:8000/google/callback",
-      "spotify_client_id": "your-spotify-id",
-      "spotify_client_secret_configured": true,
-      "spotify_redirect_uri": "http://localhost:8000/spotify/callback",
       "active_task_lists": ["@default", "list_work_items"],
       "google_sa_configured": true
     }
@@ -62,7 +58,6 @@ Updates configuration settings for a profile.
     ```json
     {
       "ga_property_id": "453120000",
-      "gcp_project_id": "auradeck-dashboard",
       "active_task_lists": ["@default", "list_work_items"]
     }
     ```
@@ -75,7 +70,7 @@ Updates configuration settings for a profile.
     ```
 
 #### `POST /api/profiles/{profile_id}/upload-secrets`
-Accepts a JSON upload of OAuth client secrets or Service Account credentials.
+Accepts a JSON upload of OAuth client secrets or legacy single-project Service Account credentials.
 *   **Query Parameters:** `type` (Supported options: `oauth`, `service_account`)
 *   **Request Form File:** `file` (the JSON file)
 *   **Response (`200 OK`):**
@@ -86,6 +81,43 @@ Accepts a JSON upload of OAuth client secrets or Service Account credentials.
     }
     ```
 
+#### `GET /api/profiles/{profile_id}/gcp-projects`
+Lists all multi-project Service Account keys configured under the profile's dedicated storage directory.
+*   **Response (`200 OK`):**
+    ```json
+    [
+      {
+        "project_id": "client-prod-billing",
+        "client_email": "billing-reader@client-prod-billing.iam.gserviceaccount.com"
+      },
+      {
+        "project_id": "internal-auradeck-dev",
+        "client_email": "auradeck-sa@internal-auradeck-dev.iam.gserviceaccount.com"
+      }
+    ]
+    ```
+
+#### `POST /api/profiles/{profile_id}/gcp-projects/upload`
+Uploads and installs a new Service Account JSON key, extracting its native `project_id` and locking it to `{project_id}.json` in the profile workspace folder.
+*   **Request Form File:** `file` (the service account JSON key file)
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "status": "success",
+      "project_id": "internal-auradeck-dev",
+      "message": "Successfully added GCP Project 'internal-auradeck-dev' with Service Account."
+    }
+    ```
+
+#### `DELETE /api/profiles/{profile_id}/gcp-projects/{project_id}`
+Removes a specific GCP project service account key from the profile's workspace directory.
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "status": "success",
+      "message": "Successfully removed GCP Project 'internal-auradeck-dev'."
+    }
+    ```
 ---
 
 ### 2. Unified Google Login & OAuth2 Redirection Endpoints

@@ -665,25 +665,34 @@
                             <input type="text" id="ga-property-id" placeholder="e.g. 453120000">
                         </div>
 
-                        <div class="form-group">
-                            <label for="gcp-project-id">GCP Project ID (Billing & API Target)</label>
-                            <input type="text" id="gcp-project-id" placeholder="e.g. auradeck-smart-dashboard">
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                            <div class="form-group">
-                                <label for="spotify-client-id">Spotify Client ID</label>
-                                <input type="text" id="spotify-client-id" placeholder="Optional Spotify Client Override">
-                            </div>
-                            <div class="form-group">
-                                <label for="spotify-client-secret">Spotify Client Secret</label>
-                                <input type="password" id="spotify-client-secret" placeholder="••••••••">
-                            </div>
-                        </div>
-
                         <button class="btn btn-primary" onclick="saveProfileConfig()" style="margin-top: 10px;">
                             💾 Save Profile Settings
                         </button>
+                    </div>
+
+                    <!-- GCP Multi-Project Service Account Key Manager -->
+                    <div class="card">
+                        <h3 class="card-title" style="margin-bottom: 12px;">📁 GCP Multi-Project Manager</h3>
+                        <p class="card-desc" style="margin-bottom: 16px;">
+                            Add multiple Google Cloud projects owned by any Google accounts. Upload each project's Service Account JSON key to fetch and aggregate billing costs.
+                        </p>
+                        
+                        <!-- Upload Section -->
+                        <div style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255, 255, 255, 0.02); margin-bottom: 20px;" 
+                             id="gcp-drop-zone"
+                             onclick="document.getElementById('gcp-file-input').click()"
+                             onmouseover="this.style.borderColor='rgba(245, 158, 11, 0.7)'; this.style.background='rgba(255, 255, 255, 0.05)'" 
+                             onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.15)'; this.style.background='rgba(255, 255, 255, 0.02)'">
+                            <span style="font-size: 2.2rem;">📥</span>
+                            <h4 style="margin: 12px 0 6px 0; font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">Drag & Drop or Click to Upload</h4>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Upload Service Account JSON Key</p>
+                            <input type="file" id="gcp-file-input" style="display: none;" accept=".json" onchange="uploadGcpProjectKey(this.files[0])">
+                        </div>
+
+                        <!-- Projects List -->
+                        <div id="gcp-projects-list" style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-size: 0.9rem; color: var(--text-muted); text-align: center; padding: 10px;">No GCP Projects added yet.</div>
+                        </div>
                     </div>
 
                     <!-- Google Tasks Multiple List checklist card -->
@@ -898,8 +907,6 @@
                 
                 document.getElementById('sidebar-profile-name').textContent = data.profile_name;
                 document.getElementById('ga-property-id').value = data.ga_property_id || '';
-                document.getElementById('gcp-project-id').value = data.gcp_project_id || '';
-                document.getElementById('spotify-client-id').value = data.google_client_id || ''; // Bind Override ID
                 
                 // Fetch dynamic active credential state
                 const stateResponse = await fetch('/api/status');
@@ -921,17 +928,10 @@
 
         async function saveProfileConfig() {
             const ga_property_id = document.getElementById('ga-property-id').value.trim();
-            const gcp_project_id = document.getElementById('gcp-project-id').value.trim();
-            const spotify_client_id = document.getElementById('spotify-client-id').value.trim();
-            const spotify_client_secret = document.getElementById('spotify-client-secret').value.trim();
 
             const payload = {
-                ga_property_id,
-                gcp_project_id,
+                ga_property_id
             };
-
-            if (spotify_client_id) payload.spotify_client_id = spotify_client_id;
-            if (spotify_client_secret) payload.spotify_client_secret = spotify_client_secret;
 
             try {
                 const response = await fetch(`/api/profiles/${profileId}/config`, {
@@ -948,6 +948,94 @@
             } catch (err) {
                 console.error(err);
                 showToast("Server error saving config.", false);
+            }
+        }
+
+        // Fetch and render the list of uploaded GCP projects with their Service Accounts
+        async function loadGcpProjects() {
+            try {
+                const response = await fetch(`/api/profiles/${profileId}/gcp-projects`);
+                if (!response.ok) return;
+                
+                const projects = await response.json();
+                const listContainer = document.getElementById('gcp-projects-list');
+                
+                if (projects.length === 0) {
+                    listContainer.innerHTML = `<div style="font-size: 0.9rem; color: var(--text-muted); text-align: center; padding: 10px;">No GCP Projects added yet.</div>`;
+                    return;
+                }
+                
+                listContainer.innerHTML = '';
+                projects.forEach(p => {
+                    const projectRow = document.createElement('div');
+                    projectRow.style = 'display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; margin-bottom: 8px;';
+                    projectRow.innerHTML = `
+                        <div style="display: flex; flex-direction: column; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80%;">
+                            <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">📁 ${p.project_id}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📧 SA: ${p.client_email}</span>
+                        </div>
+                        <button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); color: #ef4444;" 
+                                onmouseover="this.style.background='rgba(239, 68, 68, 0.4)'" 
+                                onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'" 
+                                onclick="deleteGcpProjectKey('${p.project_id}')">
+                            🗑️ Delete
+                        </button>
+                    `;
+                    listContainer.appendChild(projectRow);
+                });
+            } catch (err) {
+                console.error("Failed to load GCP projects list:", err);
+            }
+        }
+
+        // Upload a GCP service account JSON key file
+        async function uploadGcpProjectKey(file) {
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch(`/api/profiles/${profileId}/gcp-projects/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`Added GCP Project '${data.project_id}' successfully!`);
+                    loadGcpProjects();
+                } else {
+                    showToast(data.detail || "Failed to upload GCP project key.", false);
+                }
+            } catch (err) {
+                console.error("Upload error:", err);
+                showToast("Server error during upload.", false);
+            }
+            
+            // Clear input
+            document.getElementById('gcp-file-input').value = '';
+        }
+
+        // Delete an uploaded GCP project
+        async function deleteGcpProjectKey(projectId) {
+            if (!confirm(`Are you sure you want to remove GCP Project '${projectId}'?`)) return;
+            
+            try {
+                const response = await fetch(`/api/profiles/${profileId}/gcp-projects/${projectId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`Removed GCP Project '${projectId}'.`);
+                    loadGcpProjects();
+                } else {
+                    showToast(data.detail || "Failed to delete project key.", false);
+                }
+            } catch (err) {
+                console.error("Deletion error:", err);
+                showToast("Server error during deletion.", false);
             }
         }
 
@@ -1263,6 +1351,7 @@
         // Initial loading routines
         async function initializeDashboard() {
             await loadProfileConfig();
+            await loadGcpProjects();
             await loadPairedDevices();
             await fetchAPStatus();
         }
