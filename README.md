@@ -63,7 +63,7 @@ Update `.env` with your API credentials:
 ### 3. Spin Up Container Cluster
 Run the compose file to build and run FastAPI and Mosquitto Broker in the background:
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ### 4. Verify Services
@@ -78,6 +78,42 @@ docker-compose up -d --build
 The control panel features an interactive **Developer Sandbox** enabling you to:
 1.  **Test Live Integrations:** Manually trigger API synchronization routines and display raw response bodies on a scrolling live console.
 2.  **Mock UI Layouts:** Choose your target MQTT topic (`auradeck/spotify`, `auradeck/calendar`, etc.), customize the payload, and click **Publish to Mosquitto** to push the JSON state instantly. This permits full frontend UI testing without needing active API logins.
+
+---
+
+## 🔧 Troubleshooting & Common Issues (การแก้ปัญหาระหว่างติดตั้ง)
+
+Here are standard solutions to common deployment quirks encountered during local setup on the Raspberry Pi:
+
+### 1. `docker-compose: command not found`
+*   **Cause:** Newer Docker installations package Docker Compose as a built-in CLI plugin (`docker compose`) instead of the legacy standalone script (`docker-compose`).
+*   **Solution:** Use the modern space-separated command:
+    ```bash
+    docker compose up -d --build
+    ```
+*   **Alternative:** Install the official Compose plugin if missing:
+    ```bash
+    sudo apt-get update && sudo apt-get install -y docker-compose-plugin
+    ```
+
+### 2. `env file .../backend/.env not found: no such file or directory`
+*   **Cause:** The `.env` configuration is omitted from Git (via `.gitignore`) to safeguard private keys and local config overrides.
+*   **Solution:** Copy the default template and populate it:
+    ```bash
+    cp backend/.env.example backend/.env
+    ```
+
+### 3. `permission denied while trying to connect to the docker API`
+*   **Cause:** Your current Linux session user lacks socket privileges to access `/var/run/docker.sock`.
+*   **Quick Fix:** Prefix the command with `sudo`:
+    ```bash
+    sudo docker compose up -d --build
+    ```
+*   **Permanent Fix (Recommended):** Add your user account to the local `docker` security group so you don't need `sudo` for future runs:
+    ```bash
+    sudo usermod -aG docker $USER
+    newgrp docker
+    ```
 
 ---
 
