@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libc6-dev \
+    network-manager \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python requirements

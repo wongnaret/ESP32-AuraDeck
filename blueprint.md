@@ -227,3 +227,24 @@ To fix this, the ESP32-S3 client utilizes a custom **C++ ThaiReshaper** library:
 1.  **UTF-8 to Unicode Conversion:** The reshaping engine intercepts Thai string payloads and decodes UTF-8 byte streams into 16-bit Unicode characters.
 2.  **Glyph Rules Examination:** It inspects adjacent character types. If an upper vowel is followed by a tone mark, or if characters clash with tall-consonants (like ป, ฝ, ฟ), the engine swaps the standard Unicode code points with pre-compiled **Private Use Area (PUA) codes (`0xF700` to `0xF71F`)**.
 3.  **Special Thai Font Asset:** These PUA code points map to specially shifted and vertically adjusted glyph versions baked into our legacy Thai font files, enabling pixel-perfect, overlapping-free multi-layer vowel stacking directly on the 1-bit screen.
+
+---
+
+## 6. Multi-Profile Workspace & Screen Pairing (AuraDeck 2.0)
+
+AuraDeck 2.0 introduces support for multi-user session isolation, customized per-profile Google Cloud environments, and TV-style wireless screen pairing.
+
+### Multi-Profile Workspace Sandbox
+*   **No Database Dependency:** Configured settings, credentials, and OAuth tokens are stored as lightweight directory files in `backend/tokens/profiles/{profile_id}/settings.json`.
+*   **Stateless OAuth Context Routing:** Since Google and Spotify callbacks are stateless redirects, the state query parameter (`state=profile_id`) acts as a secure cryptographic loop to bind resulting OAuth credentials with the target profile context.
+*   **Dynamic Task Lists Checklist Selector:** Multi-list aggregation gathers and prefix-merges tasks from all selected task lists (e.g., `[Work] Write report` and `[Home] Get milk`) in parallel using `asyncio.gather` for optimal performance.
+
+### TV-Style Wireless Screen Pairing Flow
+When an unconfigured ESP32 screen boots up, it communicates with the Raspberry Pi to register its physical MAC address and obtain a temporary 6-digit numeric pairing PIN code.
+
+1.  **PIN Allocation:** ESP32 requests a PIN via `GET /api/pairing/request?mac=...`.
+2.  **Web Verification:** The user opens the AuraDeck Web Portal, enters the PIN, and pairs the physical screen with their logged profile (`POST /api/pairing/verify`).
+3.  **Session Binding:** Once paired, the background schedulers retrieve API states per-profile and publish to device-specific MQTT channels: `auradeck/device/{mac}/{service}` (e.g. `auradeck/device/84:F3:EB:C9:4A:E1/spotify`).
+
+### Container-to-Host D-Bus AP Communication
+The FastAPI backend container mounts the host Raspberry Pi's system bus (`/var/run/dbus/system_bus_socket`) inside the Docker container environment and utilizes the native `network-manager` tool (`nmcli`) to safely toggle, query, and monitor the host's physical AuraDeck hotspot without security escalation.

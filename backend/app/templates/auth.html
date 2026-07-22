@@ -60,6 +60,7 @@
             border-right: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
             padding: 32px 24px;
             position: fixed;
             height: 100vh;
@@ -100,6 +101,7 @@
             flex-direction: column;
             gap: 8px;
             list-style: none;
+            flex: 1;
         }
 
         .nav-item {
@@ -125,7 +127,30 @@
             color: var(--text-main);
             background: linear-gradient(to right, rgba(139, 92, 246, 0.15), transparent);
             border-left: 3px solid var(--primary);
-            padding-left: 15px; /* Adjust padding due to border */
+            padding-left: 15px;
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .profile-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .profile-name-tag {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         /* Main Content Panel */
@@ -179,6 +204,13 @@
             margin-bottom: 32px;
         }
 
+        .split-layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 32px;
+            margin-bottom: 32px;
+        }
+
         /* Premium Card Design (Glassmorphism) */
         .card {
             background: var(--bg-card);
@@ -189,6 +221,7 @@
             transition: var(--transition);
             position: relative;
             overflow: hidden;
+            margin-bottom: 24px;
         }
 
         .card::before {
@@ -248,6 +281,18 @@
             border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
+        .status-badge.active-pulse {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--secondary);
+            border: 1px solid rgba(0, 240, 255, 0.25);
+            animation: pulse-glow 2s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 5px rgba(0, 240, 255, 0.1); }
+            to { box-shadow: 0 0 15px rgba(0, 240, 255, 0.4); }
+        }
+
         .status-dot {
             width: 6px;
             height: 6px;
@@ -259,7 +304,7 @@
             color: var(--text-muted);
             font-size: 14px;
             line-height: 1.6;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
 
         /* Buttons and Interactive Elements */
@@ -271,7 +316,7 @@
             font-family: var(--font-sans);
             font-size: 14px;
             font-weight: 600;
-            padding: 14px 24px;
+            padding: 12px 20px;
             border-radius: var(--radius-md);
             cursor: pointer;
             text-decoration: none;
@@ -302,13 +347,13 @@
         }
 
         .btn-danger {
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.15);
             color: var(--danger);
-            border: 1px solid rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.25);
         }
 
         .btn-danger:hover {
-            background: rgba(239, 68, 68, 0.15);
+            background: rgba(239, 68, 68, 0.25);
         }
 
         /* Sandbox Sandbox & Testing Panel */
@@ -328,6 +373,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            margin-bottom: 16px;
         }
 
         label {
@@ -341,17 +387,70 @@
             background: rgba(10, 11, 16, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: var(--radius-md);
-            padding: 14px 18px;
+            padding: 12px 16px;
             color: var(--text-main);
             font-family: var(--font-sans);
-            font-size: 15px;
+            font-size: 14px;
             transition: var(--transition);
             outline: none;
+            width: 100%;
         }
 
         select:focus, input:focus, textarea:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        /* Task list checklist styles */
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .checkbox-item input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* Pairing code list layout */
+        .paired-list {
+            margin-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 16px;
+        }
+
+        .paired-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .paired-mac {
+            font-family: var(--font-mono);
+            color: var(--secondary);
+            font-weight: 600;
         }
 
         /* Terminal Console */
@@ -404,7 +503,7 @@
             font-family: var(--font-mono);
             font-size: 13px;
             line-height: 1.6;
-            color: #38bdf8; /* Soft blue console color */
+            color: #38bdf8;
         }
 
         .json-editor {
@@ -496,15 +595,30 @@
 
     <!-- Left Sidebar -->
     <div class="sidebar">
-        <div class="brand">
-            <div class="brand-icon">🧬</div>
-            <div class="brand-name">AuraDeck</div>
+        <div style="display: flex; flex-direction: column; gap: 40px; width: 100%;">
+            <div class="brand">
+                <div class="brand-icon">🧬</div>
+                <div class="brand-name">AuraDeck</div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" id="nav-integrations" onclick="switchTab('integrations', this)">🔌 Integration Hub</li>
+                <li class="nav-item" id="nav-sandbox" onclick="switchTab('sandbox', this)">🛠️ Developer Sandbox</li>
+                <li class="nav-item" onclick="window.open('/docs', '_blank')">📖 OpenAPI Documentation ↗</li>
+            </ul>
         </div>
-        <ul class="nav-menu">
-            <li class="nav-item active" onclick="switchTab('integrations', this)">🔌 Integration Hub</li>
-            <li class="nav-item" onclick="switchTab('sandbox', this)">🛠️ Developer Sandbox</li>
-            <li class="nav-item" onclick="window.open('/docs', '_blank')">📖 OpenAPI Documentation ↗</li>
-        </ul>
+        
+        <div class="sidebar-footer">
+            <div class="profile-label">Logged Profile</div>
+            <div class="profile-name-tag">
+                <span>👤</span> <span id="sidebar-profile-name">Loading...</span>
+            </div>
+            <button class="btn btn-secondary" style="padding: 10px; font-size: 12px;" onclick="window.location.href='/login'">
+                🔄 Switch Profile
+            </button>
+            <button class="btn btn-danger" style="padding: 10px; font-size: 12px;" onclick="window.location.href='/logout'">
+                🚪 Logout Center
+            </button>
+        </div>
     </div>
 
     <!-- Main Workspace -->
@@ -513,8 +627,8 @@
         <!-- Tab 1: Integration Hub -->
         <div id="integrations" class="tab-content active">
             <header>
-                <h1>Integration Hub</h1>
-                <p class="subtitle">Secure Google Cloud and Spotify API accounts to synchronize real-time widgets.</p>
+                <h1>Integration Console</h1>
+                <p class="subtitle">Secure Google Workspace and Spotify premium connections, select target lists, and pair smart screens.</p>
             </header>
 
             <div class="grid-cards">
@@ -526,7 +640,7 @@
                             <span class="status-dot"></span><span class="status-text">Disconnected</span>
                         </span>
                     </div>
-                    <p class="card-desc">Grants read-only access to Google Calendar agendas and Google Tasks checklists. Connect once and tokens are safely cached on disk.</p>
+                    <p class="card-desc">Grants access to Google Calendar agendas and Google Tasks checklists. Connect once and tokens are safely cached on disk.</p>
                     <button id="google-btn" class="btn btn-primary" onclick="authorizeService('google')">Authorize Google</button>
                 </div>
 
@@ -538,8 +652,114 @@
                             <span class="status-dot"></span><span class="status-text">Disconnected</span>
                         </span>
                     </div>
-                    <p class="card-desc">Tracks real-time track metadata (Track Name, Artist, duration, playback status) to render progress-bar widgets on the Smart LCD.</p>
+                    <p class="card-desc">Tracks real-time track metadata (Title, Artist, Duration, Progress) to render interactive playback widgets on the LCD screen.</p>
                     <button id="spotify-btn" class="btn btn-primary" onclick="authorizeService('spotify')">Authorize Spotify</button>
+                </div>
+            </div>
+
+            <div class="split-layout">
+                <!-- Left: Profile Integration Configurations -->
+                <div class="layout-column">
+                    <div class="card">
+                        <h3 class="card-title" style="margin-bottom: 20px;">⚙️ Profile & Custom APIs Setup</h3>
+                        
+                        <div class="form-group">
+                            <label for="ga-property-id">Google Analytics 4 Property ID</label>
+                            <input type="text" id="ga-property-id" placeholder="e.g. 453120000">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="gcp-project-id">GCP Project ID (Billing & API Target)</label>
+                            <input type="text" id="gcp-project-id" placeholder="e.g. auradeck-smart-dashboard">
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="form-group">
+                                <label for="spotify-client-id">Spotify Client ID</label>
+                                <input type="text" id="spotify-client-id" placeholder="Optional Spotify Client Override">
+                            </div>
+                            <div class="form-group">
+                                <label for="spotify-client-secret">Spotify Client Secret</label>
+                                <input type="password" id="spotify-client-secret" placeholder="••••••••">
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" onclick="saveProfileConfig()" style="margin-top: 10px;">
+                            💾 Save Profile Settings
+                        </button>
+                    </div>
+
+                    <!-- Google Tasks Multiple List checklist card -->
+                    <div class="card" id="task-lists-card" style="display: none;">
+                        <h3 class="card-title" style="margin-bottom: 12px;">✅ Selected Google Task Lists</h3>
+                        <p class="card-desc" style="margin-bottom: 16px;">
+                            Select which task lists should be aggregated together, prefixed, and pushed as a single list onto your ESP32 display.
+                        </p>
+                        <div class="checkbox-grid" id="task-lists-container">
+                            <div style="font-size: 0.9rem; color: var(--text-muted);">Fetching lists...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Pairing and AP Status -->
+                <div class="layout-column">
+                    <!-- Screen Pairing Code Manager -->
+                    <div class="card">
+                        <h3 class="card-title" style="margin-bottom: 16px;">📺 Pair AuraDeck Screen</h3>
+                        <p class="card-desc" style="margin-bottom: 16px;">
+                            When an unconfigured ESP32 boots up, it showcases a 6-digit numeric pairing PIN. Input the PIN below to assign that screen to your profile.
+                        </p>
+                        
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <label for="pair-pin">6-Digit TV Pairing PIN</label>
+                            <div style="display: flex; gap: 12px;">
+                                <input type="text" id="pair-pin" placeholder="123456" maxlength="6" style="text-align: center; font-size: 1.25rem; font-weight: 700; letter-spacing: 4px; font-family: var(--font-mono);">
+                                <button class="btn btn-primary" onclick="pairDevice()" style="width: auto; padding-left: 30px; padding-right: 30px;">
+                                    Pair
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="paired-list">
+                            <label style="display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--text-muted);">Paired Devices under this Profile:</label>
+                            <div id="paired-devices-container">
+                                <div style="font-size: 0.85rem; color: var(--text-muted);">No screens paired yet.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AuraDeck Local Access Point Status Card -->
+                    <div class="card">
+                        <div class="card-header" style="margin-bottom: 16px;">
+                            <span class="card-title">📶 AuraDeck Local Access Point</span>
+                            <span id="ap-status-badge" class="status-badge active-pulse">
+                                <span class="status-dot"></span><span id="ap-status-text">Active</span>
+                            </span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; font-size: 0.9rem;">
+                            <div>
+                                <span style="color: var(--text-muted); display:block; margin-bottom: 4px;">SSID Name</span>
+                                <strong id="ap-ssid" style="font-family: var(--font-mono);">AuraDeck_Hotspot</strong>
+                            </div>
+                            <div>
+                                <span style="color: var(--text-muted); display:block; margin-bottom: 4px;">WPA2 Key</span>
+                                <strong id="ap-password" style="font-family: var(--font-mono);">AuraDeck1234</strong>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <span style="color: var(--text-muted); display:block; margin-bottom: 4px;">IP Gateway</span>
+                                <strong id="ap-gateway" style="font-family: var(--font-mono);">10.42.0.1</strong>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <span style="color: var(--text-muted); display:block; margin-bottom: 4px;">Connected Clients</span>
+                                <strong id="ap-clients">0 Devices</strong>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-secondary" onclick="restartHotspot()" id="ap-restart-btn">
+                            🔄 Restart Local Hotspot AP
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -641,6 +861,8 @@
     </div>
 
     <script>
+        const profileId = "{{ profile_id }}";
+
         // Tab switching logic
         function switchTab(tabId, element) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -666,21 +888,251 @@
 
         // Redirect to authorization pathways
         function authorizeService(service) {
-            window.location.href = `/${service}/login`;
+            window.location.href = `/${service}/login?profile_id=${profileId}`;
         }
 
-        // Fetch current connected states on load
-        async function fetchStatus() {
+        // Fetch current profile configuration and statuses
+        async function loadProfileConfig() {
             try {
-                const r = await fetch('/api/status');
-                const data = await r.json();
+                const response = await fetch(`/api/profiles/${profileId}/config`);
+                if (!response.ok) return;
                 
-                updateBadge('google-status', 'google-btn', data.google);
-                updateBadge('spotify-status', 'spotify-btn', data.spotify);
-            } catch (e) {
-                console.error("Failed to fetch integration states: ", e);
+                const data = await response.json();
+                
+                document.getElementById('sidebar-profile-name').textContent = data.profile_name;
+                document.getElementById('ga-property-id').value = data.ga_property_id || '';
+                document.getElementById('gcp-project-id').value = data.gcp_project_id || '';
+                document.getElementById('spotify-client-id').value = data.google_client_id || ''; // Bind Override ID
+                
+                // Fetch dynamic active credential state
+                const stateResponse = await fetch('/api/status');
+                const stateData = await stateResponse.json();
+                
+                updateBadge('google-status', 'google-btn', stateData.google);
+                updateBadge('spotify-status', 'spotify-btn', stateData.spotify);
+                
+                if (stateData.google) {
+                    document.getElementById('task-lists-card').style.display = 'block';
+                    loadGoogleTaskLists(data.active_task_lists);
+                } else {
+                    document.getElementById('task-lists-card').style.display = 'none';
+                }
+            } catch (err) {
+                console.error("Failed to load profile configuration: ", err);
             }
         }
+
+        async function saveProfileConfig() {
+            const ga_property_id = document.getElementById('ga-property-id').value.trim();
+            const gcp_project_id = document.getElementById('gcp-project-id').value.trim();
+            const spotify_client_id = document.getElementById('spotify-client-id').value.trim();
+            const spotify_client_secret = document.getElementById('spotify-client-secret').value.trim();
+
+            const payload = {
+                ga_property_id,
+                gcp_project_id,
+            };
+
+            if (spotify_client_id) payload.spotify_client_id = spotify_client_id;
+            if (spotify_client_secret) payload.spotify_client_secret = spotify_client_secret;
+
+            try {
+                const response = await fetch(`/api/profiles/${profileId}/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    showToast("Profile settings saved successfully.");
+                } else {
+                    showToast("Failed to save profile configuration.", false);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Server error saving config.", false);
+            }
+        }
+
+        // Fetch and render Google Task Lists
+        async function loadGoogleTaskLists(selectedLists) {
+            const container = document.getElementById('task-lists-container');
+            try {
+                const response = await fetch(`/api/profiles/${profileId}/google-lists`);
+                if (!response.ok) {
+                    container.innerHTML = `<div style="font-size: 0.9rem; color: var(--danger);">Google API query failed. Try re-authorizing Google.</div>`;
+                    return;
+                }
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    container.innerHTML = `<div style="font-size: 0.9rem; color: var(--text-muted);">No task lists found on this Google account.</div>`;
+                    return;
+                }
+
+                container.innerHTML = '';
+                data.forEach(lst => {
+                    const isChecked = selectedLists && selectedLists.includes(lst.id);
+                    const item = document.createElement('label');
+                    item.className = 'checkbox-item';
+                    item.innerHTML = `
+                        <input type="checkbox" value="${lst.id}" ${isChecked ? 'checked' : ''} onchange="updateSelectedTaskLists()">
+                        <span>${lst.title}</span>
+                    `;
+                    container.appendChild(item);
+                });
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<div style="font-size: 0.9rem; color: var(--danger);">Error fetching list data.</div>`;
+            }
+        }
+
+        async function updateSelectedTaskLists() {
+            const checkboxes = document.querySelectorAll('#task-lists-container input[type="checkbox"]');
+            const selected = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) selected.push(cb.value);
+            });
+
+            try {
+                await fetch(`/api/profiles/${profileId}/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active_task_lists: selected })
+                });
+                showToast("Task lists list selection saved.");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Device Pairing Management
+        async function loadPairedDevices() {
+            const container = document.getElementById('paired-devices-container');
+            try {
+                const response = await fetch('/api/pairing/list');
+                if (!response.ok) return;
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    container.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No screens paired yet. Ready to pair.</div>`;
+                    return;
+                }
+
+                container.innerHTML = '';
+                data.forEach(dev => {
+                    const item = document.createElement('div');
+                    item.className = 'paired-item';
+                    item.innerHTML = `
+                        <div>
+                            <span class="paired-mac">${dev.mac}</span>
+                            <span style="display:block; font-size: 0.75rem; color: var(--text-muted);">Paired: ${dev.paired_at}</span>
+                        </div>
+                        <button class="btn btn-danger" style="width: auto; padding: 6px 12px; font-size: 11px;" onclick="unpairDevice('${dev.mac}')">
+                            Unpair
+                        </button>
+                    `;
+                    container.appendChild(item);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function pairDevice() {
+            const pin = document.getElementById('pair-pin').value.trim();
+            if (pin.length !== 6 || isNaN(pin)) return alert("Please enter a valid 6-digit PIN.");
+
+            try {
+                const response = await fetch('/api/pairing/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin, profile_id: profileId })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('pair-pin').value = '';
+                    showToast("Screen paired successfully!");
+                    loadPairedDevices();
+                } else {
+                    alert(data.detail || "Pairing failed. Confirm the PIN is correct and not expired.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Server error verifying PIN.");
+            }
+        }
+
+        async function unpairDevice(mac) {
+            if (!confirm(`Are you sure you want to unpair device ${mac}?`)) return;
+
+            try {
+                const response = await fetch(`/api/pairing/unpair?mac=${mac}`, { method: 'POST' });
+                if (response.ok) {
+                    showToast("Device unpaired.");
+                    loadPairedDevices();
+                } else {
+                    const data = await response.json();
+                    alert(data.detail || "Failed to unpair device.");
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Access Point Status Card Update
+        async function fetchAPStatus() {
+            try {
+                const response = await fetch('/api/ap/status');
+                if (!response.ok) return;
+                const data = await response.json();
+
+                const badge = document.getElementById('ap-status-badge');
+                const text = document.getElementById('ap-status-text');
+                
+                text.textContent = data.status;
+                if (data.status.includes('Active')) {
+                    badge.className = "status-badge active-pulse";
+                } else {
+                    badge.className = "status-badge disconnected";
+                }
+
+                document.getElementById('ap-ssid').textContent = data.ssid;
+                document.getElementById('ap-password').textContent = data.password;
+                document.getElementById('ap-gateway').textContent = data.gateway;
+                document.getElementById('ap-clients').textContent = `${data.clients_connected} Devices`;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function restartHotspot() {
+            const btn = document.getElementById('ap-restart-btn');
+            btn.disabled = true;
+            btn.textContent = "Restarting Hotspot AP...";
+            showToast("Rebooting hotspot access point connection. Standby...");
+
+            try {
+                const response = await fetch('/api/ap/restart', { method: 'POST' });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(data.message);
+                } else {
+                    showToast("Failed to restart hotspot.", false);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Connection timed out. Hotspot restarting.", true);
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = "🔄 Restart Local Hotspot AP";
+                    fetchAPStatus();
+                }, 3000);
+            }
+        }
+
 
         function updateBadge(badgeId, btnId, isConnected) {
             const badge = document.getElementById(badgeId);
@@ -811,10 +1263,19 @@
             }
         }
 
-        // On document load
-        fetchStatus();
-        // Check states periodically
-        setInterval(fetchStatus, 10000);
+        // Initial loading routines
+        async function initializeDashboard() {
+            await loadProfileConfig();
+            await loadPairedDevices();
+            await fetchAPStatus();
+        }
+
+        initializeDashboard();
+        
+        // Polling states periodically (Rule 5)
+        setInterval(loadProfileConfig, 15000);
+        setInterval(loadPairedDevices, 15000);
+        setInterval(fetchAPStatus, 15000);
     </script>
 </body>
 </html>

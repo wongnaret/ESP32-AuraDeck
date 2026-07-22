@@ -7,22 +7,48 @@ from app.config import settings
 
 logger = logging.getLogger("auth_service")
 
-class TokenManager:
-    """Manages secure reading, writing, and auto-refreshing of OAuth2 tokens."""
+def load_profile_settings(profile_id: str) -> Dict[str, Any]:
+    """Loads settings.json for a specific profile."""
+    profile_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
+    settings_path = os.path.join(profile_dir, "settings.json")
+    if not os.path.exists(settings_path):
+        return {}
+    try:
+        with open(settings_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load settings for profile {profile_id}: {e}")
+        return {}
+
+def save_profile_settings(profile_id: str, data: Dict[str, Any]):
+    """Saves settings.json for a specific profile."""
+    profile_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
+    os.makedirs(profile_dir, exist_ok=True)
+    settings_path = os.path.join(profile_dir, "settings.json")
+    try:
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Failed to save settings for profile {profile_id}: {e}")
+
+class ProfileTokenManager:
+    """Manages secure reading, writing, and auto-refreshing of OAuth2 tokens per profile."""
     
-    def __init__(self, service_name: str, token_filename: str):
+    def __init__(self, profile_id: str, service_name: str):
+        self.profile_id = profile_id
         self.service_name = service_name
-        self.token_path = os.path.join(settings.TOKENS_DIR, token_filename)
-        os.makedirs(settings.TOKENS_DIR, exist_ok=True)
+        self.profile_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
+        self.token_path = os.path.join(self.profile_dir, f"{service_name.lower()}_tokens.json")
+        os.makedirs(self.profile_dir, exist_ok=True)
 
     def save_tokens(self, token_data: Dict[str, Any]):
         """Persists token dictionary to disk."""
         try:
             with open(self.token_path, "w", encoding="utf-8") as f:
                 json.dump(token_data, f, indent=2, ensure_ascii=False)
-            logger.info(f"Successfully saved {self.service_name} credentials to disk.")
+            logger.info(f"Successfully saved {self.service_name} credentials for profile {self.profile_id} to disk.")
         except Exception as e:
-            logger.error(f"Failed to save {self.service_name} credentials: {e}")
+            logger.error(f"Failed to save {self.service_name} credentials for profile {self.profile_id}: {e}")
 
     def load_tokens(self) -> Optional[Dict[str, Any]]:
         """Loads cached tokens from disk."""
@@ -32,7 +58,7 @@ class TokenManager:
             with open(self.token_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"Failed to load {self.service_name} credentials: {e}")
+            logger.error(f"Failed to load {self.service_name} credentials for profile {self.profile_id}: {e}")
             return None
 
     def has_credentials(self) -> bool:
@@ -41,37 +67,42 @@ class TokenManager:
         return tokens is not None and "refresh_token" in tokens
 
 
-# Singletons for both Google and Spotify
-google_tokens = TokenManager("Google", "google_tokens.json")
-spotify_tokens = TokenManager("Spotify", "spotify_tokens.json")
-
-
-def get_google_auth_url() -> str:
-    """Generates the Google OAuth2 authorization URL."""
+def get_google_auth_url(profile_id: str) -> str:
+    """Generates the Google OAuth2 authorization URL for a specific profile."""
+    prof_settings = load_profile_settings(profile_id)
+    client_id = prof_settings.get("google_client_id") or settings.GOOGLE_CLIENT_ID
+    redirect_uri = prof_settings.get("google_redirect_uri") or settings.GOOGLE_REDIRECT_URI
+    
     scopes = [
         "https://www.googleapis.com/auth/calendar.readonly",
         "https://www.googleapis.com/auth/tasks.readonly"
     ]
     params = {
-        "client_id": settings.GOOGLE_CLIENT_ID,
-        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": " ".join(scopes),
         "access_type": "offline",
-        "prompt": "consent"
+        "prompt": "consent",
+        "state": profile_id
     }
     query_string = "&".join(f"{k}={v}" for k, v in params.items())
     return f"https://accounts.google.com/o/oauth2/v2/auth?{query_string}"
 
 
-async def exchange_google_code(code: str) -> Optional[Dict[str, Any]]:
+async def exchange_google_code(profile_id: str, code: str) -> Optional[Dict[str, Any]]:
     """Exchanges Google auth code for access & refresh tokens."""
+    prof_settings = load_profile_settings(profile_id)
+    client_id = prof_settings.get("google_client_id") or settings.GOOGLE_CLIENT_ID
+    client_secret = prof_settings.get("google_client_secret") or settings.GOOGLE_CLIENT_SECRET
+    redirect_uri = prof_settings.get("google_redirect_uri") or settings.GOOGLE_REDIRECT_URI
+    
     url = "https://oauth2.googleapis.com/token"
     data = {
         "code": code,
-        "client_id": settings.GOOGLE_CLIENT_ID,
-        "client_secret": settings.GOOGLE_CLIENT_SECRET,
-        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
         "grant_type": "authorization_code"
     }
     async with httpx.AsyncClient() as client:
@@ -79,27 +110,33 @@ async def exchange_google_code(code: str) -> Optional[Dict[str, Any]]:
             response = await client.post(url, data=data)
             if response.status_code == 200:
                 token_data = response.json()
-                google_tokens.save_tokens(token_data)
+                mgr = ProfileTokenManager(profile_id, "Google")
+                mgr.save_tokens(token_data)
                 return token_data
             else:
-                logger.error(f"Google code exchange failed: {response.status_code} - {response.text}")
+                logger.error(f"Google code exchange failed for profile {profile_id}: {response.status_code} - {response.text}")
                 return None
         except Exception as e:
-            logger.error(f"Error during Google code exchange: {e}")
+            logger.error(f"Error during Google code exchange for profile {profile_id}: {e}")
             return None
 
 
-async def refresh_google_token() -> Optional[str]:
+async def refresh_google_token(profile_id: str) -> Optional[str]:
     """Refreshes the Google access token silently using cached refresh token."""
-    cached = google_tokens.load_tokens()
+    mgr = ProfileTokenManager(profile_id, "Google")
+    cached = mgr.load_tokens()
     if not cached or "refresh_token" not in cached:
-        logger.warning("No Google refresh token available to refresh access token.")
+        logger.warning(f"No Google refresh token available for profile {profile_id} to refresh access token.")
         return None
         
+    prof_settings = load_profile_settings(profile_id)
+    client_id = prof_settings.get("google_client_id") or settings.GOOGLE_CLIENT_ID
+    client_secret = prof_settings.get("google_client_secret") or settings.GOOGLE_CLIENT_SECRET
+    
     url = "https://oauth2.googleapis.com/token"
     data = {
-        "client_id": settings.GOOGLE_CLIENT_ID,
-        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "client_id": client_id,
+        "client_secret": client_secret,
         "refresh_token": cached["refresh_token"],
         "grant_type": "refresh_token"
     }
@@ -108,73 +145,87 @@ async def refresh_google_token() -> Optional[str]:
             response = await client.post(url, data=data)
             if response.status_code == 200:
                 new_data = response.json()
-                # Google might not send a new refresh token, preserve old one
                 if "refresh_token" not in new_data:
                     new_data["refresh_token"] = cached["refresh_token"]
-                google_tokens.save_tokens(new_data)
+                mgr.save_tokens(new_data)
                 return new_data["access_token"]
             else:
-                logger.error(f"Google token refresh failed: {response.status_code} - {response.text}")
+                logger.error(f"Google token refresh failed for profile {profile_id}: {response.status_code} - {response.text}")
                 return None
         except Exception as e:
-            logger.error(f"Error during Google token refresh: {e}")
+            logger.error(f"Error during Google token refresh for profile {profile_id}: {e}")
             return None
 
 
 # --- Spotify Auth Services ---
 
-def get_spotify_auth_url() -> str:
+def get_spotify_auth_url(profile_id: str) -> str:
     """Generates the Spotify OAuth2 authorization URL."""
+    prof_settings = load_profile_settings(profile_id)
+    client_id = prof_settings.get("spotify_client_id") or settings.SPOTIFY_CLIENT_ID
+    redirect_uri = prof_settings.get("spotify_redirect_uri") or settings.SPOTIFY_REDIRECT_URI
+    
     scopes = ["user-read-currently-playing", "user-read-playback-state"]
     params = {
-        "client_id": settings.SPOTIFY_CLIENT_ID,
-        "redirect_uri": settings.SPOTIFY_REDIRECT_URI,
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": " ".join(scopes),
-        "show_dialog": "true"
+        "show_dialog": "true",
+        "state": profile_id
     }
     query_string = "&".join(f"{k}={v}" for k, v in params.items())
     return f"https://accounts.spotify.com/authorize?{query_string}"
 
 
-async def exchange_spotify_code(code: str) -> Optional[Dict[str, Any]]:
+async def exchange_spotify_code(profile_id: str, code: str) -> Optional[Dict[str, Any]]:
     """Exchanges Spotify auth code for access & refresh tokens."""
+    prof_settings = load_profile_settings(profile_id)
+    client_id = prof_settings.get("spotify_client_id") or settings.SPOTIFY_CLIENT_ID
+    client_secret = prof_settings.get("spotify_client_secret") or settings.SPOTIFY_CLIENT_SECRET
+    redirect_uri = prof_settings.get("spotify_redirect_uri") or settings.SPOTIFY_REDIRECT_URI
+    
     url = "https://accounts.spotify.com/api/token"
     data = {
         "code": code,
-        "redirect_uri": settings.SPOTIFY_REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "grant_type": "authorization_code"
     }
-    # Spotify OAuth requires Client ID and Secret in HTTP Basic Auth, or POST body
-    auth = (settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET)
+    auth = (client_id, client_secret)
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(url, data=data, auth=auth)
             if response.status_code == 200:
                 token_data = response.json()
-                spotify_tokens.save_tokens(token_data)
+                mgr = ProfileTokenManager(profile_id, "Spotify")
+                mgr.save_tokens(token_data)
                 return token_data
             else:
-                logger.error(f"Spotify code exchange failed: {response.status_code} - {response.text}")
+                logger.error(f"Spotify code exchange failed for profile {profile_id}: {response.status_code} - {response.text}")
                 return None
         except Exception as e:
-            logger.error(f"Error during Spotify code exchange: {e}")
+            logger.error(f"Error during Spotify code exchange for profile {profile_id}: {e}")
             return None
 
 
-async def refresh_spotify_token() -> Optional[str]:
+async def refresh_spotify_token(profile_id: str) -> Optional[str]:
     """Refreshes the Spotify access token silently."""
-    cached = spotify_tokens.load_tokens()
+    mgr = ProfileTokenManager(profile_id, "Spotify")
+    cached = mgr.load_tokens()
     if not cached or "refresh_token" not in cached:
-        logger.warning("No Spotify refresh token available to refresh access token.")
+        logger.warning(f"No Spotify refresh token available for profile {profile_id} to refresh access token.")
         return None
         
+    prof_settings = load_profile_settings(profile_id)
+    client_id = prof_settings.get("spotify_client_id") or settings.SPOTIFY_CLIENT_ID
+    client_secret = prof_settings.get("spotify_client_secret") or settings.SPOTIFY_CLIENT_SECRET
+    
     url = "https://accounts.spotify.com/api/token"
     data = {
         "grant_type": "refresh_token",
         "refresh_token": cached["refresh_token"]
     }
-    auth = (settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET)
+    auth = (client_id, client_secret)
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(url, data=data, auth=auth)
@@ -182,11 +233,11 @@ async def refresh_spotify_token() -> Optional[str]:
                 new_data = response.json()
                 if "refresh_token" not in new_data:
                     new_data["refresh_token"] = cached["refresh_token"]
-                spotify_tokens.save_tokens(new_data)
+                mgr.save_tokens(new_data)
                 return new_data["access_token"]
             else:
-                logger.error(f"Spotify token refresh failed: {response.status_code} - {response.text}")
+                logger.error(f"Spotify token refresh failed for profile {profile_id}: {response.status_code} - {response.text}")
                 return None
         except Exception as e:
-            logger.error(f"Error during Spotify token refresh: {e}")
+            logger.error(f"Error during Spotify token refresh for profile {profile_id}: {e}")
             return None

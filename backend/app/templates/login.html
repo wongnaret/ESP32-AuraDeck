@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraDeck Server Center — Login & Profiles</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SVG Icons or Custom Inline Style -->
+    <style>
+        :root {
+            --bg-color: #080911;
+            --card-bg: rgba(20, 22, 39, 0.45);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #8a2be2;
+            --primary-glow: rgba(138, 43, 226, 0.4);
+            --secondary: #00f0ff;
+            --secondary-glow: rgba(0, 240, 255, 0.3);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-sans: 'Outfit', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Ambient background glow */
+        .ambient-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.15;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .glow-1 {
+            top: -10%;
+            left: -10%;
+            background: var(--primary);
+        }
+
+        .glow-2 {
+            bottom: -10%;
+            right: -10%;
+            background: var(--secondary);
+        }
+
+        /* Container styling */
+        .container {
+            width: 100%;
+            max-width: 900px;
+            padding: 2rem;
+            z-index: 1;
+        }
+
+        /* Header block */
+        header {
+            text-align: center;
+            margin-bottom: 3.5rem;
+        }
+
+        header h1 {
+            font-family: var(--font-display);
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-main) 30%, #a855f7 70%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.05em;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.15rem;
+            font-weight: 300;
+        }
+
+        /* Profile grid */
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .profile-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .profile-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(138, 43, 226, 0.4);
+            box-shadow: 0 10px 30px rgba(138, 43, 226, 0.15);
+        }
+
+        .profile-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .profile-card:hover::before {
+            opacity: 1;
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .profile-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.2), rgba(0, 240, 255, 0.2));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            color: var(--secondary);
+            font-weight: 600;
+        }
+
+        .profile-details h3 {
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 0.15rem;
+        }
+
+        .profile-details p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .profile-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.65rem 1.25rem;
+            border-radius: 10px;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #a855f7);
+            color: var(--text-main);
+            border: none;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px var(--primary-glow);
+            transform: scale(1.02);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            width: auto;
+            padding: 0.65rem;
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        /* Create profile card slot */
+        .create-slot {
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .create-slot:hover {
+            border-color: var(--secondary);
+            background: rgba(0, 240, 255, 0.02);
+            cursor: pointer;
+        }
+
+        .create-slot svg {
+            width: 40px;
+            height: 40px;
+            stroke: var(--text-muted);
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .create-slot:hover svg {
+            stroke: var(--secondary);
+            transform: rotate(90deg);
+        }
+
+        .create-slot span {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Modal backdrop & styling */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(4, 5, 10, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: #111222;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            position: relative;
+        }
+
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: var(--text-main);
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.2);
+        }
+
+        /* Upload area */
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.01);
+            margin-top: 0.5rem;
+        }
+
+        .upload-area:hover {
+            border-color: var(--secondary);
+            background: rgba(0, 240, 255, 0.02);
+        }
+
+        .upload-area svg {
+            width: 32px;
+            height: 32px;
+            stroke: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-area p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .upload-area input {
+            display: none;
+        }
+
+        .success-banner {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="container">
+        <header>
+            <h1>AuraDeck Server Hub</h1>
+            <p>Select your smart display profile to configure integrations, settings, and pairing codes</p>
+        </header>
+
+        <div class="profile-grid">
+            <!-- Render Profiles -->
+            {% for profile in profiles %}
+            <div class="profile-card" onclick="window.location.href='/select-profile/{{ profile.id }}'">
+                <div class="profile-info">
+                    <div class="profile-avatar">
+                        {{ profile.name[0] | upper }}
+                    </div>
+                    <div class="profile-details">
+                        <h3>{{ profile.name }}</h3>
+                        <p>ID: {{ profile.id }}</p>
+                    </div>
+                </div>
+                <div class="profile-actions" onclick="event.stopPropagation();">
+                    <button class="btn btn-primary" onclick="window.location.href='/select-profile/{{ profile.id }}'">
+                        Launch Dashboard
+                    </button>
+                    <button class="btn btn-secondary" title="Configure Secrets & OAuth" onclick="openCredentialsModal('{{ profile.id }}', '{{ profile.name }}')">
+                        🔑 Config Keys
+                    </button>
+                    {% if profile.id != 'default' %}
+                    <button class="btn btn-danger" title="Delete Profile" onclick="deleteProfile('{{ profile.id }}')">
+                        🗑️
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Create Profile slot -->
+            <div class="create-slot" onclick="openCreateModal()">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                <span>Create New Profile</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 1: Create Profile -->
+    <div class="modal" id="createProfileModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Profile</h2>
+                <button class="close-btn" onclick="closeModal('createProfileModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="new_profile_name">Profile Display Name</label>
+                <input type="text" id="new_profile_name" class="form-control" placeholder="e.g. Master Bedroom, Office Studio">
+            </div>
+            <button class="btn btn-primary" onclick="submitCreateProfile()">Create & Select</button>
+        </div>
+    </div>
+
+    <!-- Modal 2: Manage Credentials / Secrets -->
+    <div class="modal" id="credentialsModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="cred_modal_title">Configure keys for Profile</h2>
+                <button class="close-btn" onclick="closeModal('credentialsModal')">&times;</button>
+            </div>
+            
+            <div class="success-banner" id="cred_success_banner"></div>
+
+            <div class="form-group">
+                <label>1. Google OAuth Credentials</label>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    Drag and drop your <b>client_secrets.json</b> downloaded from the Google Developer Console to auto-configure Google Auth.
+                </p>
+                <div class="upload-area" onclick="document.getElementById('oauth_file_input').click()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                    </svg>
+                    <p id="oauth_upload_text">Click to browse or drop client_secrets.json here</p>
+                    <input type="file" id="oauth_file_input" accept=".json" onchange="uploadJSON('oauth')">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>2. Google Service Account Key (For GA4 / Billing)</label>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    Upload your service account JSON file to enable real-time GA4 active users count and GCP billing cost calculations.
+                </p>
+                <div class="upload-area" onclick="document.getElementById('sa_file_input').click()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                    </svg>
+                    <p id="sa_upload_text">Click to browse or drop service_account.json here</p>
+                    <input type="file" id="sa_file_input" accept=".json" onchange="uploadJSON('sa')">
+                </div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="closeModal('credentialsModal')">Close Config</button>
+        </div>
+    </div>
+
+    <script>
+        let selectedProfileId = "";
+
+        function openCreateModal() {
+            document.getElementById('new_profile_name').value = '';
+            document.getElementById('createProfileModal').classList.add('active');
+        }
+
+        function openCredentialsModal(profileId, profileName) {
+            selectedProfileId = profileId;
+            document.getElementById('cred_modal_title').textContent = `🔑 Keys: ${profileName}`;
+            document.getElementById('cred_success_banner').style.display = 'none';
+            document.getElementById('oauth_upload_text').textContent = 'Click to browse or drop client_secrets.json here';
+            document.getElementById('sa_upload_text').textContent = 'Click to browse or drop service_account.json here';
+            document.getElementById('credentialsModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        async function submitCreateProfile() {
+            const name = document.getElementById('new_profile_name').value.trim();
+            if (!name) return alert('Please enter a profile name');
+
+            try {
+                const response = await fetch('/api/profiles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profile_name: name })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    window.location.href = `/select-profile/${data.profile_id}`;
+                } else {
+                    alert(data.detail || 'Failed to create profile.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Server error creating profile.');
+            }
+        }
+
+        async function deleteProfile(profileId) {
+            if (!confirm(`Are you absolutely sure you want to delete profile "${profileId}"? This will unlink any paired smart screens.`)) return;
+
+            try {
+                const response = await fetch(`/api/profiles/${profileId}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert(data.detail || 'Failed to delete profile.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Server error deleting profile.');
+            }
+        }
+
+        async function uploadJSON(type) {
+            const inputId = type === 'oauth' ? 'oauth_file_input' : 'sa_file_input';
+            const textId = type === 'oauth' ? 'oauth_upload_text' : 'sa_upload_text';
+            const fileInput = document.getElementById(inputId);
+            
+            if (fileInput.files.length === 0) return;
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadType = type === 'oauth' ? 'oauth' : 'service_account';
+            document.getElementById(textId).textContent = "Uploading and parsing...";
+
+            try {
+                const response = await fetch(`/api/profiles/${selectedProfileId}/upload-secrets?type=${uploadType}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById(textId).textContent = `✅ Loaded: ${file.name}`;
+                    const banner = document.getElementById('cred_success_banner');
+                    banner.textContent = data.message;
+                    banner.style.display = 'block';
+                } else {
+                    document.getElementById(textId).textContent = '❌ Upload failed. Try again.';
+                    alert(data.detail || 'Failed to parse JSON file.');
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById(textId).textContent = '❌ Server Error';
+                alert('An error occurred during file upload.');
+            }
+        }
+    </script>
+</body>
+</html>

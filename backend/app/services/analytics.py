@@ -12,16 +12,22 @@ logger = logging.getLogger("analytics_service")
 _last_active_users = 34
 _simulated_costs: Dict[str, float] = {}
 
-def get_google_sa_credentials():
+def get_google_sa_credentials(profile_id: str):
     """
-    Attempts to load Google Service Account Credentials from the configured path.
+    Attempts to load Google Service Account Credentials from the configured path
+    or from the profile's dedicated directory.
     Returns None if missing, unconfigured, or if google-auth fails to load.
     """
-    # Prefer explicit path, fallback to keys/gcp-sa.json
-    sa_path = settings.GCP_SERVICE_ACCOUNT_PATH or "./keys/gcp-sa.json"
+    # Check if a custom service account key exists in the profile folder
+    profile_sa_path = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "service_account.json")
+    
+    if os.path.exists(profile_sa_path):
+        sa_path = profile_sa_path
+    else:
+        sa_path = settings.GCP_SERVICE_ACCOUNT_PATH or "./keys/gcp-sa.json"
     
     if not os.path.exists(sa_path):
-        logger.debug(f"Google Service Account key not found at: {sa_path}. Running in demo/simulation mode.")
+        logger.debug(f"Google Service Account key not found at: {sa_path} for profile {profile_id}. Running in demo/simulation mode.")
         return None
         
     try:
@@ -36,24 +42,28 @@ def get_google_sa_credentials():
         creds.refresh(Request())
         return creds
     except Exception as e:
-        logger.error(f"Failed to load or refresh Google Service Account credentials: {e}")
+        logger.error(f"Failed to load or refresh Google Service Account credentials for profile {profile_id}: {e}")
         return None
 
 
-async def get_ga4_active_users(creds) -> int:
+async def get_ga4_active_users(profile_id: str, creds) -> int:
     """
     Fetches real-time active users count from GA4 using Analytics Data API.
     Falls back to dynamic fluctuated values on failure or if creds are missing.
     """
     global _last_active_users
     
-    if not creds or settings.GA4_PROPERTY_ID == "mock_property_id" or not settings.GA4_PROPERTY_ID:
+    from app.services.google_auth import load_profile_settings
+    prof_settings = load_profile_settings(profile_id)
+    ga_prop_id = prof_settings.get("ga_property_id") or settings.GA4_PROPERTY_ID
+
+    if not creds or ga_prop_id == "mock_property_id" or not ga_prop_id:
         # Dynamic fluctuation simulation to make UI feel alive and premium
         fluctuation = random.choice([-2, -1, 0, 1, 2])
         _last_active_users = max(5, min(150, _last_active_users + fluctuation))
         return _last_active_users
         
-    url = f"https://analyticsdata.googleapis.com/v1beta/properties/{settings.GA4_PROPERTY_ID}:runRealtimeReport"
+    url = f"https://analyticsdata.googleapis.com/v1beta/properties/{ga_prop_id}:runRealtimeReport"
     headers = {"Authorization": f"Bearer {creds.token}"}
     payload = {
         "metrics": [{"name": "activeUsers"}],
@@ -72,22 +82,26 @@ async def get_ga4_active_users(creds) -> int:
                         active_users = int(metric_values[0].get("value", "0"))
                         _last_active_users = active_users
                         return active_users
-            logger.warning(f"GA4 API returned code {response.status_code}. Using cached/simulated user count.")
+            logger.warning(f"GA4 API returned code {response.status_code} for profile {profile_id}. Using cached/simulated user count.")
             return _last_active_users
     except Exception as e:
-        logger.error(f"Failed to query GA4 API: {e}")
+        logger.error(f"Failed to query GA4 API for profile {profile_id}: {e}")
         return _last_active_users
 
 
-async def get_gcp_billing_costs(creds) -> List[Dict[str, Any]]:
+async def get_gcp_billing_costs(profile_id: str, creds) -> List[Dict[str, Any]]:
     """
     Aggregates GCP Billing Costs.
     Loads project names from GCP_BILLING_PROJECT_IDS and fetches cost,
-    using validated service account check + micro-increments simulation for live dashboard premium look.
+    using validated service account check + micro-increments simulation.
     """
     global _simulated_costs
     
-    projects = [p.strip() for p in settings.GCP_BILLING_PROJECT_IDS.split(",") if p.strip()]
+    from app.services.google_auth import load_profile_settings
+    prof_settings = load_profile_settings(profile_id)
+    gcp_project_ids = prof_settings.get("gcp_project_id") or settings.GCP_BILLING_PROJECT_IDS
+
+    projects = [p.strip() for p in gcp_project_ids.split(",") if p.strip()]
     if not projects:
         projects = ["AuraDeck Dev", "Client Prod"]
         
@@ -122,7 +136,6 @@ async def get_gcp_billing_costs(creds) -> List[Dict[str, Any]]:
                         if not b_info.get("billingEnabled", False):
                             is_enabled = "BILLING_DISABLED"
             except Exception:
-                # Silently ignore and maintain OK status
                 pass
                 
         # Format project names nicely
@@ -137,15 +150,15 @@ async def get_gcp_billing_costs(creds) -> List[Dict[str, Any]]:
     return billing_data
 
 
-async def get_combined_analytics() -> Dict[str, Any]:
+async def get_combined_analytics(profile_id: str) -> Dict[str, Any]:
     """
     Combines Web Analytics and GCP Billing reports with error fallbacks (Rule 3).
     """
     try:
-        creds = get_google_sa_credentials()
+        creds = get_google_sa_credentials(profile_id)
         
-        active_users = await get_ga4_active_users(creds)
-        billing_costs = await get_gcp_billing_costs(creds)
+        active_users = await get_ga4_active_users(profile_id, creds)
+        billing_costs = await get_gcp_billing_costs(profile_id, creds)
         
         # Simulate Google Search Console metrics (Clicks and Impressions)
         gsc_clicks = int(random.uniform(1200, 1500))
@@ -159,7 +172,7 @@ async def get_combined_analytics() -> Dict[str, Any]:
             "gcp_billing": billing_costs
         }
     except Exception as e:
-        logger.error(f"Error in combined analytics aggregator: {e}")
+        logger.error(f"Error in combined analytics aggregator for profile {profile_id}: {e}")
         return {
             "gcp_status": "OFFLINE",
             "ga4_active_users": 0,

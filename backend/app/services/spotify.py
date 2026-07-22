@@ -2,13 +2,13 @@ import logging
 import httpx
 from typing import Dict, Any
 
-from app.services.google_auth import spotify_tokens, refresh_spotify_token
+from app.services.google_auth import ProfileTokenManager, refresh_spotify_token
 
 logger = logging.getLogger("spotify_service")
 
-async def get_spotify_currently_playing() -> Dict[str, Any]:
+async def get_spotify_currently_playing(profile_id: str) -> Dict[str, Any]:
     """
-    Fetches the currently playing track from Spotify.
+    Fetches the currently playing track from Spotify for a specific profile.
     Handles token refreshing on 401 and returns a robust fallback state on any failure.
     """
     fallback_state = {
@@ -19,14 +19,14 @@ async def get_spotify_currently_playing() -> Dict[str, Any]:
         "duration_ms": 0
     }
 
-    tokens = spotify_tokens.load_tokens()
+    mgr = ProfileTokenManager(profile_id, "Spotify")
+    tokens = mgr.load_tokens()
     if not tokens or "access_token" not in tokens:
-        logger.debug("Spotify credentials are not configured or missing.")
+        logger.debug(f"Spotify credentials are not configured or missing for profile {profile_id}.")
         return fallback_state
 
     access_token = tokens["access_token"]
     url = "https://api.spotify.com/v1/me/player/currently-playing"
-    headers = {"Authorization": f"Bearer {access_token}"}
 
     async def fetch(token: str) -> httpx.Response:
         async with httpx.AsyncClient() as client:
@@ -37,12 +37,12 @@ async def get_spotify_currently_playing() -> Dict[str, Any]:
 
         # Handle expired token gracefully
         if response.status_code == 401:
-            logger.info("Spotify access token expired. Attempting token refresh...")
-            new_access_token = await refresh_spotify_token()
+            logger.info(f"Spotify access token expired for profile {profile_id}. Attempting token refresh...")
+            new_access_token = await refresh_spotify_token(profile_id)
             if new_access_token:
                 response = await fetch(new_access_token)
             else:
-                logger.error("Failed to refresh Spotify token.")
+                logger.error(f"Failed to refresh Spotify token for profile {profile_id}.")
                 return fallback_state
 
         if response.status_code == 204:
@@ -66,12 +66,12 @@ async def get_spotify_currently_playing() -> Dict[str, Any]:
                 "duration_ms": item.get("duration_ms", 0)
             }
 
-        logger.warning(f"Spotify API returned unexpected status code: {response.status_code}")
+        logger.warning(f"Spotify API returned unexpected status code: {response.status_code} for profile {profile_id}")
         return fallback_state
 
     except httpx.RequestError as e:
-        logger.error(f"Network error while calling Spotify API: {e}")
+        logger.error(f"Network error while calling Spotify API for profile {profile_id}: {e}")
         return fallback_state
     except Exception as e:
-        logger.error(f"Unexpected error in Spotify currently playing parser: {e}")
+        logger.error(f"Unexpected error in Spotify currently playing parser for profile {profile_id}: {e}")
         return fallback_state

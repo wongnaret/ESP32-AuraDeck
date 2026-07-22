@@ -6,80 +6,207 @@ This document describes all local REST endpoints, OAuth2 flows, and MQTT pub-sub
 
 ## 🔌 Local REST API Endpoints
 
-### 1. OAuth2 Redirection Endpoints
+### 1. Multi-Profile Session Management
 
-#### `GET /google/login`
-Redirects the administrator's web browser to the Google Consent screen to obtain permission for Calendar and Tasks access.
+#### `GET /api/profiles`
+Lists all profiles configured on the server.
+*   **Response (`200 OK`):**
+    ```json
+    [
+      { "id": "default", "name": "Default Profile" },
+      { "id": "profile_office_studio", "name": "Office Studio" }
+    ]
+    ```
 
-#### `GET /google/callback`
-Processes the authorization code returned by Google, performs the authorization code exchange, and persists the refresh token securely in `backend/tokens/google_tokens.json`.
-
----
-
-#### `GET /spotify/login`
-Redirects the administrator's web browser to the Spotify Account login screen to authorize player metadata access.
-
-#### `GET /spotify/callback`
-Processes the authorization code returned by Spotify, performs the authorization code exchange, and persists the credentials in `backend/tokens/spotify_tokens.json`.
-
----
-
-### 2. Config & Control Endpoints
-
-#### `GET /api/status`
-Checks if valid refresh tokens are currently cached for both Google and Spotify.
+#### `POST /api/profiles`
+Creates a new profile.
+*   **Request Body (`application/json`):**
+    ```json
+    { "profile_name": "Office Studio" }
+    ```
 *   **Response (`200 OK`):**
     ```json
     {
-      "google": true,
-      "spotify": false
+      "status": "success",
+      "profile_id": "profile_office_studio",
+      "profile_name": "Office Studio"
     }
     ```
 
-#### `POST /api/publish`
-Receives an arbitrary payload and publishes it directly to a local Mosquitto topic with `QoS=1` and `retain=true`.
+#### `DELETE /api/profiles/{profile_id}`
+Deletes a profile, its tokens, configurations, and unpairs any screens linked to it.
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "status": "success",
+      "message": "Successfully deleted profile profile_office_studio"
+    }
+    ```
+
+#### `GET /api/profiles/{profile_id}/config`
+Retrieves a profile's current safe configuration (secrets are omitted or represented as boolean states).
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "profile_name": "Office Studio",
+      "ga_property_id": "453120000",
+      "gcp_project_id": "auradeck-dashboard",
+      "google_client_id": "your-client-id.apps.googleusercontent.com",
+      "google_client_secret_configured": true,
+      "google_redirect_uri": "http://localhost:8000/google/callback",
+      "spotify_client_id": "your-spotify-id",
+      "spotify_client_secret_configured": true,
+      "spotify_redirect_uri": "http://localhost:8000/spotify/callback",
+      "active_task_lists": ["@default", "list_work_items"],
+      "google_sa_configured": true
+    }
+    ```
+
+#### `POST /api/profiles/{profile_id}/config`
+Updates configuration settings for a profile.
 *   **Request Body (`application/json`):**
     ```json
     {
-      "topic": "auradeck/spotify",
-      "payload": {
-        "is_playing": true,
-        "track": "เพลงรักในสายลม",
-        "artist": "วงดนตรีสากล",
-        "progress": 120,
-        "duration": 240
-      }
+      "ga_property_id": "453120000",
+      "gcp_project_id": "auradeck-dashboard",
+      "active_task_lists": ["@default", "list_work_items"]
     }
     ```
 *   **Response (`200 OK`):**
     ```json
     {
       "status": "success",
-      "message": "Successfully published to auradeck/spotify"
+      "message": "Profile configuration updated successfully."
     }
     ```
 
-#### `POST /api/sync/{service}`
-Instructs the server to manually poll a specific API, immediately publish the compiled state to Mosquitto, and return the payload in the response body.
-*   **Path Parameter:** `service` (Supported options: `spotify`, `calendar`, `todos`, `stocks`, `antigravity`, `analytics`)
+#### `POST /api/profiles/{profile_id}/upload-secrets`
+Accepts a JSON upload of OAuth client secrets or Service Account credentials.
+*   **Query Parameters:** `type` (Supported options: `oauth`, `service_account`)
+*   **Request Form File:** `file` (the JSON file)
 *   **Response (`200 OK`):**
     ```json
     {
-      "is_playing": true,
-      "track": "เพลงรักในสายลม",
-      "artist": "วงดนตรีสากล",
-      "progress": 134,
-      "duration": 240
+      "status": "success",
+      "message": "Service Account key file uploaded and installed successfully."
     }
     ```
 
 ---
 
-## 📡 MQTT Topic Payload Schemas (1-bit Screen Friendly)
+### 2. OAuth2 Redirection Endpoints (Multi-User State)
+
+#### `GET /google/login?profile_id={profile_id}`
+Redirects the administrator's web browser to the Google Consent screen to obtain permission for Calendar and Tasks access. Passes `profile_id` as the state parameter.
+
+#### `GET /google/callback?code={code}&state={profile_id}`
+Processes the authorization code returned by Google, performs the authorization code exchange, and persists the refresh token securely in `backend/tokens/profiles/{profile_id}/google_tokens.json`.
+
+---
+
+#### `GET /spotify/login?profile_id={profile_id}`
+Redirects the administrator's web browser to the Spotify Account login screen to authorize player metadata access. Passes `profile_id` as the state parameter.
+
+#### `GET /spotify/callback?code={code}&state={profile_id}`
+Processes the authorization code returned by Spotify, performs the authorization code exchange, and persists the credentials in `backend/tokens/profiles/{profile_id}/spotify_tokens.json`.
+
+---
+
+### 3. TV-Style Device Screen Pairing Flow
+
+#### `GET /api/pairing/request?mac={mac}`
+Generates a temporary unique 6-digit PIN code for an unconfigured ESP32 screen booting up.
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "pin": "645902",
+      "expires_in_secs": 300
+    }
+    ```
+
+#### `POST /api/pairing/verify`
+Pairs a temporary PIN entered by the user in the Web Interface with their currently active profile session.
+*   **Request Body (`application/json`):**
+    ```json
+    {
+      "pin": "645902",
+      "profile_id": "profile_office_studio"
+    }
+    ```
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "status": "success",
+      "message": "Device paired successfully!",
+      "mac": "84:F3:EB:C9:4A:E1"
+    }
+    ```
+
+#### `GET /api/pairing/status?mac={mac}`
+Queries if the device is currently paired.
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "paired": true,
+      "profile_id": "profile_office_studio"
+    }
+    ```
+
+#### `GET /api/pairing/list`
+Lists all screens currently paired with the user's active profile session.
+*   **Response (`200 OK`):**
+    ```json
+    [
+      { "mac": "84:F3:EB:C9:4A:E1", "paired_at": "2026-07-22T14:35:00Z" }
+    ]
+    ```
+
+---
+
+### 4. Local Access Point Configuration (Host nmcli)
+
+#### `GET /api/ap/status`
+Queries the active state of the AuraDeck Hotspot AP, client count, and default IP.
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "status": "Active",
+      "ssid": "AuraDeck_Hotspot",
+      "password": "AuraDeck1234",
+      "gateway": "10.42.0.1",
+      "clients_connected": 2,
+      "is_mock": false
+    }
+    ```
+
+#### `POST /api/ap/restart`
+Triggers an asynchronous toggle of NetworkManager's Hotspot (down and back up) to resolve supplicant or driver timeout issues.
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "status": "success",
+      "message": "AuraDeck AP Hotspot restarted successfully."
+    }
+    ```
+
+---
+
+## 📡 MQTT Topic Payload Schemas
+
+To support multi-screen configurations, the backend publishes telemetry payloads targeting specific MAC addresses:
+
+```
+auradeck/device/{mac}/spotify
+auradeck/device/{mac}/calendar
+auradeck/device/{mac}/todos
+auradeck/device/{mac}/stocks
+auradeck/device/{mac}/antigravity
+auradeck/device/{mac}/analytics
+```
 
 All payloads published to local topics are formatted as high-density, flat JSON objects, optimized for minimal parsing overhead on the ESP32-S3 microcontroller.
 
-### 1. Spotify Now Playing (`auradeck/spotify`)
+### 1. Spotify Now Playing (`auradeck/device/{mac}/spotify`)
 Contains playback tracking metrics.
 ```json
 {
@@ -91,7 +218,7 @@ Contains playback tracking metrics.
 }
 ```
 
-### 2. Calendar Agenda (`auradeck/calendar`)
+### 2. Calendar Agenda (`auradeck/device/{mac}/calendar`)
 Combines a monthly grid marker list with specific details for Today and Tomorrow.
 ```json
 {
@@ -103,18 +230,16 @@ Combines a monthly grid marker list with specific details for Today and Tomorrow
 }
 ```
 
-### 3. Google Tasks Checklist (`auradeck/todos`)
-A flat array of top task items.
+### 3. Google Tasks Checklist (`auradeck/device/{mac}/todos`)
+A flat array of aggregated task items, with the list name appended inside brackets:
 ```json
-{
-  "todos": [
-    "ตรวจทาน Pull Request #42",
-    "ติดตั้งโปรแกรมปรับปรุงระบบฐานข้อมูล"
-  ]
-}
+[
+  { "id": "1", "title": "[Work] ตรวจทาน Pull Request #42", "completed": false },
+  { "id": "2", "title": "[Home] ซื้อของเข้าบ้าน", "completed": false }
+]
 ```
 
-### 4. Multi-Asset Stocks & Commodities Watchlist (`auradeck/stocks`)
+### 4. Multi-Asset Stocks & Commodities Watchlist (`auradeck/device/{mac}/stocks`)
 Holds current prices, percentage change direction, and asset categories (Thai Equities, Gold bars, Cryptocurrencies).
 ```json
 {
@@ -127,7 +252,7 @@ Holds current prices, percentage change direction, and asset categories (Thai Eq
 }
 ```
 
-### 5. Antigravity Quota Usage (`auradeck/antigravity`)
+### 5. Antigravity Quota Usage (`auradeck/device/{mac}/antigravity`)
 Monitors hourly and weekly AI credits.
 ```json
 {
@@ -136,11 +261,17 @@ Monitors hourly and weekly AI credits.
 }
 ```
 
-### 6. GCP Billing & Web Analytics (`auradeck/analytics`)
-Monitors overall multi-project MTD spending alongside standard web traffic indicators.
+### 6. GCP Billing & Web Analytics (`auradeck/device/{mac}/analytics`)
+Monitors overall multi-project MTD spending alongside GA4 real-time indicators.
 ```json
 {
-  "active_users": 15,
-  "mtd_billing": 160.70
+  "gcp_status": "OK",
+  "ga4_active_users": 34,
+  "gsc_clicks": 1420,
+  "gsc_impressions": 28500,
+  "gcp_billing": [
+    { "project_name": "AuraDeck Dev", "cost_mtd": 12.50, "currency": "USD" },
+    { "project_name": "Client Prod", "cost_mtd": 148.20, "currency": "USD" }
+  ]
 }
 ```

@@ -20,6 +20,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
     environment:
       - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
