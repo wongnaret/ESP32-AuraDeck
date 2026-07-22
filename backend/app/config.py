@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     
     SPOTIFY_CLIENT_ID: str = "mock_spotify_client_id"
     SPOTIFY_CLIENT_SECRET: str = "mock_spotify_client_secret"
-    SPOTIFY_REDIRECT_URI: str = "http://localhost:8000/spotify/callback"
+    SPOTIFY_REDIRECT_URI: str = "http://127.0.0.1:8000/spotify/callback"
     
     STOCK_API_KEY: str = "mock_stock_api_key"
     STOCK_WATCHLIST: str = "CPALL.BK,BTC-USD,GC=F"

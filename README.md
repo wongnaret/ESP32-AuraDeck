@@ -77,6 +77,42 @@ docker compose up -d --build
 *   **Swagger Interactive REST Documentation:** Go to [http://localhost:8000/docs](http://localhost:8000/docs)
 *   **MQTT Broker Endpoint:** Port `1883` on your host machine.
 
+### 5. Secure OAuth Setup via ngrok (Recommended for Pi Deployment)
+Since both Google and Spotify enforce strict security policies, they forbid redirecting back to raw local LAN IPs (`http://192.168.1.x`) over unsecure HTTP. To complete the OAuth flow directly on your physical Raspberry Pi over Wi-Fi, you can set up an HTTPS tunnel using **ngrok**.
+
+We provide an automated setup script that installs ngrok (if missing) and registers your credentials in one step on your Raspberry Pi:
+
+1.  **Run the Automated Setup Script:**
+    ```bash
+    chmod +x backend/scripts/setup_ngrok.sh
+    ./backend/scripts/setup_ngrok.sh <your_ngrok_authtoken>
+    ```
+    *(Note: If you omit the authtoken argument, the script will interactively prompt you to paste it.)*
+
+2.  **Launch the HTTPS Tunnel:**
+    Start the secure tunnel on port 8000:
+    ```bash
+    ngrok http 8000
+    ```
+4.  **Update Environment Configuration:**
+    Copy the generated secure `https://xxxx-xxxx.ngrok-free.app` URL from your ngrok terminal, open your `.env` file on the Pi, and update the redirect URIs:
+    ```env
+    GOOGLE_REDIRECT_URI=https://xxxx-xxxx.ngrok-free.app/google/callback
+    SPOTIFY_REDIRECT_URI=https://xxxx-xxxx.ngrok-free.app/spotify/callback
+    ```
+5.  **Add Authorized Redirect URIs in Developer Portals:**
+    *   **Google Cloud Console (Audience/Audience details):** Add `https://xxxx-xxxx.ngrok-free.app/google/callback` to your **Authorized redirect URIs**.
+    *   **Spotify Developer Dashboard:** Add `https://xxxx-xxxx.ngrok-free.app/spotify/callback` to your App's **Redirect URIs** (remember to click **Add** and **Save**).
+6.  **Perform Login:**
+    Access your dashboard by going to `https://xxxx-xxxx.ngrok-free.app` from your phone or laptop on the same network, and click the Login buttons to safely obtain and write the persistent credential tokens directly onto the Pi!
+
+### 6. Alternative: Local Token Mirroring (Offline / No-ngrok Shortcut)
+If you already completed the OAuth logins on your local Windows PC and do not want to set up public tunnels, you can use the offline mirror shortcut:
+1.  Complete the login flow on your local computer (`http://127.0.0.1:8000`).
+2.  Navigate to your local `backend/tokens/` directory. You will see cached JSON files (e.g., `google_token.json`, `spotify_token.json`).
+3.  Copy/FTP the entire `tokens` folder directly to the `/backend/tokens/` path on your Raspberry Pi.
+4.  The backend service on the Pi will immediately detect these files and automatically manage refreshing access tokens silently without requiring any browser interactions!
+
 ---
 
 ## 🧪 Developer Sandbox & Mock API Bench
