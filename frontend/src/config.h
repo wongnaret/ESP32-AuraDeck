@@ -38,6 +38,10 @@
 #define PIN_I2C_SDA    13
 #define PIN_I2C_SCL    14
 
+// Touch Panel Control Pins (Shared on I2C, must be stabilized)
+#define PIN_TP_INT     7
+#define PIN_TP_RESET   42
+
 // Key Customizable Side Button
 #define PIN_KEY_BUTTON 18
 

@@ -32,7 +32,7 @@ bool UIManager::begin(ST7305Display* display) {
 #endif
 
     if (!m_lvBuffer1) {
-        Serial.println("❌ Error: Failed to allocate LVGL draw buffer in PSRAM!");
+        Serial.println("❌ Error: Failed to allocate LVGL draw buffer!");
         return false;
     }
 
@@ -47,9 +47,68 @@ bool UIManager::begin(ST7305Display* display) {
     m_dispDrv.user_data = m_hardwareDisplay; // Pass display pointer to static callback
     lv_disp_drv_register(&m_dispDrv);
 
-    // 4. Create Main Layout Containers
+    // 4. Draw Initial Splash / Boot Screen Status (Rule 3: Robust Display Fallbacks)
+    drawBootStatus("Initializing System Services...", 10);
+
+    Serial.println("✅ LVGL v8 Core and UI Manager initialized with early boot rendering.");
+    return true;
+}
+
+void UIManager::drawBootStatus(const char* status, int progress_percent) {
+    lv_obj_t* scr = lv_scr_act();
+    lv_obj_clean(scr); // Clean all previous bootscreen widgets to prevent overlaps
+
+    // 1. Decorative Outer Border Frame
+    lv_obj_t* border = lv_obj_create(scr);
+    lv_obj_set_size(border, 380, 280);
+    lv_obj_align(border, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_border_width(border, 2, 0);
+    lv_obj_set_style_radius(border, 8, 0);
+    lv_obj_set_style_pad_all(border, 15, 0);
+
+    // 2. Main Title (Upper-Mid Centered)
+    lv_obj_t* titleLabel = lv_label_create(border);
+    lv_obj_set_style_text_font(titleLabel, &lv_font_montserrat_16, 0);
+    lv_obj_align(titleLabel, LV_ALIGN_CENTER, 0, -45);
+    lv_label_set_text(titleLabel, "AuraDeck Terminal Core");
+
+    // Subtitle / Hardware Board Info
+    lv_obj_t* subTitle = lv_label_create(border);
+    lv_obj_set_style_text_font(subTitle, &lv_font_montserrat_12, 0);
+    lv_obj_align(subTitle, LV_ALIGN_CENTER, 0, -22);
+    lv_label_set_text(subTitle, "Waveshare ESP32-S3-RLCD-4.2");
+
+    // 3. Status Action Description
+    lv_obj_t* statusLabel = lv_label_create(border);
+    lv_obj_set_style_text_font(statusLabel, &lv_font_montserrat_12, 0);
+    lv_obj_align(statusLabel, LV_ALIGN_CENTER, 0, 15);
+    lv_label_set_text(statusLabel, status);
+
+    // 4. Progress Bar Widget
+    lv_obj_t* bar = lv_bar_create(border);
+    lv_obj_set_size(bar, 240, 10);
+    lv_obj_align(bar, LV_ALIGN_CENTER, 0, 42);
+    lv_obj_set_style_border_width(bar, 1, 0);
+    lv_obj_set_style_radius(bar, 4, 0);
+    lv_bar_set_value(bar, progress_percent, LV_ANIM_OFF);
+
+    // 5. Version Info / Local Hotspot Mode footer
+    lv_obj_t* footer = lv_label_create(border);
+    lv_obj_set_style_text_font(footer, &lv_font_montserrat_12, 0);
+    lv_obj_align(footer, LV_ALIGN_BOTTOM_MID, 0, 5);
+    lv_label_set_text(footer, "v1.0.0 • AP Mode Active");
+
+    // Force LVGL display refresh cycle immediately to flush to the screen
+    lv_refr_now(nullptr);
+}
+
+void UIManager::completeBoot() {
+    lv_obj_t* scr = lv_scr_act();
+    lv_obj_clean(scr); // Clean all bootscreen widgets
+
+    // 1. Create Main Layout Containers
     // Create persistent top header panel (y=0 to y=25)
-    m_topHeaderContainer = lv_obj_create(lv_scr_act());
+    m_topHeaderContainer = lv_obj_create(scr);
     lv_obj_set_pos(m_topHeaderContainer, 0, 0);
     lv_obj_set_size(m_topHeaderContainer, 400, 26);
     lv_obj_set_style_border_width(m_topHeaderContainer, 0, 0);
@@ -57,21 +116,20 @@ bool UIManager::begin(ST7305Display* display) {
     lv_obj_set_style_pad_all(m_topHeaderContainer, 0, 0);
 
     // Create main viewport frame for active pages (y=26 to y=300)
-    m_activePageContainer = lv_obj_create(lv_scr_act());
+    m_activePageContainer = lv_obj_create(scr);
     lv_obj_set_pos(m_activePageContainer, 0, 26);
     lv_obj_set_size(m_activePageContainer, 400, 274);
     lv_obj_set_style_border_width(m_activePageContainer, 0, 0);
     lv_obj_set_style_radius(m_activePageContainer, 0, 0);
     lv_obj_set_style_pad_all(m_activePageContainer, 0, 0);
 
-    // 5. Setup persistent top status bar
+    // 2. Setup persistent top status bar
     createPersistentHeader();
 
-    // 6. Draw default Home Screen Page 0
+    // 3. Draw default Home Screen Page 0
     showPage(0);
 
-    Serial.println("✅ LVGL v8 Core and UI Manager initialized.");
-    return true;
+    Serial.println("🎉 System Boot Sequence Complete. Transitioned to Interactive Dashboard.");
 }
 
 void UIManager::createPersistentHeader() {

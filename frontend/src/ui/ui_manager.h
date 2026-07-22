@@ -20,6 +20,18 @@ public:
      * @return true if successful, false otherwise.
      */
     bool begin(ST7305Display* display);
+    
+    /**
+     * @brief Renders the visual boot up sequence/diagnostics page on the screen.
+     * @param status Description of current boot phase (e.g. "Connecting to Wi-Fi...")
+     * @param progress_percent Value between 0 and 100
+     */
+    void drawBootStatus(const char* status, int progress_percent);
+
+    /**
+     * @brief Completes the boot sequence and transition to the full interactive dashboard page.
+     */
+    void completeBoot();
 
     /**
      * @brief Polled in the main loop to handle LVGL core rendering cycles.

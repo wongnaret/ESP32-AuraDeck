@@ -36,15 +36,33 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 ---
 
 ## 2. Hardware & Environment Specifications
-* **Target Board:** Waveshare ESP32-S3-RLCD-4.2 (ESP32-S3-WROOM-1-N16R8)
+* **Target Board:** Waveshare ESP32-S3-RLCD-4.2 (ESP32-S3-WROOM-1-N16R8 with 16MB Flash and 8MB Octal PSRAM)
 * **Display:** 4.2-inch Reflective LCD (RLCD), 400x300 Resolution (Landscape Mode)
-* **Onboard Hardware Utilized:**
-  * `ST7305`: High-performance display controller with precomputed O(1) Landscape LUT transformation
-  * `SHTC3`: Ambient Temperature & Humidity Sensor (I2C)
-  * `PCF85063`: Hardware RTC with battery backup for offline time-keeping
-  * `KEY Button`: Physical GPIO18 input for thread-safe screen cycling
-* **Graphics Framework:** LVGL v8.x+ (1-bit monochrome, theme mono, custom PSRAM allocator)
-* **Backend Stack:** Docker Containers (FastAPI & Mosquitto MQTT Broker) running on Raspberry Pi
+* **Onboard Pins & Wire Configurations:**
+  * **ST7305 RLCD Screen (SPI Interface):**
+    * `PIN_LCD_SCL`   = GPIO11 (SPI Clock)
+    * `PIN_LCD_SDA`   = GPIO12 (SPI MOSI)
+    * `PIN_LCD_CS`    = GPIO40 (Chip Select)
+    * `PIN_LCD_RS`    = GPIO5  (Register/Data Select)
+    * `PIN_LCD_RESET` = GPIO41 (Hardware Reset)
+  * **Onboard Sensors (Shared I2C Interface):**
+    * `PIN_I2C_SDA`   = GPIO13
+    * `PIN_I2C_SCL`   = GPIO14
+  * **Touch Panel Bus Controller:**
+    * `PIN_TP_INT`    = GPIO7
+    * `PIN_TP_RESET`  = GPIO42 (Must be held HIGH to prevent a floating chip state from locking the shared I2C bus low!)
+  * **Side Navigation Button:**
+    * `PIN_BUTTON`    = GPIO18 (Hardware interrupt with 150ms debounce suppression)
+* **Physical Hardware Modules Utilized:**
+  * `ST7305`: Display controller with custom precomputed O(1) pixel LUT transpositions for landscape rendering.
+  * `SHTC3`: Ambient Temperature & Humidity Sensor polled via raw non-clock-stretching TwoWire.
+  * `PCF85063`: Hardware RTC for bulletproof local time-keeping during network disconnections.
+* **Bus Stability & Resilience Configurations:**
+  * **I2C Bus Optimization:** Running at standard 100kHz clock speed for maximum hardware signal integrity.
+  * **Active Bus Self-Healing:** Automatic bus recovery routine that programmatically toggles SCL 16 times if a slave locks SDA, issues an I2C STOP, and restarts the TwoWire driver dynamically, ensuring 100% telemetry uptime.
+* **On-Screen Startup Diagnostics:** Early boot visual splash page showing live startup milestone checklists and a progress bar directly on-screen before initiating backend MQTT/NTP sessions.
+* **Graphics Framework:** LVGL v8.3.x (1-bit monochrome, custom PSRAM frame-buffer allocation)
+* **Backend Stack:** Docker Containers (FastAPI & Eclipse Mosquitto MQTT Broker) running on Raspberry Pi.
 
 ---
 

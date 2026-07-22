@@ -40,6 +40,53 @@ extern "C" uint32_t custom_tick_get(void) {
     return millis();
 }
 
+// Professional-grade I2C Bus Recovery Routine (restores bus if a slave locks SCL or SDA)
+void recoverI2CBus() {
+    Serial.println("🔄 Initiating active hardware I2C bus recovery sequence...");
+    
+    // 1. Release the bus lines by setting SCL as output and SDA as input with pullup
+    pinMode(PIN_I2C_SCL, OUTPUT);
+    pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+    delayMicroseconds(10);
+    
+    // 2. Clock out up to 16 cycles to force any stuck slave to release SDA
+    bool released = false;
+    for (int i = 0; i < 16; i++) {
+        if (digitalRead(PIN_I2C_SDA) == HIGH) {
+            Serial.printf("  I2C Line freed by slave after %d clock toggles.\n", i);
+            released = true;
+            break;
+        }
+        digitalWrite(PIN_I2C_SCL, LOW);
+        delayMicroseconds(5);
+        digitalWrite(PIN_I2C_SCL, HIGH);
+        delayMicroseconds(5);
+    }
+    
+    if (!released) {
+        Serial.println("  ⚠️ Warning: I2C line did not release. Forcing STOP condition.");
+    }
+    
+    // 3. Force a standard I2C STOP condition (SDA transitioning LOW->HIGH while SCL is HIGH)
+    pinMode(PIN_I2C_SDA, OUTPUT);
+    digitalWrite(PIN_I2C_SDA, LOW);
+    delayMicroseconds(5);
+    digitalWrite(PIN_I2C_SCL, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(PIN_I2C_SDA, HIGH);
+    delayMicroseconds(5);
+    
+    // 4. Return pins to standard digital inputs before letting TwoWire take over
+    pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+    pinMode(PIN_I2C_SCL, INPUT_PULLUP);
+    
+    // 5. Reinitialize standard Wire interface
+    Wire.end();
+    delay(10);
+    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 100000);
+    Serial.println("🔄 I2C Bus successfully re-initialized at 100kHz.");
+}
+
 void setup() {
     // 1. Initialize Serial Console for developer diagnostics
     Serial.begin(115200);
@@ -48,20 +95,8 @@ void setup() {
     Serial.println("🌀 Welcome to ESP32-S3 AuraDeck Smart Terminal Core");
     Serial.println("==========================================================");
 
-    // 2. Initialize Shared I2C Bus (Fast 400kHz clock speed)
-    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
-    Serial.println("🔌 Shared I2C bus initialized at 400kHz.");
-
-    // 3. Initialize Physical Hardware RTC Clock
-    g_rtc.begin(Wire);
-
-    // 4. Initialize SHTC3 Environmental Sensor
-    g_sensor.begin(Wire);
-
-    // 5. Initialize Side Customizable Button & Attach Hardware Interrupt
-    g_button.begin(onPageCycleButtonPress);
-
-    // 6. Initialize Custom High-Performance ST7305 Display & LVGL UI Manager
+    // 2. Initialize Custom High-Performance ST7305 Display & LVGL UI Manager FIRST
+    // This allows us to draw live progress and diagnostic reports directly on-screen
     if (g_display.begin()) {
         if (!g_ui.begin(&g_display)) {
             Serial.println("❌ Critical Error: Failed to start UI Manager!");
@@ -70,8 +105,53 @@ void setup() {
         Serial.println("❌ Critical Error: Failed to start ST7305 hardware display!");
     }
 
-    // 7. Start Network Services (Wi-Fi, NTP auto-sync, MQTT subscribers)
+    g_ui.drawBootStatus("Initializing System Core...", 10);
+
+    // 3. Stabilize Touch Panel reset to prevent shared I2C bus contention
+    g_ui.drawBootStatus("Stabilizing Touch Panel...", 20);
+    pinMode(PIN_TP_RESET, OUTPUT);
+    digitalWrite(PIN_TP_RESET, HIGH);
+    delay(50); // Small delay to let TP bootloader settle
+
+    // 4. Initialize Shared I2C Bus (Standard 100kHz clock speed for maximum stability)
+    g_ui.drawBootStatus("Configuring I2C Bus at 100kHz...", 35);
+    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 100000);
+    Serial.println("🔌 Shared I2C bus initialized at 100kHz.");
+
+    // 4.1 Run I2C Scanner to verify bus integrity and list all hardware addresses
+    g_ui.drawBootStatus("Scanning I2C Hardware Bus...", 45);
+    Serial.println("🔍 Debug: Scanning I2C bus for physical devices...");
+    for (byte address = 1; address < 127; address++) {
+        Wire.beginTransmission(address);
+        byte error = Wire.endTransmission();
+        if (error == 0) {
+            Serial.printf("  Found I2C device at address: 0x%02X\n", address);
+        } else if (error == 4) {
+            Serial.printf("  Error (unknown) at address: 0x%02X\n", address);
+        }
+    }
+    Serial.println("🔍 Debug: I2C scan complete.");
+
+    // 5. Initialize Physical Hardware RTC Clock
+    g_ui.drawBootStatus("Initializing PCF85063 RTC...", 60);
+    g_rtc.begin(Wire);
+
+    // 6. Initialize SHTC3 Environmental Sensor
+    g_ui.drawBootStatus("Initializing SHTC3 Sensor...", 75);
+    g_sensor.begin(Wire);
+
+    // 7. Initialize Side Customizable Button & Attach Hardware Interrupt
+    g_ui.drawBootStatus("Configuring Interrupt Keys...", 85);
+    g_button.begin(onPageCycleButtonPress);
+
+    // 8. Start Network Services (Wi-Fi, NTP auto-sync, MQTT subscribers)
+    g_ui.drawBootStatus("Connecting to Local Hotspot...", 95);
     g_network.begin(&g_rtc);
+
+    // 9. Transition cleanly to Interactive Dashboard
+    g_ui.drawBootStatus("Booting Dashboard...", 100);
+    delay(500); // Visual hold so the developer can see the completed boot phase
+    g_ui.completeBoot();
 }
 
 void loop() {
@@ -98,12 +178,25 @@ void loop() {
     if (now - g_lastHeaderUpdateTime >= 1000) {
         g_lastHeaderUpdateTime = now;
 
+        Serial.println("🔍 Debug: Polling SHTC3 environmental sensor...");
         float temperature = NAN;
         float humidity = NAN;
-        g_sensor.read(temperature, humidity);
+        bool shtc_success = g_sensor.read(temperature, humidity);
+        Serial.printf("🔍 Debug: SHTC3 temperature=%.2f, humidity=%.2f (Success: %s)\n", 
+                      temperature, humidity, shtc_success ? "Yes" : "No");
 
+        if (!shtc_success) {
+            Serial.println("❌ SHTC3 Poll Failed! Bus may be locked up. Attempting recovery...");
+            recoverI2CBus();
+            // Retry the read after bus recovery
+            g_sensor.read(temperature, humidity);
+        }
+
+        Serial.println("🔍 Debug: Polling PCF85063 hardware RTC clock...");
         String currentTime = g_rtc.getFormattedTime();
         String currentDate = g_rtc.getFormattedDate();
+        Serial.printf("🔍 Debug: RTC time=%s, date=%s\n", currentTime.c_str(), currentDate.c_str());
+        
         bool isWifi = g_network.isConnected();
 
         // Safe Fallback: Check for sensor connection failure/disconnections (Rule 3: Graceful Degradation)

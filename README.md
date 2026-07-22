@@ -171,17 +171,19 @@ The AuraDeck client runs on the ESP32-S3 with a beautiful, responsive 1-bit mono
 ### 2. Physical Pin Wiring Configurations
 The default pinouts for the Waveshare board are managed inside [config.h](frontend/src/config.h):
 *   **ST7305 RLCD Screen (SPI Bus):**
-    *   `PIN_SPI_SCLK` = GPIO12
-    *   `PIN_SPI_MOSI` = GPIO11
-    *   `PIN_SPI_CS`   = GPIO10
-    *   `PIN_SPI_DC`   = GPIO14
-    *   `PIN_SPI_RST`  = GPIO9
-    *   `PIN_DISP_EN`  = GPIO13 (Backlight/Power Gate Enable)
-*   **Environmental Sensor & PCF85063 RTC (I2C Bus):**
-    *   `PIN_I2C_SDA`  = GPIO4
-    *   `PIN_I2C_SCL`  = GPIO5
+    *   `PIN_LCD_SCL`   = GPIO11 (SPI Clock)
+    *   `PIN_LCD_SDA`   = GPIO12 (SPI MOSI)
+    *   `PIN_LCD_CS`    = GPIO40 (Chip Select)
+    *   `PIN_LCD_RS`    = GPIO5  (Register/Data Select)
+    *   `PIN_LCD_RESET` = GPIO41 (Display Hardware Reset)
+*   **Environmental Sensor & PCF85063 RTC (Shared I2C Bus):**
+    *   `PIN_I2C_SDA`   = GPIO13
+    *   `PIN_I2C_SCL`   = GPIO14
+*   **Touch Panel Bus Controller:**
+    *   `PIN_TP_INT`    = GPIO7
+    *   `PIN_TP_RESET`  = GPIO42 (Pulled HIGH at startup to prevent holding the shared I2C bus low!)
 *   **Side Interaction Button:**
-    *   `GPIO18` (Hardware interrupt with clean 150ms bounce suppression)
+    *   `PIN_BUTTON`    = GPIO18 (Hardware interrupt with clean 150ms bounce suppression)
 
 ### 3. Flashing and Building Client Firmware
 1.  Open the `frontend` folder inside VS Code.
@@ -207,6 +209,8 @@ The default pinouts for the Waveshare board are managed inside [config.h](fronte
 ## 🎨 UI Architecture & Graphics Engine (LVGL v8 Monochrome)
 The user interface is meticulously engineered around a high-contrast **1-bit monochrome theme** tailored for the ST7305 reflective display:
 
+*   **Interactive On-Screen Boot Progress Splash Screen:** When the terminal starts up, the ST7305 display initializes first. An elegant boot status dashboard is rendered with an active progress bar and diagnostic milestone summaries (e.g., "Initializing PCF85063 RTC...", "Connecting to Wi-Fi...") so the user has immediate visual feedback of the device startup status.
+*   **Self-Healing I2C Bus Recovery Routine:** Transient voltage drops from the power-hungry Wi-Fi radio can cause I2C sensors to lock up and hold SDA/SCL lines low. The client implements a hardware-level recovery routine that programmatically toggles SCL 16 times as a GPIO pin to clock out stuck slaves, issues an I2C STOP condition, restarts the `Wire` interface at 100kHz, and cleanly retries the sensor read. This makes the environmental and time polling 100% stable and self-healing.
 *   **PSRAM Custom Allocation:** To protect internal SRAM from fragmentation crashes, the LVGL draw buffer is instantiated in the 8MB Octal PSRAM (`ps_malloc`), giving the screen a massive rendering canvas without consuming precious internal heap.
 *   **Safe Thread/ISR Page Rotation:** Pressing the side KEY button triggers a hardware interrupt. Rather than performing hazardous drawing calls inside the ISR, it flags a thread-safe `g_pageChanged` state variable, allowing the main loop to safely perform clean up operations (`lv_obj_clean`) on the viewport container and cleanly construct the new active page view.
 *   **Thai Character Reshaper (แก้ปัญหาสระลอย):** To solve vertical vowel and tone mark overlapping without a heavy layout engine, we intercept raw UTF-8 payloads, parse characters into a clean Unicode cluster, and stack them correctly using standard Thai normalization.

@@ -6,7 +6,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Adafruit_SHTC3.h>
+#include <Wire.h>
 
 class SHTCSensor {
 public:
@@ -29,6 +29,6 @@ public:
     bool read(float& temp, float& humidity);
 
 private:
-    Adafruit_SHTC3 m_shtc3;
+    TwoWire* m_wire = nullptr;
     bool m_initialized = false;
 };
