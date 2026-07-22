@@ -7,3 +7,4 @@ pydantic==2.7.4
 pydantic-settings==2.3.3
 apscheduler==3.10.4
 python-dotenv==1.0.1
+google-auth==2.30.0

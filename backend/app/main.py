@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import HTML_Response, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -16,6 +17,12 @@ from app.services.google_auth import (
     exchange_google_code,
     exchange_spotify_code
 )
+from app.services.spotify import get_spotify_currently_playing
+from app.services.google_api import get_google_calendar_and_tasks
+from app.services.stocks import get_multi_asset_prices
+from app.services.analytics import get_combined_analytics
+from app.services.antigravity import get_antigravity_credits
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -72,6 +79,20 @@ def on_startup():
         minutes=5,
         max_instances=1
     )
+    scheduler.add_job(
+        id="analytics_polling_job",
+        func=trigger_analytics_polling,
+        trigger="interval",
+        minutes=15, # Poll analytics every 15 minutes to keep it responsive
+        max_instances=1
+    )
+    scheduler.add_job(
+        id="antigravity_polling_job",
+        func=trigger_antigravity_polling,
+        trigger="interval",
+        minutes=30,
+        max_instances=1
+    )
     
     scheduler.start()
     logger.info("Background Schedulers started successfully.")
@@ -84,20 +105,49 @@ def on_shutdown():
     scheduler.shutdown()
 
 
-# --- Background Polling Triggers (Skeletons to be fully implemented in Phase 2) ---
+# --- Background Polling Triggers ---
 
 def trigger_spotify_polling():
     """Polls Spotify currently-playing endpoint and publishes to MQTT."""
-    # Logic will be implemented in Phase 2, currently acts as background runner
-    pass
+    try:
+        data = asyncio.run(get_spotify_currently_playing())
+        mqtt_service.publish("auradeck/spotify", data)
+    except Exception as e:
+        logger.error(f"Error in background Spotify poller: {e}")
 
 def trigger_calendar_polling():
     """Polls Google Calendar & Tasks endpoints and publishes to MQTT."""
-    pass
+    try:
+        data = asyncio.run(get_google_calendar_and_tasks())
+        # Split calendar schedule and todo checklist into separate target topics
+        mqtt_service.publish("auradeck/calendar", data.get("calendar", {}))
+        mqtt_service.publish("auradeck/todos", data.get("todos", []))
+    except Exception as e:
+        logger.error(f"Error in background Calendar/Tasks poller: {e}")
 
 def trigger_stocks_polling():
-    """Polls AlphaVantage/Yahoo stock prices and publishes to MQTT."""
-    pass
+    """Polls stock prices, gold, and crypto, and publishes to MQTT."""
+    try:
+        data = asyncio.run(get_multi_asset_prices())
+        mqtt_service.publish("auradeck/stocks", data)
+    except Exception as e:
+        logger.error(f"Error in background Stocks poller: {e}")
+
+def trigger_analytics_polling():
+    """Polls GA4 & GCP Billing costs and publishes to MQTT."""
+    try:
+        data = asyncio.run(get_combined_analytics())
+        mqtt_service.publish("auradeck/analytics", data)
+    except Exception as e:
+        logger.error(f"Error in background Analytics poller: {e}")
+
+def trigger_antigravity_polling():
+    """Polls Google Antigravity credits and publishes to MQTT."""
+    try:
+        data = asyncio.run(get_antigravity_credits())
+        mqtt_service.publish("auradeck/antigravity", data)
+    except Exception as e:
+        logger.error(f"Error in background Antigravity poller: {e}")
 
 
 # --- Page Routing ---
@@ -170,56 +220,30 @@ def api_publish_mqtt(request: MqttPublishRequest):
 @app.post("/api/sync/{service}")
 async def api_manual_sync(service: str):
     """Manually triggers client API calls, publishing live payloads and returning them to sandbox."""
-    # In Phase 1, we will return Mock values. In Phase 2, we will integrate true client API fetch logic.
-    mock_data = {}
+    data = {}
+    topic = f"auradeck/{service}"
     
     if service == "spotify":
-        mock_data = {
-            "is_playing": True,
-            "title": "เพลงรักในสายลม (Live)",
-            "artist": "วงดนตรีสากล",
-            "progress_ms": 134000,
-            "duration_ms": 240000
-        }
+        data = await get_spotify_currently_playing()
     elif service == "calendar":
-        mock_data = {
-            "month_days_with_events": [1, 5, 12, 15, 20, 21, 22, 28],
-            "events": [
-                { "time": "14:00", "title": "ประชุมทีมสถาปัตยกรรม (Sync)", "is_today": true },
-                { "time": "Tomorrow 10:00", "title": "สแตนด์อัปรายวัน", "is_today": false }
-            ]
-        }
+        res = await get_google_calendar_and_tasks()
+        data = res.get("calendar", {})
+        # Also publish companion todos for user interface consistency!
+        mqtt_service.publish("auradeck/todos", res.get("todos", []))
     elif service == "todos":
-        mock_data = [
-            { "id": "1", "title": "ตรวจทาน Pull Request #42", "completed": False },
-            { "id": "2", "title": "ติดตั้งโปรแกรมปรับปรุงระบบฐานข้อมูล", "completed": False }
-        ]
+        res = await get_google_calendar_and_tasks()
+        data = res.get("todos", [])
+        # Also publish companion calendar for user interface consistency!
+        mqtt_service.publish("auradeck/calendar", res.get("calendar", {}))
     elif service == "stocks":
-        mock_data = [
-            { "symbol": "CPALL", "price": 57.25, "change_pct": 1.33, "type": "TH_STOCK" },
-            { "symbol": "BTC/THB", "price": 2350000.00, "change_pct": 2.15, "type": "CRYPTO" },
-            { "symbol": "GOLD_TH", "price": 41200.00, "change_pct": -0.24, "type": "GOLD" }
-        ]
+        data = await get_multi_asset_prices()
     elif service == "antigravity":
-        mock_data = {
-            "limit_5h": { "used": 12.5, "total": 50.0, "percentage": 25.0 },
-            "limit_weekly": { "used": 140.0, "total": 500.0, "percentage": 28.0 },
-            "next_reset": "02h 15m"
-        }
+        data = await get_antigravity_credits()
     elif service == "analytics":
-        mock_data = {
-            "gcp_status": "OK",
-            "ga4_active_users": 34,
-            "gsc_clicks": 1420,
-            "gsc_impressions": 28500,
-            "gcp_billing": [
-                { "project_name": "AuraDeck Dev", "cost_mtd": 12.50, "currency": "USD" },
-                { "project_name": "Client Prod", "cost_mtd": 148.20, "currency": "USD" }
-            ]
-        }
+        data = await get_combined_analytics()
     else:
         raise HTTPException(status_code=404, detail="Service API not found.")
         
     # Trigger MQTT push with current sync data
-    mqtt_service.publish(f"auradeck/{service}", mock_data)
-    return mock_data
+    mqtt_service.publish(topic, data)
+    return data
