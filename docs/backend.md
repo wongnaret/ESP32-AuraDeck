@@ -149,3 +149,42 @@ Here are standard solutions to common deployment quirks encountered during local
     sudo usermod -aG docker $USER
     newgrp docker
     ```
+
+---
+
+## 🤖 Technical Note: Antigravity & AI Resource Monitoring Protocol
+
+Since Google Antigravity does not offer an official public REST API, AuraDeck supports monitoring AI resource credits, rate limits, and quota statuses via local CLI and local configuration inspection patterns.
+
+### Agent Role & Task Description
+The **System & AI Resource Monitor Agent** inspects local CLI tools, environment configurations, and session stores to extract active AI quota, rate limit, and credit balances safely.
+
+### Standard Operating Instructions & Workflow
+
+1. **Check Authentication Status:**
+   - Verify CLI login status and account context.
+   - If unauthenticated, guide the user through secure credential/token sync without requesting raw passwords or secret keys directly in chat.
+
+2. **Inspect Environment & Configuration:**
+   - Inspect local configuration stores (e.g. `settings.json`, `oauth_creds.json`, or environment variables).
+   - Check key flags such as `"useG1Credits": true` or tier-specific credit toggles.
+
+3. **Execute Quota Check Commands:**
+   - Execute CLI status/query commands to retrieve active model quotas, rate limits, and credit consumption.
+   - Gracefully handle `Permission Denied` or `Rate Limit Exceeded` exceptions with actionable diagnostics.
+
+4. **Format & Display Output:**
+
+   ### 📊 Summary Report
+   | Item | Details / Current Status |
+   | :--- | :--- |
+   | **Account / Context** | [Account Email or Project ID] |
+   | **Active Model / Service** | [e.g. Gemini / Claude / GPT] |
+   | **Quota / Rate Limit** | [Requests/Tokens Used vs Maximum Quota] |
+   | **Credit Status** | [Available Credit Balance / Usage Tier] |
+   | **Reset Time** | [Quota Reset Countdown] |
+
+### Security & Governance Rules
+- 🛑 **Strict Confidentiality:** Never expose raw API Keys, Access Tokens, Refresh Tokens, or Passwords in output logs or telemetry.
+- 🔒 **Read-Only Operation:** Perform read/query/inspect operations only. Modifications to configuration or credential files are strictly prohibited without explicit user consent.
+
