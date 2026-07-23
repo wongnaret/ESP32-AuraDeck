@@ -11,6 +11,12 @@ static lv_obj_t* s_percentLabel = nullptr;
 static lv_obj_t* s_resetLabel = nullptr;
 
 void create_page_antigravity(lv_obj_t* parent) {
+    // Reset static pointers first (safety guard for re-entry)
+    s_creditsLabel = nullptr;
+    s_bar          = nullptr;
+    s_percentLabel = nullptr;
+    s_resetLabel   = nullptr;
+
     // 1. Screen Title
     lv_obj_t* title = lv_label_create(parent);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
@@ -94,3 +100,10 @@ void update_page_antigravity(const JsonDocument& doc) {
     }
 }
 
+void destroy_page_antigravity() {
+    // Invalidate all static widget pointers before LVGL frees the parent container.
+    s_creditsLabel = nullptr;
+    s_bar          = nullptr;
+    s_percentLabel = nullptr;
+    s_resetLabel   = nullptr;
+}

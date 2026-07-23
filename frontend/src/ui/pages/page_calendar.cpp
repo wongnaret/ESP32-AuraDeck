@@ -9,6 +9,9 @@
 static lv_obj_t* s_eventRows[3] = { nullptr };
 
 void create_page_calendar(lv_obj_t* parent) {
+    // Reset static row pointers first (safety guard for re-entry)
+    for (int i = 0; i < 3; i++) s_eventRows[i] = nullptr;
+
     // 1. Screen Title
     lv_obj_t* title = lv_label_create(parent);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
@@ -62,4 +65,9 @@ void update_page_calendar(const JsonDocument& doc) {
             lv_label_set_text(s_eventRows[i], "");
         }
     }
+}
+
+void destroy_page_calendar() {
+    // Invalidate all static widget pointers before LVGL frees the parent container.
+    for (int i = 0; i < 3; i++) s_eventRows[i] = nullptr;
 }

@@ -14,6 +14,14 @@ static lv_obj_t* s_durationTimeLabel = nullptr;
 static lv_obj_t* s_stateLabel = nullptr;
 
 void create_page_spotify(lv_obj_t* parent) {
+    // Reset static pointers first (safety guard for re-entry)
+    s_trackLabel        = nullptr;
+    s_artistLabel       = nullptr;
+    s_bar               = nullptr;
+    s_progressTimeLabel = nullptr;
+    s_durationTimeLabel = nullptr;
+    s_stateLabel        = nullptr;
+
     // 1. Screen Title (Decorative Spotify Logo Tag)
     lv_obj_t* title = lv_label_create(parent);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
@@ -111,4 +119,14 @@ void update_page_spotify(const JsonDocument& doc) {
     if (s_durationTimeLabel) lv_label_set_text(s_durationTimeLabel, timeBuf);
 
     if (s_stateLabel) lv_label_set_text(s_stateLabel, "Active Streaming...");
+}
+
+void destroy_page_spotify() {
+    // Invalidate all static widget pointers before LVGL frees the parent container.
+    s_trackLabel        = nullptr;
+    s_artistLabel       = nullptr;
+    s_bar               = nullptr;
+    s_progressTimeLabel = nullptr;
+    s_durationTimeLabel = nullptr;
+    s_stateLabel        = nullptr;
 }

@@ -9,6 +9,10 @@ static lv_obj_t* s_visitorsLabel = nullptr;
 static lv_obj_t* s_billingLabel = nullptr;
 
 void create_page_analytics(lv_obj_t* parent) {
+    // Reset static pointers first (safety guard for re-entry)
+    s_visitorsLabel = nullptr;
+    s_billingLabel  = nullptr;
+
     // 1. Screen Title
     lv_obj_t* title = lv_label_create(parent);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
@@ -66,4 +70,10 @@ void update_page_analytics(const JsonDocument& doc) {
         snprintf(buf, sizeof(buf), "$%.2f MTD", billing);
         if (s_billingLabel) lv_label_set_text(s_billingLabel, buf);
     }
+}
+
+void destroy_page_analytics() {
+    // Invalidate all static widget pointers before LVGL frees the parent container.
+    s_visitorsLabel = nullptr;
+    s_billingLabel  = nullptr;
 }

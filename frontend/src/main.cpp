@@ -198,6 +198,7 @@ void loop() {
         Serial.printf("🔍 Debug: RTC time=%s, date=%s\n", currentTime.c_str(), currentDate.c_str());
         
         bool isWifi = g_network.isConnected();
+        bool isMqtt = g_network.isMqttConnected();
 
         // Safe Fallback: Check for sensor connection failure/disconnections (Rule 3: Graceful Degradation)
         if (isnan(temperature) || isnan(humidity)) {
@@ -205,8 +206,8 @@ void loop() {
             humidity = 0.0;
         }
 
-        // Update top status bar with latest telemetry
-        g_ui.updateHeader(currentTime.c_str(), temperature, humidity, isWifi);
+        // Update top status bar with latest telemetry (WiFi + MQTT combined status)
+        g_ui.updateHeader(currentTime.c_str(), temperature, humidity, isWifi, isMqtt);
 
         // Forward local telemetry to active views (e.g. updating bold digital clock on Page 0 Home)
         DynamicJsonDocument telemetryDoc(256);

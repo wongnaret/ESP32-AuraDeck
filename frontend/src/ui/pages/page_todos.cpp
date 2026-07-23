@@ -9,6 +9,9 @@
 static lv_obj_t* s_todoRows[4] = { nullptr };
 
 void create_page_todos(lv_obj_t* parent) {
+    // Reset static row pointers first (safety guard for re-entry)
+    for (int i = 0; i < 4; i++) s_todoRows[i] = nullptr;
+
     // 1. Screen Title
     lv_obj_t* title = lv_label_create(parent);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
@@ -58,4 +61,9 @@ void update_page_todos(const JsonDocument& doc) {
             lv_label_set_text(s_todoRows[i], "");
         }
     }
+}
+
+void destroy_page_todos() {
+    // Invalidate all static widget pointers before LVGL frees the parent container.
+    for (int i = 0; i < 4; i++) s_todoRows[i] = nullptr;
 }

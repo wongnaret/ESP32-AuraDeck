@@ -58,8 +58,9 @@ public:
      * @param temp live temperature float
      * @param hum live humidity float
      * @param wifiConnected wifi status boolean
+     * @param mqttConnected mqtt broker connection status
      */
-    void updateHeader(const char* time, float temp, float hum, bool wifiConnected);
+    void updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected);
 
 private:
     ST7305Display* m_hardwareDisplay = nullptr;
@@ -72,10 +73,10 @@ private:
     lv_obj_t* m_activePageContainer = nullptr;
 
     // Header labels
-    lv_obj_t* m_headerTitleLabel = nullptr;
-    lv_obj_t* m_headerTimeLabel = nullptr;
-    lv_obj_t* m_headerSensorLabel = nullptr;
-    lv_obj_t* m_headerWifiIconLabel = nullptr;
+    lv_obj_t* m_headerTitleLabel    = nullptr;
+    lv_obj_t* m_headerTimeLabel     = nullptr;
+    lv_obj_t* m_headerSensorLabel   = nullptr;
+    lv_obj_t* m_headerWifiIconLabel = nullptr;  ///< WiFi + MQTT combined status icon
 
     int m_currentPageIndex = 0;
 

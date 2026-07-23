@@ -163,42 +163,65 @@ void UIManager::createPersistentHeader() {
     lv_line_set_points(line, line_points, 2);
 }
 
-void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiConnected) {
+void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected) {
     if (m_headerTimeLabel && time) {
         lv_label_set_text(m_headerTimeLabel, time);
     }
 
     if (m_headerSensorLabel) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%.1f°C", temp);
+        char buf[20];
+        snprintf(buf, sizeof(buf), "%.1f" "\xC2\xB0" "C", temp); // UTF-8 °C
         lv_label_set_text(m_headerSensorLabel, buf);
     }
 
     if (m_headerWifiIconLabel) {
-        lv_label_set_text(m_headerWifiIconLabel, wifiConnected ? "📶" : "⚠️");
+        // Show WiFi+MQTT combined status icon:
+        //   "W+M" = WiFi connected AND MQTT broker connected (fully operational)
+        //   "W"   = WiFi connected but MQTT reconnecting (partial)
+        //   "X"   = No WiFi (fully offline)
+        if (wifiConnected && mqttConnected) {
+            lv_label_set_text(m_headerWifiIconLabel, "W+M");
+        } else if (wifiConnected) {
+            lv_label_set_text(m_headerWifiIconLabel, "W");
+        } else {
+            lv_label_set_text(m_headerWifiIconLabel, "X");
+        }
     }
 }
 
 void UIManager::showPage(int pageIndex) {
+    // Step 1: Destroy active page first to invalidate dangling static widget pointers.
+    // This MUST happen before lv_obj_clean() frees the LVGL widget memory.
+    switch (m_currentPageIndex) {
+        case 0: destroy_page_home();        break;
+        case 1: destroy_page_antigravity(); break;
+        case 2: destroy_page_stocks();      break;
+        case 3: destroy_page_todos();       break;
+        case 4: destroy_page_calendar();    break;
+        case 5: destroy_page_spotify();     break;
+        case 6: destroy_page_analytics();   break;
+        default: break;
+    }
+
     m_currentPageIndex = pageIndex;
 
-    // Clean up previous page widgets in active container (Rule 5: Memory Leak protection)
+    // Step 2: Clean up previous page widgets in active container (Rule 5: Memory Leak protection)
     lv_obj_clean(m_activePageContainer);
 
-    // Update active page name in top header left corner
+    // Step 3: Update active page name in top header left corner
     if (m_headerTitleLabel) {
         lv_label_set_text(m_headerTitleLabel, getPageName(pageIndex));
     }
 
-    // Build the newly activated screen using specific constructors
+    // Step 4: Build the newly activated screen using specific constructors
     switch (pageIndex) {
-        case 0: create_page_home(m_activePageContainer); break;
+        case 0: create_page_home(m_activePageContainer);        break;
         case 1: create_page_antigravity(m_activePageContainer); break;
-        case 2: create_page_stocks(m_activePageContainer); break;
-        case 3: create_page_todos(m_activePageContainer); break;
-        case 4: create_page_calendar(m_activePageContainer); break;
-        case 5: create_page_spotify(m_activePageContainer); break;
-        case 6: create_page_analytics(m_activePageContainer); break;
+        case 2: create_page_stocks(m_activePageContainer);      break;
+        case 3: create_page_todos(m_activePageContainer);       break;
+        case 4: create_page_calendar(m_activePageContainer);    break;
+        case 5: create_page_spotify(m_activePageContainer);     break;
+        case 6: create_page_analytics(m_activePageContainer);   break;
         default: break;
     }
 

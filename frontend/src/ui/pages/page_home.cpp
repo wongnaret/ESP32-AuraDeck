@@ -11,6 +11,11 @@ static lv_obj_t* s_sensorLabel = nullptr;
 static lv_obj_t* s_statusLabel = nullptr;
 
 void create_page_home(lv_obj_t* parent) {
+    // Reset static pointers first (safety guard for re-entry)
+    s_clockLabel = nullptr;
+    s_dateLabel = nullptr;
+    s_sensorLabel = nullptr;
+    s_statusLabel = nullptr;
     // 1. Digital Clock (Large Bold Typography)
     s_clockLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_clockLabel, &lv_font_montserrat_48, 0);
@@ -61,4 +66,13 @@ void update_page_home(const JsonDocument& doc) {
         snprintf(buf, sizeof(buf), "Temp: %.1f °C  |  Humidity: %.1f %%", temp, hum);
         if (s_sensorLabel) lv_label_set_text(s_sensorLabel, buf);
     }
+}
+
+void destroy_page_home() {
+    // Invalidate all static widget pointers before LVGL frees the parent container.
+    // This prevents update_page_home() from writing to freed memory (dangling pointer crash).
+    s_clockLabel  = nullptr;
+    s_dateLabel   = nullptr;
+    s_sensorLabel = nullptr;
+    s_statusLabel = nullptr;
 }

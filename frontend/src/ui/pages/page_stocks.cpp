@@ -9,6 +9,9 @@
 static lv_obj_t* s_stockRows[4] = { nullptr };
 
 void create_page_stocks(lv_obj_t* parent) {
+    // Reset static row pointers first (safety guard for re-entry)
+    for (int i = 0; i < 4; i++) s_stockRows[i] = nullptr;
+
     // 1. Title Label
     lv_obj_t* title = lv_label_create(parent);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
@@ -63,4 +66,9 @@ void update_page_stocks(const JsonDocument& doc) {
         }
         idx++;
     }
+}
+
+void destroy_page_stocks() {
+    // Invalidate all static widget pointers before LVGL frees the parent container.
+    for (int i = 0; i < 4; i++) s_stockRows[i] = nullptr;
 }

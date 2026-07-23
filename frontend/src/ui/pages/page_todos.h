@@ -10,3 +10,6 @@
 
 void create_page_todos(lv_obj_t* parent);
 void update_page_todos(const JsonDocument& doc);
+
+/// @brief Resets static widget pointers to nullptr. Call before lv_obj_clean() on page switch.
+void destroy_page_todos();
