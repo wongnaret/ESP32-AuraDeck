@@ -188,3 +188,31 @@ The **System & AI Resource Monitor Agent** inspects local CLI tools, environment
 - 🛑 **Strict Confidentiality:** Never expose raw API Keys, Access Tokens, Refresh Tokens, or Passwords in output logs or telemetry.
 - 🔒 **Read-Only Operation:** Perform read/query/inspect operations only. Modifications to configuration or credential files are strictly prohibited without explicit user consent.
 
+---
+
+### 🛠️ Antigravity CLI Setup & Host Cron Runner
+
+To enable automatic AI credit & quota tracking when running AuraDeck inside Docker:
+
+1. **Install and Authenticate `agy` CLI on the Host Machine / Raspberry Pi:**
+   ```bash
+   agy auth login
+   ```
+2. **Verify CLI JSON Output on Host:**
+   ```bash
+   agy status --json
+   ```
+3. **Set Up Host Cron Job for Automatic Synchronization:**
+   Add a 5-minute cron schedule on the Host Machine to execute the provided helper script:
+   ```bash
+   chmod +x backend/scripts/update_antigravity_cli.sh
+   crontab -e
+   ```
+   Add the following line (replace `/path/to/ESP32-AuraDeck` with your actual repository path):
+   ```cron
+   */5 * * * * /bin/bash /path/to/ESP32-AuraDeck/backend/scripts/update_antigravity_cli.sh >> /tmp/auradeck_cli.log 2>&1
+   ```
+4. **Container Shared Volume:**
+   The backend container uses `./backend/tokens:/app/tokens` volume mapping in `docker-compose.yml`. Whenever the host cron job updates `tokens/antigravity_data.json`, the FastAPI container automatically broadcasts the fresh credit metrics via MQTT to all paired ESP32-S3 screens!
+
+

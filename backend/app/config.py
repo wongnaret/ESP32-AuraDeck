@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     
     # Cache and local file storage paths
     TOKENS_DIR: str = "./tokens"
+    ANTIGRAVITY_CLI_CMD: str = "agy status --json"
+
     
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),

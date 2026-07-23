@@ -43,6 +43,20 @@ void create_page_antigravity(lv_obj_t* parent) {
 }
 
 void update_page_antigravity(const JsonDocument& doc) {
+    // Check for error or unauthenticated status
+    if (doc.containsKey("status")) {
+        const char* st = doc["status"] | "ok";
+        if (strcmp(st, "unauthenticated") == 0 || strcmp(st, "error") == 0) {
+            if (s_creditsLabel) lv_label_set_text(s_creditsLabel, "Auth Required");
+            if (s_bar) lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
+            if (s_percentLabel) lv_label_set_text(s_percentLabel, "Quota Used: N/A");
+            
+            const char* err = doc["error_message"] | "Check Antigravity CLI Login";
+            if (s_resetLabel) lv_label_set_text(s_resetLabel, err);
+            return;
+        }
+    }
+
     // 1. Available AI Credits or Remaining Hours
     if (doc.containsKey("available_credits") || doc.containsKey("ai_credits")) {
         int credits = doc["available_credits"] | doc["ai_credits"] | 0;
@@ -79,3 +93,4 @@ void update_page_antigravity(const JsonDocument& doc) {
         if (s_resetLabel) lv_label_set_text(s_resetLabel, buf);
     }
 }
+
