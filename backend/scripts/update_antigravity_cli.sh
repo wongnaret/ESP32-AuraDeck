@@ -16,9 +16,12 @@ fi
 
 OUTPUT_FILE="$TOKENS_DIR/antigravity_data.json"
 
+echo "[$(date)] Running Antigravity status check..."
+
 # Check if agy CLI exists on host
 if command -v agy &> /dev/null; then
-    agy status --json > "$OUTPUT_FILE.tmp" 2>/dev/null
+    # Run with timeout 5s and empty stdin to prevent interactive REPL lockup
+    timeout 5s agy status --json < /dev/null > "$OUTPUT_FILE.tmp" 2>&1
     # Verify if output is valid JSON
     if [ $? -eq 0 ] && grep -q "{" "$OUTPUT_FILE.tmp" 2>/dev/null; then
         mv "$OUTPUT_FILE.tmp" "$OUTPUT_FILE"
@@ -29,6 +32,7 @@ if command -v agy &> /dev/null; then
         echo "[$(date)] Notice: 'agy status --json' did not return direct JSON output. Preserving default JSON state."
     fi
 fi
+
 
 # Ensure default JSON state exists if file is missing
 if [ ! -f "$OUTPUT_FILE" ]; then
