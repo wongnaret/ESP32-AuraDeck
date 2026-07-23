@@ -74,3 +74,9 @@ secret/
 tokens/
 .env
 *.env
+
+# IDE & PlatformIO generated files
+.pio/
+compile_commands.json
+.vscode/
+
