@@ -87,16 +87,19 @@ async def execute_cli_command() -> Dict[str, Any]:
 async def get_antigravity_credits() -> Dict[str, Any]:
     """
     Fetches the Google Antigravity query limits and credit usage.
-    Tries direct CLI execution first; falls back to loading mounted tokens/antigravity_data.json.
+    Reads mounted tokens/antigravity_data.json first for instant response;
+    falls back to direct CLI execution if state file is missing.
     """
-    # 1. Try direct CLI execution
-    cli_result = await execute_cli_command()
-    if cli_result.get("status") == "ok":
-        state = cli_result
-    else:
-        # 2. Fallback to reading mounted state file
+    # 1. Read mounted state file first if present
+    if os.path.exists(STATE_FILE):
         state = load_antigravity_state()
-        if not os.path.exists(STATE_FILE) and cli_result.get("status") != "ok":
+    else:
+        # 2. Try direct CLI execution if file missing
+        cli_result = await execute_cli_command()
+        if cli_result.get("status") == "ok":
+            state = cli_result
+        else:
+            state = load_antigravity_state()
             state["status"] = "unauthenticated"
             state["error_message"] = cli_result.get("error_message", "Antigravity CLI unauthenticated or unavailable")
 

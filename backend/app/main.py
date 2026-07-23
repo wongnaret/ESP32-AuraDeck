@@ -162,12 +162,18 @@ def on_startup():
         id="antigravity_polling_job",
         func=trigger_antigravity_polling,
         trigger="interval",
-        minutes=30,
+        minutes=1,
         max_instances=1
     )
     
     scheduler.start()
     logger.info("Background Schedulers started successfully.")
+    
+    # Trigger initial antigravity publish immediately
+    try:
+        trigger_antigravity_polling()
+    except Exception as e:
+        logger.error(f"Error running initial antigravity poll on startup: {e}")
 
 
 @app.on_event("shutdown")
@@ -858,6 +864,15 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
             else:
                 mqtt_service.publish(f"auradeck/device/{mac}/{service}", data)
                 
+    return data
+
+
+@app.get("/api/v1/antigravity")
+async def api_get_antigravity_credits():
+    """Retrieves current Antigravity query limits and available credits."""
+    data = await get_antigravity_credits()
+    # Publish to MQTT topic as well
+    mqtt_service.publish("auradeck/antigravity", data)
     return data
 
 
