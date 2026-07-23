@@ -27,7 +27,16 @@ bool AuraNetworkManager::begin(PCF85063RTC* rtc) {
     m_rtc = rtc;
 
     Serial.printf("📡 Starting Wi-Fi Station... Target SSID: %s\n", WIFI_SSID);
+
+    // Reset Wi-Fi configuration and clean state before connecting
+    WiFi.persistent(false);
+    WiFi.disconnect(true);
+    delay(100);
+
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
+    // Allow connection to legacy WPA-PSK (Sec: 2) access points
+    WiFi.setMinSecurity(WIFI_AUTH_WPA_PSK);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     // Setup MQTT client
@@ -46,8 +55,55 @@ void AuraNetworkManager::connectWifi() {
     // Non-blocking reconnect attempt every 15 seconds
     if (now - m_lastWifiCheckTime > 15000) {
         m_lastWifiCheckTime = now;
-        Serial.println("📶 Wi-Fi disconnected or connecting... Retrying...");
-        WiFi.begin(WIFI_SSID, WIFI_PASS);
+        uint8_t status = WiFi.status();
+        
+        Serial.printf("📶 Wi-Fi Status: %d (%s). Retrying connection to SSID [%s]...\n", 
+                      status, 
+                      status == 1 ? "WL_NO_SSID_AVAIL (SSID Not Found/Security Mismatch)" : 
+                      status == 4 ? "WL_CONNECT_FAILED (Auth Error)" : 
+                      status == 6 ? "WL_DISCONNECTED" : "CONNECTING",
+                      WIFI_SSID);
+
+        int targetChannel = 0;
+
+        // If SSID is not found or disconnected, disconnect first and run a clean Wi-Fi scan
+        if (status == WL_NO_SSID_AVAIL || status == WL_DISCONNECTED) {
+            Serial.println("🔍 Running 2.4GHz Wi-Fi scan to check visible SSIDs...");
+            WiFi.disconnect();
+            delay(100);
+            int n = WiFi.scanNetworks(false, true); // false = synchronous scan, true = show hidden SSIDs
+            if (n < 0) {
+                Serial.printf("  ⚠️ Wi-Fi Scan failed with error code: %d\n", n);
+            } else if (n == 0) {
+                Serial.println("  ⚠️ No 2.4GHz Wi-Fi networks found! Check ESP32 Antenna hardware.");
+            } else {
+                Serial.printf("  Found %d 2.4GHz Wi-Fi network(s) nearby:\n", n);
+                for (int i = 0; i < n; ++i) {
+                    String scannedSsid = WiFi.SSID(i);
+                    int rssi = WiFi.RSSI(i);
+                    int channel = WiFi.channel(i);
+                    int sec = WiFi.encryptionType(i);
+
+                    Serial.printf("    [%d] SSID: '%s' | RSSI: %d dBm | Ch: %d | Sec: %d\n",
+                                  i + 1, scannedSsid.c_str(), rssi, channel, sec);
+
+                    if (scannedSsid == WIFI_SSID) {
+                        targetChannel = channel;
+                        Serial.printf("    🎯 Target AP '%s' detected on Channel %d (Sec: %d)!\n", 
+                                      WIFI_SSID, targetChannel, sec);
+                    }
+                }
+            }
+            WiFi.scanDelete();
+        }
+
+        WiFi.setMinSecurity(WIFI_AUTH_WPA_PSK);
+        if (targetChannel > 0) {
+            Serial.printf("⚡ Direct connecting to [%s] on Channel %d...\n", WIFI_SSID, targetChannel);
+            WiFi.begin(WIFI_SSID, WIFI_PASS, targetChannel);
+        } else {
+            WiFi.begin(WIFI_SSID, WIFI_PASS);
+        }
     }
 }
 
@@ -59,7 +115,20 @@ void AuraNetworkManager::connectMqtt() {
     if (now - m_lastMqttReconnectTime > 8000) {
         m_lastMqttReconnectTime = now;
         
-        Serial.printf("🔌 Connecting to Mosquitto Broker at %s:%d...\n", MQTT_SERVER, MQTT_PORT);
+        // Auto-discover MQTT Server IP from Gateway IP (Raspberry Pi Hotspot IP)
+        IPAddress targetServerIp;
+        IPAddress gatewayIp = WiFi.gatewayIP();
+
+        if (gatewayIp != IPAddress(0, 0, 0, 0)) {
+            targetServerIp = gatewayIp;
+        } else {
+            targetServerIp.fromString(MQTT_SERVER);
+        }
+
+        m_mqttClient.setServer(targetServerIp, MQTT_PORT);
+
+        Serial.printf("🔌 Connecting to Mosquitto Broker at %s:%d...\n", 
+                      targetServerIp.toString().c_str(), MQTT_PORT);
         String clientId = "AuraDeckScreen-" + String((uint32_t)ESP.getEfuseMac());
         
         if (m_mqttClient.connect(clientId.c_str())) {
@@ -109,6 +178,9 @@ void AuraNetworkManager::tick() {
     if (isConnected()) {
         // Handle NTP time sync once on initial Wi-Fi connection
         if (!m_timeSynced) {
+            Serial.printf("✅ Wi-Fi Connected! Local IP: %s | Gateway/Pi IP: %s\n",
+                          WiFi.localIP().toString().c_str(),
+                          WiFi.gatewayIP().toString().c_str());
             syncNTPTime();
         }
 

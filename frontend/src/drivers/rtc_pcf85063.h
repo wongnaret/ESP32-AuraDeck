@@ -6,6 +6,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <Wire.h>
 #include <RTClib.h>
 
 class PCF85063RTC {
@@ -49,6 +50,8 @@ public:
     bool isLostPower();
 
 private:
-    RTC_PCF8563 m_rtc;
+    TwoWire* m_wire = nullptr;
     bool m_initialized = false;
+    static const uint8_t PCF85063_I2C_ADDR = 0x51;
 };
+
