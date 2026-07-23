@@ -28,8 +28,9 @@ PairingManager     g_pairing; ///< TV-style pairing manager
 // In-Memory UI State Variables
 int g_currentPageIndex = 0;
 const int TOTAL_PAGES = 7; // Home, Antigravity, Stocks, Todos, Calendar, Spotify, Analytics
-volatile bool g_pageChanged  = false; // Set in ISR, handled safely in main loop
-bool g_isPairingMode = false;         ///< true while showing pairing PIN screen
+volatile bool g_pageChanged    = false; // Set in ISR, handled safely in main loop
+bool g_isPairingMode           = false; ///< true while showing pairing PIN screen
+bool g_pairingCheckDone        = false; ///< pairing check runs once after first WiFi connect
 
 uint32_t g_lastHeaderUpdateTime = 0;
 uint32_t g_lastTimePrintTime    = 0;
@@ -153,44 +154,11 @@ void setup() {
     g_ui.drawBootStatus("Connecting to Local Hotspot...", 95);
     g_network.begin(&g_rtc);
 
-    // 9. Transition cleanly to Interactive Dashboard or Pairing Screen
-    g_ui.drawBootStatus("Checking Pairing Status...", 100);
-    delay(300);
-    g_ui.completeBoot(); // Always show dashboard frame first
-
-    // 10. Pairing Boot Flow: check if device is paired, show PIN screen if not
-    //     Per Rule 3 (Graceful Degradation): if backend unreachable, go straight to dashboard.
-    if (g_network.isConnected()) {
-        String mac = WiFi.macAddress();
-        String gateway = WiFi.gatewayIP().toString();
-
-        Serial.printf("📺 Checking pairing status for MAC: %s via %s\n", mac.c_str(), gateway.c_str());
-        g_pairing.init(gateway.c_str(), mac.c_str());
-
-        bool paired = g_pairing.checkPaired();
-
-        if (!paired) {
-            char pin[8] = {0};
-            bool pinOk = g_pairing.requestPin(pin, sizeof(pin));
-
-            if (pinOk && pin[0] != '\0') {
-                Serial.printf("📺 Device unpaired. Showing pairing screen with PIN: %s\n", pin);
-                g_isPairingMode = true;
-                // Disable manual page cycling while in pairing mode
-                g_ui.showPairingPage(pin, gateway.c_str());
-            } else {
-                Serial.println("⚠️ Could not obtain PIN from backend. Entering dashboard (offline mode).");
-                g_isPairingMode = false;
-            }
-        } else {
-            Serial.printf("✅ Device already paired. Subscribing to device MQTT topics for MAC: %s\n", mac.c_str());
-            g_network.subscribeDeviceTopics(mac.c_str());
-            g_isPairingMode = false;
-        }
-    } else {
-        Serial.println("⚠️ No WiFi at boot. Showing dashboard in offline mode.");
-        g_isPairingMode = false;
-    }
+    // 9. Transition cleanly to Interactive Dashboard
+    g_ui.drawBootStatus("Booting Dashboard...", 100);
+    delay(500);
+    g_ui.completeBoot();
+    // Note: Pairing check is deferred to loop() after WiFi connects (timing-safe)
 }
 
 void loop() {
@@ -213,7 +181,41 @@ void loop() {
         Serial.println("⚠️ Button press ignored — device is in pairing mode.");
     }
 
-    // 3a. If in pairing mode: animate waiting dots + poll pairing status every 10s
+    // 3a. DEFERRED PAIRING CHECK — runs exactly once after WiFi first connects.
+    //     Cannot run in setup() because WiFi.begin() is async and not yet connected.
+    //     Per Rule 3 (Graceful Degradation): backend unreachable → skip to dashboard.
+    if (!g_pairingCheckDone && g_network.isConnected()) {
+        g_pairingCheckDone = true;
+
+        String mac     = WiFi.macAddress();
+        String gateway = WiFi.gatewayIP().toString();
+
+        Serial.printf("📺 [Pairing] First WiFi connect. MAC: %s | Gateway: %s\n",
+                      mac.c_str(), gateway.c_str());
+        g_pairing.init(gateway.c_str(), mac.c_str());
+
+        bool paired = g_pairing.checkPaired();
+
+        if (!paired) {
+            char pin[8] = {0};
+            bool pinOk = g_pairing.requestPin(pin, sizeof(pin));
+
+            if (pinOk && pin[0] != '\0') {
+                Serial.printf("📺 [Pairing] Device unpaired. Showing PIN screen: %s\n", pin);
+                g_isPairingMode = true;
+                g_ui.showPairingPage(pin, gateway.c_str());
+            } else {
+                Serial.println("⚠️ [Pairing] Backend unreachable for PIN. Staying on dashboard (offline mode).");
+                g_isPairingMode = false;
+            }
+        } else {
+            Serial.printf("✅ [Pairing] Already paired. Subscribing to device MQTT topics: %s\n", mac.c_str());
+            g_network.subscribeDeviceTopics(mac.c_str());
+            g_isPairingMode = false;
+        }
+    }
+
+    // 3b. If in pairing mode: animate waiting dots + poll pairing status every 10s
     if (g_isPairingMode) {
         update_page_pairing_tick(); // Animate waiting... dots
 
