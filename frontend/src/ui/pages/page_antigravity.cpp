@@ -43,14 +43,20 @@ void create_page_antigravity(lv_obj_t* parent) {
 }
 
 void update_page_antigravity(const JsonDocument& doc) {
-    // Check for Antigravity specific payload keys
-    if (doc.containsKey("credit_hours_remaining")) {
+    // 1. Available AI Credits or Remaining Hours
+    if (doc.containsKey("available_credits") || doc.containsKey("ai_credits")) {
+        int credits = doc["available_credits"] | doc["ai_credits"] | 0;
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%d Credits", credits);
+        if (s_creditsLabel) lv_label_set_text(s_creditsLabel, buf);
+    } else if (doc.containsKey("credit_hours_remaining")) {
         float remaining = doc["credit_hours_remaining"] | 0.0;
         char buf[32];
         snprintf(buf, sizeof(buf), "%.1f Hrs Left", remaining);
         if (s_creditsLabel) lv_label_set_text(s_creditsLabel, buf);
     }
 
+    // 2. Quota Used Bar & Percentage
     if (doc.containsKey("percent_quota_used")) {
         float percent = doc["percent_quota_used"] | 0.0;
         int pct_val = (int)percent;
@@ -62,5 +68,14 @@ void update_page_antigravity(const JsonDocument& doc) {
         char buf[32];
         snprintf(buf, sizeof(buf), "Quota Used: %d%%", pct_val);
         if (s_percentLabel) lv_label_set_text(s_percentLabel, buf);
+    }
+
+    // 3. Plan Name and Reset Footer
+    const char* plan = doc["plan"] | "Google AI Pro";
+    const char* reset = doc["next_reset"] | "03h 47m";
+    if (doc.containsKey("plan") || doc.containsKey("next_reset")) {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%s | Reset in %s", plan, reset);
+        if (s_resetLabel) lv_label_set_text(s_resetLabel, buf);
     }
 }

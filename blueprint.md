@@ -202,8 +202,32 @@ The Raspberry Pi publishes structured, single-responsibility telemetry objects o
 ### Topic: `auradeck/antigravity`
 ```json
 {
-  "credit_hours_remaining": 4.5,
-  "percent_quota_used": 72.0
+  "plan": "Google AI Pro",
+  "available_credits": 823,
+  "ai_credits": 823,
+  "gemini_models": {
+    "weekly_limit_percent": 99.0,
+    "five_hour_limit_percent": 97.0,
+    "next_reset_5h": "03h 47m",
+    "next_reset_weekly": "6 days, 22 hours"
+  },
+  "claude_gpt_models": {
+    "weekly_limit_percent": 100.0,
+    "five_hour_limit_percent": 100.0
+  },
+  "limit_5h": {
+    "used": 3.0,
+    "total": 100.0,
+    "percentage": 3.0
+  },
+  "limit_weekly": {
+    "used": 1.0,
+    "total": 100.0,
+    "percentage": 1.0
+  },
+  "next_reset": "03h 47m",
+  "credit_hours_remaining": 823.0,
+  "percent_quota_used": 3.0
 }
 ```
 

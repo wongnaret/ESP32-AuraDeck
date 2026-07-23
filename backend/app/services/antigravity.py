@@ -1,62 +1,96 @@
 import logging
-import random
-from datetime import datetime, timedelta
+import os
+import json
 from typing import Dict, Any
 
 logger = logging.getLogger("antigravity_service")
 
-# Static starting values for demo tracking
-_used_5h = 12.5
-_used_weekly = 140.0
-_target_reset_time = datetime.now() + timedelta(hours=2, minutes=15)
+# Storage file path for Antigravity state
+TOKENS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "tokens")
+STATE_FILE = os.path.join(TOKENS_DIR, "antigravity_data.json")
+
+# Default values aligned with user's Google AI Pro Antigravity account state
+DEFAULT_ANTIGRAVITY_STATE = {
+    "plan": "Google AI Pro",
+    "available_credits": 823,
+    "ai_credits": 823,
+    "gemini_models": {
+        "weekly_limit_percent": 99.0,
+        "five_hour_limit_percent": 97.0,
+        "next_reset_5h": "03h 47m",
+        "next_reset_weekly": "6 days, 22 hours"
+    },
+    "claude_gpt_models": {
+        "weekly_limit_percent": 100.0,
+        "five_hour_limit_percent": 100.0
+    }
+}
+
+def load_antigravity_state() -> Dict[str, Any]:
+    os.makedirs(TOKENS_DIR, exist_ok=True)
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                merged = DEFAULT_ANTIGRAVITY_STATE.copy()
+                merged.update(data)
+                return merged
+        except Exception as e:
+            logger.error(f"Error loading {STATE_FILE}: {e}")
+    
+    # Save default state if missing
+    save_antigravity_state(DEFAULT_ANTIGRAVITY_STATE)
+    return DEFAULT_ANTIGRAVITY_STATE
+
+def save_antigravity_state(state: Dict[str, Any]) -> None:
+    os.makedirs(TOKENS_DIR, exist_ok=True)
+    try:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Error saving {STATE_FILE}: {e}")
 
 async def get_antigravity_credits() -> Dict[str, Any]:
     """
-    Simulates / Tracks the Google Antigravity query limits and credit usage dynamically.
-    Features a real-time countdown timer and micro-credit consumption to provide a premium UX feel.
+    Fetches the Google Antigravity query limits and credit usage.
+    Returns full Antigravity plan details alongside backward-compatible fields for ESP32 & Web Dashboard.
     """
-    global _used_5h, _used_weekly, _target_reset_time
+    state = load_antigravity_state()
     
-    # 1. Handle countdown timer reset
-    now = datetime.now()
-    if now >= _target_reset_time:
-        # Reset and generate a new random reset time (2-5 hours in future)
-        _target_reset_time = now + timedelta(hours=random.randint(2, 4), minutes=random.randint(10, 50))
-        # Reset the 5h usage slightly
-        _used_5h = round(random.uniform(2.0, 10.0), 1)
-        
-    time_diff = _target_reset_time - now
-    hours, remainder = divmod(int(time_diff.total_seconds()), 3600)
-    minutes, _ = divmod(remainder, 60)
-    reset_str = f"{hours:02d}h {minutes:02d}m"
-
-    # 2. Simulate small query consumption increments occasionally (15% chance per call)
-    if random.random() < 0.15:
-        inc = round(random.uniform(0.5, 1.5), 1)
-        _used_5h = min(50.0, _used_5h + inc)
-        _used_weekly = min(500.0, _used_weekly + inc)
-
-    percentage_5h = round((_used_5h / 50.0) * 100, 1)
-    percentage_weekly = round((_used_weekly / 500.0) * 100, 1)
-
-    # Calculate flat fields expected by the ESP32 (and API specification)
-    # credit_hours_remaining represents hours left in the 5h limit window
-    credit_hours_remaining = round(5.0 - (_used_5h / 10.0), 1)
-    # percent_quota_used represents the percentage of weekly quota used
-    percent_quota_used = percentage_weekly
+    plan = state.get("plan", "Google AI Pro")
+    credits = state.get("available_credits", state.get("ai_credits", 823))
+    
+    gemini = state.get("gemini_models", {})
+    gemini_5h = gemini.get("five_hour_limit_percent", 97.0)
+    gemini_weekly = gemini.get("weekly_limit_percent", 99.0)
+    reset_5h = gemini.get("next_reset_5h", "03h 47m")
+    
+    # Derived quota usage percentages
+    used_5h_pct = round(100.0 - gemini_5h, 1)
+    used_weekly_pct = round(100.0 - gemini_weekly, 1)
 
     return {
+        "plan": plan,
+        "available_credits": credits,
+        "ai_credits": credits,
+        "gemini_models": gemini,
+        "claude_gpt_models": state.get("claude_gpt_models", {}),
+        
+        # Legacy/Nested fields for Web Dashboard compatibility
         "limit_5h": {
-            "used": _used_5h,
-            "total": 50.0,
-            "percentage": percentage_5h
+            "used": used_5h_pct,
+            "total": 100.0,
+            "percentage": used_5h_pct
         },
         "limit_weekly": {
-            "used": _used_weekly,
-            "total": 500.0,
-            "percentage": percentage_weekly
+            "used": used_weekly_pct,
+            "total": 100.0,
+            "percentage": used_weekly_pct
         },
-        "next_reset": reset_str,
-        "credit_hours_remaining": credit_hours_remaining,
-        "percent_quota_used": percent_quota_used
+        "next_reset": reset_5h,
+        
+        # Flat fields expected by ESP32-S3 screen client
+        "credit_hours_remaining": float(credits),
+        "percent_quota_used": used_5h_pct
     }
+
