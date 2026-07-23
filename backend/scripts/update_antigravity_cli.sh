@@ -20,10 +20,21 @@ echo "[$(date)] Running Antigravity status check..."
 
 # Check if agy CLI exists on host
 if command -v agy &> /dev/null; then
-    # Run with timeout 5s and empty stdin to prevent interactive REPL lockup
-    timeout 5s agy status --json < /dev/null > "$OUTPUT_FILE.tmp" 2>&1
+    # Run agy in background and enforce a strict 2-second limit
+    agy status --json < /dev/null > "$OUTPUT_FILE.tmp" 2>&1 &
+    AGY_PID=$!
+    
+    # Wait maximum 2 seconds
+    sleep 2
+    
+    # If process is still running after 2s, kill forcefully with SIGKILL (-9)
+    if kill -0 "$AGY_PID" 2>/dev/null; then
+        kill -9 "$AGY_PID" 2>/dev/null
+        wait "$AGY_PID" 2>/dev/null
+    fi
+
     # Verify if output is valid JSON
-    if [ $? -eq 0 ] && grep -q "{" "$OUTPUT_FILE.tmp" 2>/dev/null; then
+    if [ -f "$OUTPUT_FILE.tmp" ] && grep -q "{" "$OUTPUT_FILE.tmp" 2>/dev/null; then
         mv "$OUTPUT_FILE.tmp" "$OUTPUT_FILE"
         echo "[$(date)] Successfully updated Antigravity CLI status -> $OUTPUT_FILE"
         exit 0
@@ -32,6 +43,7 @@ if command -v agy &> /dev/null; then
         echo "[$(date)] Notice: 'agy status --json' did not return direct JSON output. Preserving default JSON state."
     fi
 fi
+
 
 
 # Ensure default JSON state exists if file is missing
