@@ -62,6 +62,18 @@ public:
      */
     void updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected);
 
+    /**
+     * @brief Transitions the display to the TV-style pairing PIN screen.
+     * @param pin 6-digit PIN string (e.g. "645902")
+     * @param gatewayIp Backend server IP (e.g. "10.42.0.1")
+     */
+    void showPairingPage(const char* pin, const char* gatewayIp);
+
+    /**
+     * @brief Transitions from pairing screen to the main interactive dashboard (Page 0).
+     */
+    void showDashboard();
+
 private:
     ST7305Display* m_hardwareDisplay = nullptr;
     lv_disp_draw_buf_t m_drawBuf;
@@ -73,10 +85,11 @@ private:
     lv_obj_t* m_activePageContainer = nullptr;
 
     // Header labels
-    lv_obj_t* m_headerTitleLabel    = nullptr;
-    lv_obj_t* m_headerTimeLabel     = nullptr;
-    lv_obj_t* m_headerSensorLabel   = nullptr;
-    lv_obj_t* m_headerWifiIconLabel = nullptr;  ///< WiFi + MQTT combined status icon
+    lv_obj_t* m_headerTitleLabel    = nullptr;  ///< Page name (left side)
+    lv_obj_t* m_headerTimeLabel     = nullptr;  ///< HH:MM clock (right side)
+    lv_obj_t* m_headerSensorLabel   = nullptr;  ///< Temperature reading
+    lv_obj_t* m_headerWifiIconLabel = nullptr;  ///< WiFi symbol (LV_SYMBOL_WIFI)
+    lv_obj_t* m_headerMqttDotLabel  = nullptr;  ///< MQTT broker dot indicator
 
     int m_currentPageIndex = 0;
 

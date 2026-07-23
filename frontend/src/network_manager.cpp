@@ -133,19 +133,41 @@ void AuraNetworkManager::connectMqtt() {
         
         if (m_mqttClient.connect(clientId.c_str())) {
             Serial.println("✅ Connected to MQTT Broker successfully.");
-            
-            // Subscribe to all target board telemetry topics
+
+            // Subscribe to generic dev/test topics (backward compat with Developer Sandbox)
             m_mqttClient.subscribe("auradeck/spotify");
             m_mqttClient.subscribe("auradeck/calendar");
             m_mqttClient.subscribe("auradeck/todos");
             m_mqttClient.subscribe("auradeck/stocks");
             m_mqttClient.subscribe("auradeck/analytics");
             m_mqttClient.subscribe("auradeck/antigravity");
-            
-            Serial.println("📬 Subscribed to all AuraDeck payload topics.");
+            Serial.println("📬 Subscribed to generic AuraDeck topics (dev mode).");
+
+            // If device is already paired, also subscribe to MAC-addressed production topics
+            if (m_deviceMac[0] != '\0') {
+                subscribeDeviceTopics(m_deviceMac);
+            }
         } else {
             Serial.printf("❌ MQTT connection failed! State error code: %d\n", m_mqttClient.state());
         }
+    }
+}
+
+void AuraNetworkManager::subscribeDeviceTopics(const char* mac) {
+    strncpy(m_deviceMac, mac, sizeof(m_deviceMac) - 1);
+
+    if (!m_mqttClient.connected()) {
+        Serial.println("[Network] subscribeDeviceTopics: MQTT not connected. Will subscribe on reconnect.");
+        return;
+    }
+
+    // Subscribe to per-device MAC-addressed production topics as per API.md
+    const char* services[] = { "spotify", "calendar", "todos", "stocks", "analytics", "antigravity" };
+    for (const char* svc : services) {
+        char topic[64];
+        snprintf(topic, sizeof(topic), "auradeck/device/%s/%s", mac, svc);
+        m_mqttClient.subscribe(topic);
+        Serial.printf("📬 Subscribed to device topic: %s\n", topic);
     }
 }
 
@@ -211,7 +233,26 @@ void AuraNetworkManager::staticMqttCallback(char* topic, byte* payload, unsigned
 void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument& doc) {
     Serial.printf("\n📥 [MQTT Received] Topic: %s\n", topic);
 
-    if (strcmp(topic, "auradeck/spotify") == 0) {
+    // Helper: extract service name from either generic or device-specific topics
+    // Generic:  "auradeck/{service}"
+    // Device:   "auradeck/device/{mac}/{service}"
+    const char* service = nullptr;
+    const char* prefix = "auradeck/device/";
+    if (strncmp(topic, prefix, strlen(prefix)) == 0) {
+        // Device-specific topic: skip past "auradeck/device/{mac}/"
+        const char* macEnd = strchr(topic + strlen(prefix), '/');
+        service = (macEnd != nullptr) ? macEnd + 1 : nullptr;
+    } else if (strncmp(topic, "auradeck/", 9) == 0) {
+        // Generic dev topic: skip past "auradeck/"
+        service = topic + 9;
+    }
+
+    if (service == nullptr) {
+        Serial.printf("⚠️ Unrecognized MQTT topic format: %s\n", topic);
+        return;
+    }
+
+    if (strcmp(service, "spotify") == 0) {
         bool isPlaying = doc["is_playing"] | false;
         if (isPlaying) {
             const char* track = doc["track"] | "Unknown Track";
@@ -223,49 +264,47 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
             Serial.println("  🎵 Spotify Offline (No track active)");
         }
     } 
-    else if (strcmp(topic, "auradeck/calendar") == 0) {
+    else if (strcmp(service, "calendar") == 0) {
         JsonArrayConst monthEvents = doc["month_days_with_events"].as<JsonArrayConst>();
         Serial.print("  📅 Calendar Month Event Days: ");
-        for (int val : monthEvents) {
-            Serial.printf("%d ", val);
-        }
+        for (int val : monthEvents) { Serial.printf("%d ", val); }
         Serial.println();
 
         JsonArrayConst events = doc["events"].as<JsonArrayConst>();
         Serial.println("  📅 Daily Agendas:");
         for (JsonObjectConst event : events) {
-            const char* time = event["time"] | "";
+            const char* time  = event["time"]  | "";
             const char* title = event["title"] | "No Title";
-            bool is_today = event["is_today"] | false;
+            bool is_today     = event["is_today"] | false;
             Serial.printf("    - [%s] %s (%s)\n", time, title, is_today ? "Today" : "Tomorrow");
         }
     } 
-    else if (strcmp(topic, "auradeck/todos") == 0) {
+    else if (strcmp(service, "todos") == 0) {
         JsonArrayConst todos = doc["todos"].as<JsonArrayConst>();
         Serial.println("  📋 Google Checklist Items:");
         for (const char* todo : todos) {
             Serial.printf("    - [ ] %s\n", todo);
         }
     } 
-    else if (strcmp(topic, "auradeck/stocks") == 0) {
+    else if (strcmp(service, "stocks") == 0) {
         JsonArrayConst stocks = doc["stocks"].as<JsonArrayConst>();
         Serial.println("  📈 Watchlist Quotes:");
         for (JsonObjectConst s : stocks) {
             const char* sym = s["symbol"] | "";
             float price = s["price"] | 0.0;
-            float pct = s["change_percent"] | 0.0;
-            Serial.printf("    - %s: %s%.2f (%+.2f%%)\n", sym, (strcmp(sym, "GOLD") == 0) ? "฿" : "$", price, pct);
+            float pct   = s["change_percent"] | 0.0;
+            Serial.printf("    - %s: %.2f (%+.2f%%)\n", sym, price, pct);
         }
     } 
-    else if (strcmp(topic, "auradeck/analytics") == 0) {
-        int activeUsers = doc["active_users"] | 0;
-        float mtdBilling = doc["mtd_billing"] | 0.0;
-        Serial.printf("  📊 GA4 Active Visitors : %d\n", activeUsers);
+    else if (strcmp(service, "analytics") == 0) {
+        int   activeUsers = doc["active_users"]  | 0;
+        float mtdBilling  = doc["mtd_billing"]   | 0.0;
+        Serial.printf("  📊 GA4 Active Visitors : %d\n",    activeUsers);
         Serial.printf("  💵 GCP Cloud Billing   : $%.2f MTD\n", mtdBilling);
     } 
-    else if (strcmp(topic, "auradeck/antigravity") == 0) {
+    else if (strcmp(service, "antigravity") == 0) {
         float remaining = doc["credit_hours_remaining"] | 0.0;
-        float percent = doc["percent_quota_used"] | 0.0;
+        float percent   = doc["percent_quota_used"]     | 0.0;
         Serial.printf("  🛸 Antigravity Credits: %.1f hours remaining (%.1f%% used)\n", remaining, percent);
     }
 

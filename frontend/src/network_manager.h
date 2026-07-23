@@ -38,6 +38,19 @@ public:
      */
     bool isMqttConnected() { return m_mqttClient.connected(); }
 
+    /**
+     * @brief Stores the device MAC and subscribes to device-specific MQTT topics.
+     *        Replaces generic auradeck/... subscriptions with MAC-addressed ones:
+     *        auradeck/device/{mac}/spotify, /stocks, /todos, /calendar, /analytics, /antigravity
+     * @param mac Device MAC address string (e.g. "84:F3:EB:C9:4A:E1")
+     */
+    void subscribeDeviceTopics(const char* mac);
+
+    /**
+     * @brief Returns the device MAC address string currently registered.
+     */
+    const char* getDeviceMac() const { return m_deviceMac; }
+
 private:
     WiFiClient m_espClient;
     PubSubClient m_mqttClient;
@@ -54,4 +67,6 @@ private:
     // Inbound MQTT parser callback
     static void staticMqttCallback(char* topic, byte* payload, unsigned int length);
     void handleMqttMessage(const char* topic, const JsonDocument& doc);
+
+    char m_deviceMac[18] = {0}; ///< Stored MAC after pairing, used for device topic subscriptions
 };

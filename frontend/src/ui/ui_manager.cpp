@@ -11,6 +11,7 @@
 #include "ui/pages/page_calendar.h"
 #include "ui/pages/page_spotify.h"
 #include "ui/pages/page_analytics.h"
+#include "ui/pages/page_pairing.h"
 
 UIManager::UIManager() {}
 
@@ -133,31 +134,37 @@ void UIManager::completeBoot() {
 }
 
 void UIManager::createPersistentHeader() {
-    // Left-aligned wifi and active page name label
-    m_headerTitleLabel = lv_label_create(m_topHeaderContainer);
-    lv_obj_set_style_text_font(m_headerTitleLabel, &lv_font_montserrat_12, 0);
-    lv_obj_align(m_headerTitleLabel, LV_ALIGN_LEFT_MID, 15, 0);
-    lv_label_set_text(m_headerTitleLabel, "AuraDeck");
-
-    // Right-aligned clock
-    m_headerTimeLabel = lv_label_create(m_topHeaderContainer);
-    lv_obj_set_style_text_font(m_headerTimeLabel, &lv_font_montserrat_12, 0);
-    lv_obj_align(m_headerTimeLabel, LV_ALIGN_RIGHT_MID, -15, 0);
-    lv_label_set_text(m_headerTimeLabel, "12:00");
-
-    // Environmental readings (temp/humidity) on the left of clock
-    m_headerSensorLabel = lv_label_create(m_topHeaderContainer);
-    lv_obj_set_style_text_font(m_headerSensorLabel, &lv_font_montserrat_12, 0);
-    lv_obj_align(m_headerSensorLabel, LV_ALIGN_RIGHT_MID, -65, 0);
-    lv_label_set_text(m_headerSensorLabel, "25.0°C");
-
-    // Wifi Icon status symbol
+    // WiFi status icon — leftmost element (x=5)
     m_headerWifiIconLabel = lv_label_create(m_topHeaderContainer);
     lv_obj_set_style_text_font(m_headerWifiIconLabel, &lv_font_montserrat_12, 0);
     lv_obj_align(m_headerWifiIconLabel, LV_ALIGN_LEFT_MID, 5, 0);
-    lv_label_set_text(m_headerWifiIconLabel, "•"); // simple dot status
+    lv_label_set_text(m_headerWifiIconLabel, LV_SYMBOL_WARNING); // shows until WiFi connects
 
-    // Draw horizontal dividing rule at the bottom boundary of header container
+    // MQTT broker dot indicator — just right of WiFi icon (x=22)
+    m_headerMqttDotLabel = lv_label_create(m_topHeaderContainer);
+    lv_obj_set_style_text_font(m_headerMqttDotLabel, &lv_font_montserrat_12, 0);
+    lv_obj_align(m_headerMqttDotLabel, LV_ALIGN_LEFT_MID, 22, 0);
+    lv_label_set_text(m_headerMqttDotLabel, "o"); // hollow = MQTT disconnected
+
+    // Page title label — shifted right to avoid overlap with icons (x=38)
+    m_headerTitleLabel = lv_label_create(m_topHeaderContainer);
+    lv_obj_set_style_text_font(m_headerTitleLabel, &lv_font_montserrat_12, 0);
+    lv_obj_align(m_headerTitleLabel, LV_ALIGN_LEFT_MID, 38, 0);
+    lv_label_set_text(m_headerTitleLabel, "AuraDeck");
+
+    // Temperature — right side, before clock (x=-68)
+    m_headerSensorLabel = lv_label_create(m_topHeaderContainer);
+    lv_obj_set_style_text_font(m_headerSensorLabel, &lv_font_montserrat_12, 0);
+    lv_obj_align(m_headerSensorLabel, LV_ALIGN_RIGHT_MID, -68, 0);
+    lv_label_set_text(m_headerSensorLabel, "25.0" "\xC2\xB0" "C");
+
+    // Clock — rightmost element (x=-5)
+    m_headerTimeLabel = lv_label_create(m_topHeaderContainer);
+    lv_obj_set_style_text_font(m_headerTimeLabel, &lv_font_montserrat_12, 0);
+    lv_obj_align(m_headerTimeLabel, LV_ALIGN_RIGHT_MID, -5, 0);
+    lv_label_set_text(m_headerTimeLabel, "12:00");
+
+    // Horizontal dividing rule at the bottom boundary of header
     lv_obj_t* line = lv_line_create(m_topHeaderContainer);
     static lv_point_t line_points[] = { {0, 25}, {400, 25} };
     lv_line_set_points(line, line_points, 2);
@@ -170,22 +177,19 @@ void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiC
 
     if (m_headerSensorLabel) {
         char buf[20];
-        snprintf(buf, sizeof(buf), "%.1f" "\xC2\xB0" "C", temp); // UTF-8 °C
+        snprintf(buf, sizeof(buf), "%.1f" "\xC2\xB0" "C", temp);
         lv_label_set_text(m_headerSensorLabel, buf);
     }
 
+    // WiFi icon: LV_SYMBOL_WIFI when connected, LV_SYMBOL_WARNING when offline
     if (m_headerWifiIconLabel) {
-        // Show WiFi+MQTT combined status icon:
-        //   "W+M" = WiFi connected AND MQTT broker connected (fully operational)
-        //   "W"   = WiFi connected but MQTT reconnecting (partial)
-        //   "X"   = No WiFi (fully offline)
-        if (wifiConnected && mqttConnected) {
-            lv_label_set_text(m_headerWifiIconLabel, "W+M");
-        } else if (wifiConnected) {
-            lv_label_set_text(m_headerWifiIconLabel, "W");
-        } else {
-            lv_label_set_text(m_headerWifiIconLabel, "X");
-        }
+        lv_label_set_text(m_headerWifiIconLabel,
+            wifiConnected ? LV_SYMBOL_WIFI : LV_SYMBOL_WARNING);
+    }
+
+    // MQTT dot: filled '●' when broker connected, hollow 'o' when disconnected
+    if (m_headerMqttDotLabel) {
+        lv_label_set_text(m_headerMqttDotLabel, mqttConnected ? "*" : "o");
     }
 }
 
@@ -289,3 +293,48 @@ const char* UIManager::getPageName(int pageIndex) {
         default: return "Dashboard";
     }
 }
+
+void UIManager::showPairingPage(const char* pin, const char* gatewayIp) {
+    // Destroy any currently active dashboard page first
+    switch (m_currentPageIndex) {
+        case 0: destroy_page_home();        break;
+        case 1: destroy_page_antigravity(); break;
+        case 2: destroy_page_stocks();      break;
+        case 3: destroy_page_todos();       break;
+        case 4: destroy_page_calendar();    break;
+        case 5: destroy_page_spotify();     break;
+        case 6: destroy_page_analytics();   break;
+        default: break;
+    }
+
+    // Clean active page container and render pairing screen
+    lv_obj_clean(m_activePageContainer);
+
+    // Update header title to reflect setup state
+    if (m_headerTitleLabel) {
+        lv_label_set_text(m_headerTitleLabel, "Device Setup");
+    }
+
+    create_page_pairing(m_activePageContainer, pin, gatewayIp);
+    lv_refr_now(nullptr);
+
+    Serial.println("📺 Pairing Screen active. Waiting for user to enter PIN in Web UI...");
+}
+
+void UIManager::showDashboard() {
+    // Destroy pairing page and transition to Home dashboard
+    destroy_page_pairing();
+    lv_obj_clean(m_activePageContainer);
+
+    m_currentPageIndex = 0;
+
+    if (m_headerTitleLabel) {
+        lv_label_set_text(m_headerTitleLabel, getPageName(0));
+    }
+
+    create_page_home(m_activePageContainer);
+    lv_refr_now(nullptr);
+
+    Serial.println("🎉 Pairing complete! Transitioned to interactive dashboard.");
+}
+
