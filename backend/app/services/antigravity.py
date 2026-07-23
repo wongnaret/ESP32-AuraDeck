@@ -39,6 +39,12 @@ async def get_antigravity_credits() -> Dict[str, Any]:
     percentage_5h = round((_used_5h / 50.0) * 100, 1)
     percentage_weekly = round((_used_weekly / 500.0) * 100, 1)
 
+    # Calculate flat fields expected by the ESP32 (and API specification)
+    # credit_hours_remaining represents hours left in the 5h limit window
+    credit_hours_remaining = round(5.0 - (_used_5h / 10.0), 1)
+    # percent_quota_used represents the percentage of weekly quota used
+    percent_quota_used = percentage_weekly
+
     return {
         "limit_5h": {
             "used": _used_5h,
@@ -50,5 +56,7 @@ async def get_antigravity_credits() -> Dict[str, Any]:
             "total": 500.0,
             "percentage": percentage_weekly
         },
-        "next_reset": reset_str
+        "next_reset": reset_str,
+        "credit_hours_remaining": credit_hours_remaining,
+        "percent_quota_used": percent_quota_used
     }
