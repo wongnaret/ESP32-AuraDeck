@@ -8,6 +8,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOKENS_DIR="$(cd "$SCRIPT_DIR/../tokens" 2>/dev/null && pwd || echo "$SCRIPT_DIR/../tokens")"
 mkdir -p "$TOKENS_DIR"
 
+# Ensure TOKENS_DIR is writable by current host user (if created by root Docker container)
+if [ ! -w "$TOKENS_DIR" ]; then
+    echo "[$(date)] Fixing ownership for $TOKENS_DIR..."
+    sudo chown -R "$USER:$USER" "$TOKENS_DIR" 2>/dev/null || chmod -R 777 "$TOKENS_DIR" 2>/dev/null
+fi
+
 OUTPUT_FILE="$TOKENS_DIR/antigravity_data.json"
 
 # Check if agy CLI exists on host
