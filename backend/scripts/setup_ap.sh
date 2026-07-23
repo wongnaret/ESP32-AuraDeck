@@ -66,9 +66,11 @@ fi
 
 echo "🔒 Setting up WPA2-Personal Security and Sharing mode..."
 # Disable PMF (Protected Management Frames) and Wi-Fi Power Save to prevent "802.1X supplicant took too long to authenticate" timeouts on Raspberry Pi
+# Force 2.4GHz band (bg) and channel 6 to ensure ESP32-S3 compatibility
 nmcli connection modify "$CON_NAME" \
   802-11-wireless.mode ap \
   802-11-wireless.band bg \
+  802-11-wireless.channel 6 \
   802-11-wireless.powersave 2 \
   ipv4.method shared \
   wifi-sec.key-mgmt wpa-psk \
