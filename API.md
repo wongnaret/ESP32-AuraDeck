@@ -228,6 +228,90 @@ Triggers an asynchronous toggle of NetworkManager's Hotspot (down and back up) t
 
 ---
 
+### 5. Stock Watchlist & Search Endpoints
+
+#### `GET /api/v1/stocks/search?q={query}`
+Searches Yahoo Finance tickers using ticker symbol or company name with autocomplete support.
+*   **Query Parameters:** `q` (e.g., `CPALL`, `NVDA`, `BTC`)
+*   **Response (`200 OK`):**
+    ```json
+    [
+      {
+        "symbol": "CPALL.BK",
+        "name": "CP ALL PUBLIC COMPANY LIMITED",
+        "exchange": "SET",
+        "type": "TH_STOCK"
+      },
+      {
+        "symbol": "CPALL-F.BK",
+        "name": "CP ALL PUBLIC COMPANY LIMITED",
+        "exchange": "SET",
+        "type": "TH_STOCK"
+      }
+    ]
+    ```
+
+#### `GET /api/v1/stocks/watchlist?profile_id={profile_id}`
+Gets live prices and metadata for all configured stocks in the specified profile's watchlist.
+*   **Query Parameters:** `profile_id` (default `"default"`)
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "profile_id": "default",
+      "items": [
+        {
+          "symbol": "CPALL",
+          "raw_symbol": "CPALL.BK",
+          "name": "CP ALL PUBLIC COMPANY LIMITED",
+          "price": 58.25,
+          "change": 0.5,
+          "change_pct": 0.87,
+          "type": "TH_STOCK"
+        },
+        {
+          "symbol": "BTC",
+          "raw_symbol": "BTC-USD",
+          "name": "Bitcoin USD",
+          "price": 64230.1,
+          "change": 1200.0,
+          "change_pct": 1.9,
+          "type": "CRYPTO"
+        }
+      ]
+    }
+    ```
+
+#### `POST /api/v1/stocks/watchlist`
+Adds a new stock symbol to the specified profile's watchlist.
+*   **Request Body:**
+    ```json
+    {
+      "symbol": "CPALL.BK",
+      "name": "CP ALL PUBLIC COMPANY LIMITED",
+      "profile_id": "default"
+    }
+    ```
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "status": "success",
+      "message": "Added CPALL.BK to watchlist."
+    }
+    ```
+
+#### `DELETE /api/v1/stocks/watchlist?symbol={symbol}&profile_id={profile_id}`
+Removes a stock from the specified profile's watchlist.
+*   **Query Parameters:** `symbol`, `profile_id`
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "status": "success",
+      "message": "Removed CPALL.BK from watchlist."
+    }
+    ```
+
+---
+
 ## 📡 MQTT Topic Payload Schemas
 
 To support multi-screen configurations, the backend publishes telemetry payloads targeting specific MAC addresses:

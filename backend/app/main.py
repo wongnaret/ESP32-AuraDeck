@@ -26,7 +26,7 @@ from app.services.google_auth import (
 )
 from app.services.spotify import get_spotify_currently_playing
 from app.services.google_api import get_google_calendar_and_tasks, get_google_task_lists
-from app.services.stocks import get_multi_asset_prices
+from app.services.stocks import get_multi_asset_prices, search_stocks_yahoo
 from app.services.analytics import get_combined_analytics
 from app.services.antigravity import get_antigravity_credits
 
@@ -113,6 +113,11 @@ class ProfileConfigRequest(BaseModel):
 class DevicePairRequest(BaseModel):
     pin: str
     profile_id: str
+
+class StockAddRequest(BaseModel):
+    symbol: str
+    name: Optional[str] = None
+    profile_id: Optional[str] = None
 
 # --- Startup & Shutdown Events ---
 
@@ -220,16 +225,31 @@ def trigger_calendar_polling():
         logger.error(f"Error in background Calendar/Tasks poller: {e}")
 
 def trigger_stocks_polling():
-    """Polls global stock indexes and gold/crypto indices."""
+    """Polls stock indexes and gold/crypto indices for all profiles."""
     try:
-        data = asyncio.run(get_multi_asset_prices())
-        # Stocks are global and published server-wide
-        mqtt_service.publish("auradeck/stocks", data)
-        
-        # Also mirror to any paired screens
+        profiles = list_all_profiles()
         mappings = load_device_mappings()
-        for mac in mappings:
-            mqtt_service.publish(f"auradeck/device/{mac}/stocks", data)
+        
+        # Publish default/global stocks
+        default_prices = asyncio.run(get_multi_asset_prices())
+        mqtt_service.publish("auradeck/stocks", default_prices)
+        
+        for p in profiles:
+            pid = p["id"]
+            prof_settings = load_profile_settings(pid)
+            watchlist_items = prof_settings.get("stock_watchlist")
+            if watchlist_items is not None:
+                p_prices = asyncio.run(get_multi_asset_prices(watchlist_items=watchlist_items))
+                mqtt_service.publish(f"auradeck/profile/{pid}/stocks", p_prices)
+                
+                # Mirror to paired devices for this profile
+                for mac, m_data in mappings.items():
+                    if m_data.get("profile_id") == pid:
+                        mqtt_service.publish(f"auradeck/device/{mac}/stocks", p_prices)
+            else:
+                for mac, m_data in mappings.items():
+                    if m_data.get("profile_id") == pid:
+                        mqtt_service.publish(f"auradeck/device/{mac}/stocks", default_prices)
     except Exception as e:
         logger.error(f"Error in background Stocks poller: {e}")
 
@@ -811,8 +831,11 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
         data = res.get("todos", [])
         mqtt_service.publish(f"auradeck/profile/{pid}/calendar", res.get("calendar", {}))
     elif service == "stocks":
-        data = await get_multi_asset_prices()
-        topic = "auradeck/stocks"
+        prof_settings = load_profile_settings(pid)
+        watchlist_items = prof_settings.get("stock_watchlist")
+        data = await get_multi_asset_prices(watchlist_items=watchlist_items)
+        topic = f"auradeck/profile/{pid}/stocks"
+        mqtt_service.publish("auradeck/stocks", data)
     elif service == "antigravity":
         data = await get_antigravity_credits()
         topic = "auradeck/antigravity"
@@ -836,3 +859,124 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
                 mqtt_service.publish(f"auradeck/device/{mac}/{service}", data)
                 
     return data
+
+
+# --- Stock Watchlist & Autocomplete API Endpoints ---
+
+@app.get("/api/v1/stocks/search")
+async def api_search_stocks(q: str = Query(..., min_length=1)):
+    """Searches stock/crypto tickers and company names via Yahoo Finance autocomplete."""
+    results = await search_stocks_yahoo(q)
+    return results
+
+
+@app.get("/api/v1/stocks/watchlist")
+async def api_get_stock_watchlist(
+    profile_id: Optional[str] = Query(None),
+    active_profile_id: Optional[str] = Cookie(None)
+):
+    """Retrieves current profile's stock watchlist with live prices and full names."""
+    pid = profile_id or active_profile_id or "default"
+    prof_settings = load_profile_settings(pid)
+    watchlist_items = prof_settings.get("stock_watchlist")
+    
+    data = await get_multi_asset_prices(watchlist_items=watchlist_items)
+    return {
+        "profile_id": pid,
+        "watchlist": watchlist_items if watchlist_items is not None else [],
+        "items": data
+    }
+
+
+@app.post("/api/v1/stocks/watchlist")
+async def api_add_stock_to_watchlist(
+    req: StockAddRequest,
+    active_profile_id: Optional[str] = Cookie(None)
+):
+    """Adds a stock symbol and full name to the profile's watchlist."""
+    pid = req.profile_id or active_profile_id or "default"
+    prof_settings = load_profile_settings(pid)
+    watchlist = prof_settings.get("stock_watchlist")
+    if watchlist is None:
+        watchlist = [
+            {"symbol": "CPALL.BK", "name": "CP ALL Public Company Limited"},
+            {"symbol": "BTC-USD", "name": "Bitcoin USD"},
+            {"symbol": "GC=F", "name": "Gold Futures"}
+        ]
+        
+    symbol_upper = req.symbol.strip().upper()
+    stock_name = req.name.strip() if req.name else symbol_upper
+    
+    # Check duplicate
+    exists = False
+    for item in watchlist:
+        if item.get("symbol", "").upper() == symbol_upper:
+            item["name"] = stock_name
+            exists = True
+            break
+            
+    if not exists:
+        watchlist.append({"symbol": symbol_upper, "name": stock_name})
+        
+    prof_settings["stock_watchlist"] = watchlist
+    save_profile_settings(pid, prof_settings)
+    
+    # Fetch live prices and update MQTT
+    updated_prices = await get_multi_asset_prices(watchlist_items=watchlist)
+    mqtt_service.publish("auradeck/stocks", updated_prices)
+    mqtt_service.publish(f"auradeck/profile/{pid}/stocks", updated_prices)
+    
+    # Mirror to mapped devices
+    mappings = load_device_mappings()
+    for mac, m_data in mappings.items():
+        if m_data.get("profile_id") == pid:
+            mqtt_service.publish(f"auradeck/device/{mac}/stocks", updated_prices)
+            
+    return {
+        "status": "success",
+        "message": f"Added {symbol_upper} to watchlist.",
+        "watchlist": watchlist,
+        "items": updated_prices
+    }
+
+
+@app.delete("/api/v1/stocks/watchlist")
+async def api_delete_stock_from_watchlist(
+    symbol: str = Query(...),
+    profile_id: Optional[str] = Query(None),
+    active_profile_id: Optional[str] = Cookie(None)
+):
+    """Removes a stock symbol from the profile's watchlist."""
+    pid = profile_id or active_profile_id or "default"
+    prof_settings = load_profile_settings(pid)
+    watchlist = prof_settings.get("stock_watchlist")
+    if watchlist is None:
+        watchlist = [
+            {"symbol": "CPALL.BK", "name": "CP ALL Public Company Limited"},
+            {"symbol": "BTC-USD", "name": "Bitcoin USD"},
+            {"symbol": "GC=F", "name": "Gold Futures"}
+        ]
+        
+    symbol_target = symbol.strip().upper()
+    watchlist = [item for item in watchlist if item.get("symbol", "").upper() != symbol_target and item.get("raw_symbol", "").upper() != symbol_target]
+    
+    prof_settings["stock_watchlist"] = watchlist
+    save_profile_settings(pid, prof_settings)
+    
+    # Fetch live prices and update MQTT
+    updated_prices = await get_multi_asset_prices(watchlist_items=watchlist)
+    mqtt_service.publish("auradeck/stocks", updated_prices)
+    mqtt_service.publish(f"auradeck/profile/{pid}/stocks", updated_prices)
+    
+    # Mirror to mapped devices
+    mappings = load_device_mappings()
+    for mac, m_data in mappings.items():
+        if m_data.get("profile_id") == pid:
+            mqtt_service.publish(f"auradeck/device/{mac}/stocks", updated_prices)
+            
+    return {
+        "status": "success",
+        "message": f"Removed {symbol_target} from watchlist.",
+        "watchlist": watchlist,
+        "items": updated_prices
+    }

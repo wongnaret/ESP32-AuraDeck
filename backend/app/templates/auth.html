@@ -356,6 +356,86 @@
             background: rgba(239, 68, 68, 0.25);
         }
 
+        /* Stock Autocomplete & Table Styling */
+        .stock-autocomplete-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: #121420;
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            border-radius: var(--radius-md);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
+            max-height: 260px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .stock-autocomplete-item {
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .stock-autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .stock-autocomplete-item:hover {
+            background: rgba(139, 92, 246, 0.25);
+        }
+
+        .stock-symbol-badge {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: #ffffff;
+            background: rgba(139, 92, 246, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+        }
+
+        .stock-type-tag {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .stock-table th, .stock-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .stock-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .btn-danger-sm {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-danger-sm:hover {
+            background: rgba(239, 68, 68, 0.35);
+            color: #ffffff;
+        }
+
         /* Sandbox Sandbox & Testing Panel */
         .sandbox-container {
             display: grid;
@@ -703,6 +783,59 @@
                         </p>
                         <div class="checkbox-grid" id="task-lists-container">
                             <div style="font-size: 0.9rem; color: var(--text-muted);">Fetching lists...</div>
+                        </div>
+                    </div>
+
+                    <!-- Stock Watchlist Configuration Card -->
+                    <div class="card" id="stock-watchlist-card">
+                        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 class="card-title">📈 Stock & Asset Watchlist</h3>
+                            <span class="status-badge" style="background: rgba(139, 92, 246, 0.15); color: var(--primary); font-size: 0.8rem;">Yahoo Finance Live</span>
+                        </div>
+                        <p class="card-desc" style="margin-bottom: 16px;">
+                            Search and manage stocks, cryptocurrencies, and commodities displayed on your ESP32 screen.
+                        </p>
+                        
+                        <!-- Autocomplete Search & Add Form -->
+                        <div class="stock-search-wrapper" style="position: relative; margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">
+                                Add Stock / Crypto Ticker (ค้นหาชื่อหุ้นหรือสัญลักษณ์):
+                            </label>
+                            <div style="display: flex; gap: 10px;">
+                                <div style="position: relative; flex: 1;">
+                                    <input type="text" id="stock-search-input" placeholder="Type name or symbol e.g. CPALL, NVDA, BTC, GC=F..." 
+                                           oninput="onStockSearchInput(this.value)" 
+                                           onfocus="onStockSearchInput(this.value)" 
+                                           autocomplete="off"
+                                           style="width: 100%; padding: 12px 14px; font-size: 0.95rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                    
+                                    <!-- Autocomplete Dropdown Menu -->
+                                    <div id="stock-autocomplete-dropdown" class="stock-autocomplete-menu" style="display: none;"></div>
+                                </div>
+                                <button class="btn btn-primary" onclick="addSelectedStock()" style="width: auto; white-space: nowrap; padding: 0 20px;">
+                                    + Add Stock
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Configured Stocks Table -->
+                        <div style="overflow-x: auto;">
+                            <table class="stock-table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; color: var(--text-muted);">
+                                        <th style="padding: 10px 8px;">Symbol</th>
+                                        <th style="padding: 10px 8px;">Full Company Name</th>
+                                        <th style="padding: 10px 8px;">Type</th>
+                                        <th style="padding: 10px 8px;">Price</th>
+                                        <th style="padding: 10px 8px; text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stock-watchlist-table-body">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; padding: 16px; color: var(--text-muted);">Loading watchlist...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -1348,12 +1481,201 @@
             }
         }
 
+        // --- Stock Watchlist & Autocomplete Logic ---
+        let selectedStockSymbol = "";
+        let selectedStockName = "";
+        let stockSearchDebounceTimer = null;
+
+        async function loadStockWatchlist() {
+            try {
+                const response = await fetch(`/api/v1/stocks/watchlist?profile_id=${profileId}`);
+                if (!response.ok) return;
+                const data = await response.json();
+                
+                const tbody = document.getElementById('stock-watchlist-table-body');
+                tbody.innerHTML = '';
+
+                const items = data.items || [];
+                if (items.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 16px; color: var(--text-muted);">No stocks in watchlist. Add one above!</td></tr>`;
+                    return;
+                }
+
+                items.forEach(item => {
+                    const tr = document.createElement('tr');
+                    
+                    const symbol = item.symbol || item.raw_symbol || 'N/A';
+                    const rawSymbol = item.raw_symbol || item.symbol || '';
+                    const name = item.name || symbol;
+                    const type = item.type || 'GLOBAL';
+                    const price = item.price !== undefined && item.price !== null ? item.price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A';
+                    const changePct = item.change_pct || 0;
+                    
+                    const changeColor = changePct > 0 ? '#10b981' : (changePct < 0 ? '#ef4444' : '#9ca3af');
+                    const changeSign = changePct > 0 ? '+' : '';
+
+                    tr.innerHTML = `
+                        <td style="padding: 10px 8px;">
+                            <span class="stock-symbol-badge">${symbol}</span>
+                            ${rawSymbol && rawSymbol !== symbol ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${rawSymbol}</div>` : ''}
+                        </td>
+                        <td style="padding: 10px 8px; font-weight: 500; color: var(--text-main);">${name}</td>
+                        <td style="padding: 10px 8px;"><span class="stock-type-tag">${type}</span></td>
+                        <td style="padding: 10px 8px;">
+                            <div style="font-weight: 600; font-family: var(--font-mono);">${price}</div>
+                            <div style="font-size: 0.8rem; color: ${changeColor}; font-weight: 600;">${changeSign}${changePct}%</div>
+                        </td>
+                        <td style="padding: 10px 8px; text-align: right;">
+                            <button class="btn-danger-sm" onclick="deleteStock('${rawSymbol || symbol}')">
+                                🗑️ ลบ
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Failed to load stock watchlist:", err);
+            }
+        }
+
+        function onStockSearchInput(query) {
+            clearTimeout(stockSearchDebounceTimer);
+            const dropdown = document.getElementById('stock-autocomplete-dropdown');
+            
+            if (!query || query.trim().length < 1) {
+                dropdown.style.display = 'none';
+                dropdown.innerHTML = '';
+                return;
+            }
+
+            stockSearchDebounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/v1/stocks/search?q=${encodeURIComponent(query.trim())}`);
+                    if (!response.ok) return;
+                    const results = await response.json();
+                    
+                    dropdown.innerHTML = '';
+                    if (!results || results.length === 0) {
+                        dropdown.innerHTML = `<div style="padding: 12px; font-size: 0.85rem; color: var(--text-muted); text-align: center;">No matching stocks found</div>`;
+                        dropdown.style.display = 'block';
+                        return;
+                    }
+
+                    results.forEach(res => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'stock-autocomplete-item';
+                        
+                        const safeSymbol = res.symbol.replace(/'/g, "\\'");
+                        const safeName = (res.name || res.symbol).replace(/'/g, "\\'");
+                        
+                        itemDiv.innerHTML = `
+                            <div>
+                                <span class="stock-symbol-badge">${res.symbol}</span>
+                                <span style="font-weight: 500; margin-left: 8px; font-size: 0.9rem;">${res.name}</span>
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                ${res.exchange ? `<span style="font-size: 0.75rem; color: var(--text-muted);">${res.exchange}</span>` : ''}
+                                <span class="stock-type-tag">${res.type}</span>
+                            </div>
+                        `;
+                        itemDiv.onclick = () => selectStockSuggestion(safeSymbol, safeName);
+                        dropdown.appendChild(itemDiv);
+                    });
+
+                    dropdown.style.display = 'block';
+                } catch (err) {
+                    console.error("Error searching stocks:", err);
+                }
+            }, 300);
+        }
+
+        function selectStockSuggestion(symbol, name) {
+            selectedStockSymbol = symbol;
+            selectedStockName = name;
+            const input = document.getElementById('stock-search-input');
+            input.value = `${symbol} - ${name}`;
+            document.getElementById('stock-autocomplete-dropdown').style.display = 'none';
+        }
+
+        async function addSelectedStock() {
+            const inputVal = document.getElementById('stock-search-input').value.trim();
+            if (!inputVal) {
+                showToast("Please enter or select a stock symbol.", false);
+                return;
+            }
+
+            let symbolToAdd = selectedStockSymbol;
+            let nameToAdd = selectedStockName;
+
+            if (!symbolToAdd || !inputVal.includes(symbolToAdd)) {
+                // If user manually typed a raw ticker symbol like "NVDA" or "CPALL.BK"
+                symbolToAdd = inputVal.split(' - ')[0].trim().toUpperCase();
+                nameToAdd = inputVal.includes(' - ') ? inputVal.split(' - ')[1].trim() : symbolToAdd;
+            }
+
+            try {
+                const response = await fetch('/api/v1/stocks/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        symbol: symbolToAdd,
+                        name: nameToAdd,
+                        profile_id: profileId
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`Added ${symbolToAdd} to watchlist!`);
+                    document.getElementById('stock-search-input').value = '';
+                    selectedStockSymbol = '';
+                    selectedStockName = '';
+                    document.getElementById('stock-autocomplete-dropdown').style.display = 'none';
+                    loadStockWatchlist();
+                } else {
+                    showToast(data.detail || "Failed to add stock.", false);
+                }
+            } catch (err) {
+                console.error("Error adding stock:", err);
+                showToast("Server error adding stock.", false);
+            }
+        }
+
+        async function deleteStock(symbol) {
+            try {
+                const response = await fetch(`/api/v1/stocks/watchlist?symbol=${encodeURIComponent(symbol)}&profile_id=${profileId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`Removed ${symbol} from watchlist.`);
+                    loadStockWatchlist();
+                } else {
+                    showToast("Failed to delete stock.", false);
+                }
+            } catch (err) {
+                console.error("Error deleting stock:", err);
+                showToast("Server error deleting stock.", false);
+            }
+        }
+
+        // Close stock dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const wrapper = document.querySelector('.stock-search-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                const dropdown = document.getElementById('stock-autocomplete-dropdown');
+                if (dropdown) dropdown.style.display = 'none';
+            }
+        });
+
         // Initial loading routines
         async function initializeDashboard() {
             await loadProfileConfig();
             await loadGcpProjects();
             await loadPairedDevices();
             await fetchAPStatus();
+            await loadStockWatchlist();
         }
 
         initializeDashboard();
