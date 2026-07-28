@@ -16,7 +16,8 @@ async def get_spotify_currently_playing(profile_id: str) -> Dict[str, Any]:
         "title": "Not Playing",
         "artist": "N/A",
         "progress_ms": 0,
-        "duration_ms": 0
+        "duration_ms": 0,
+        "album_art_url": ""
     }
 
     mgr = ProfileTokenManager(profile_id, "Spotify")
@@ -58,12 +59,21 @@ async def get_spotify_currently_playing(profile_id: str) -> Dict[str, Any]:
             artists = item.get("artists", [])
             artist_names = ", ".join([artist.get("name", "") for artist in artists]) if artists else "Unknown"
             
+            # Extract smallest / medium album cover image URL (64x64 or 300x300 preferred for ESP32)
+            album_art_url = ""
+            album = item.get("album", {})
+            images = album.get("images", [])
+            if images:
+                # Use smallest/medium image if available (typically images[-1] or images[1])
+                album_art_url = images[-1].get("url", "") if len(images) > 1 else images[0].get("url", "")
+
             return {
                 "is_playing": data.get("is_playing", False),
                 "title": item.get("name", "Unknown Title"),
                 "artist": artist_names,
                 "progress_ms": data.get("progress_ms", 0),
-                "duration_ms": item.get("duration_ms", 0)
+                "duration_ms": item.get("duration_ms", 0),
+                "album_art_url": album_art_url
             }
 
         logger.warning(f"Spotify API returned unexpected status code: {response.status_code} for profile {profile_id}")

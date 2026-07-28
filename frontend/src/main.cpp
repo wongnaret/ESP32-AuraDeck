@@ -15,6 +15,7 @@
 #include "pairing_manager.h"
 #include "ui/ui_manager.h"
 #include "ui/pages/page_pairing.h"
+#include "ui/pages/page_spotify.h"
 
 // Instantiate Global Hardware Modules
 PCF85063RTC        g_rtc;
@@ -260,12 +261,16 @@ void loop() {
 
         // 5.1 Read Battery Voltage & Charging state via ADC GPIO4 (PIN_BAT_ADC)
         pinMode(PIN_BAT_ADC, INPUT);
+        analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
         uint32_t raw_mv = analogReadMilliVolts(PIN_BAT_ADC);
         float batVoltage = (raw_mv * 2.0f) / 1000.0f; // 2:1 divider ratio
         int batPercent = 100;
         bool isCharging = false;
+        bool isUsbOnly = false;
 
-        if (batVoltage >= 4.25f) {
+        if (batVoltage < 0.25f || raw_mv < 50) {
+            isUsbOnly = true;
+        } else if (batVoltage >= 4.15f) {
             isCharging = true;
             batPercent = 100;
         } else {
@@ -277,7 +282,10 @@ void loop() {
         }
 
         // Update top status bar with latest telemetry (WiFi + MQTT + Battery)
-        g_ui.updateHeader(currentTime.c_str(), temperature, humidity, isWifi, isMqtt, batPercent, isCharging);
+        g_ui.updateHeader(currentTime.c_str(), temperature, humidity, isWifi, isMqtt, batPercent, isCharging, isUsbOnly);
+
+        // Update Spotify 1-second progress bar animation tick
+        update_page_spotify_tick();
 
         // Forward local telemetry to active views (e.g. updating bold digital clock on Page 0 Home)
         DynamicJsonDocument telemetryDoc(256);

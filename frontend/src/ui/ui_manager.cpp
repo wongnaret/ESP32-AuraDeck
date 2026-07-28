@@ -183,7 +183,7 @@ void UIManager::createPersistentHeader() {
     lv_line_set_points(line, line_points, 2);
 }
 
-void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected, int batPercent, bool isCharging) {
+void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected, int batPercent, bool isCharging, bool isUsbOnly) {
     if (m_headerTimeLabel && time) {
         lv_label_set_text(m_headerTimeLabel, time);
     }
@@ -196,21 +196,25 @@ void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiC
 
     if (m_headerBatteryLabel) {
         char buf[32];
-        const char* batIcon = LV_SYMBOL_BATTERY_FULL;
-        if (isCharging) {
-            batIcon = LV_SYMBOL_CHARGE;
-        } else if (batPercent >= 80) {
-            batIcon = LV_SYMBOL_BATTERY_FULL;
-        } else if (batPercent >= 55) {
-            batIcon = LV_SYMBOL_BATTERY_3;
-        } else if (batPercent >= 30) {
-            batIcon = LV_SYMBOL_BATTERY_2;
-        } else if (batPercent >= 10) {
-            batIcon = LV_SYMBOL_BATTERY_1;
+        if (isUsbOnly) {
+            snprintf(buf, sizeof(buf), "🔌 USB");
+        } else if (isCharging) {
+            snprintf(buf, sizeof(buf), LV_SYMBOL_CHARGE " %d%%", batPercent);
         } else {
-            batIcon = LV_SYMBOL_BATTERY_EMPTY;
+            const char* batIcon = LV_SYMBOL_BATTERY_FULL;
+            if (batPercent >= 80) {
+                batIcon = LV_SYMBOL_BATTERY_FULL;
+            } else if (batPercent >= 55) {
+                batIcon = LV_SYMBOL_BATTERY_3;
+            } else if (batPercent >= 30) {
+                batIcon = LV_SYMBOL_BATTERY_2;
+            } else if (batPercent >= 10) {
+                batIcon = LV_SYMBOL_BATTERY_1;
+            } else {
+                batIcon = LV_SYMBOL_BATTERY_EMPTY;
+            }
+            snprintf(buf, sizeof(buf), "%s %d%%", batIcon, batPercent);
         }
-        snprintf(buf, sizeof(buf), "%s %d%%", batIcon, batPercent);
         lv_label_set_text(m_headerBatteryLabel, buf);
     }
 

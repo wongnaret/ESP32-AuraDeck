@@ -143,6 +143,7 @@ void AuraNetworkManager::connectMqtt() {
             m_mqttClient.subscribe("auradeck/stocks");
             m_mqttClient.subscribe("auradeck/analytics");
             m_mqttClient.subscribe("auradeck/antigravity");
+            m_mqttClient.subscribe("auradeck/time_sync");
             Serial.println("📬 Subscribed to generic AuraDeck topics (dev mode).");
 
             // If device is already paired, also subscribe to MAC-addressed production topics
@@ -164,7 +165,7 @@ void AuraNetworkManager::subscribeDeviceTopics(const char* mac) {
     }
 
     // Subscribe to per-device MAC-addressed production topics as per API.md
-    const char* services[] = { "spotify", "calendar", "todos", "stocks", "analytics", "antigravity" };
+    const char* services[] = { "spotify", "calendar", "todos", "stocks", "analytics", "antigravity", "time_sync" };
     for (const char* svc : services) {
         char topic[64];
         snprintf(topic, sizeof(topic), "auradeck/device/%s/%s", mac, svc);
@@ -183,9 +184,9 @@ bool AuraNetworkManager::syncNTPTime() {
         m_sntpStarted = true;
         m_lastNtpRetryTime = now;
         String gwIp = WiFi.gatewayIP().toString();
-        Serial.printf("🌐 Starting background SNTP daemon (GW: %s, NTP1: %s, NTP2: %s)...\n",
-                      gwIp.c_str(), NTP_SERVER_1, NTP_SERVER_2);
-        configTime(UTC_OFFSET_SECS, 0, gwIp.c_str(), NTP_SERVER_1, NTP_SERVER_2);
+        Serial.printf("🌐 Starting background SNTP daemon (NTP1: %s, NTP2: %s, GW: %s)...\n",
+                      NTP_SERVER_1, NTP_SERVER_2, gwIp.c_str());
+        configTime(UTC_OFFSET_SECS, 0, NTP_SERVER_1, NTP_SERVER_2, gwIp.c_str());
     }
 
     // Non-blocking check (10ms timeout) for time synchronization
@@ -342,6 +343,24 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
         float remaining = doc["credit_hours_remaining"] | 0.0;
         float percent   = doc["percent_quota_used"]     | 0.0;
         Serial.printf("  🛸 Antigravity Credits: %.1f hours remaining (%.1f%% used)\n", remaining, percent);
+    }
+    else if (strcmp(service, "time_sync") == 0) {
+        int yr  = doc["year"]   | 0;
+        int mon = doc["month"]  | 0;
+        int day = doc["day"]    | 0;
+        int hr  = doc["hour"]   | 0;
+        int min = doc["minute"] | 0;
+        int sec = doc["second"] | 0;
+
+        if (yr >= 2024 && mon >= 1 && mon <= 12 && day >= 1 && day <= 31) {
+            DateTime server_dt(yr, mon, day, hr, min, sec);
+            if (m_rtc) {
+                m_rtc->adjust(server_dt);
+            }
+            m_timeSynced = true;
+            Serial.printf("  ⏰ Time Synced via Backend MQTT: %04d-%02d-%02d %02d:%02d:%02d\n",
+                          yr, mon, day, hr, min, sec);
+        }
     }
 
     // Normalize topic to generic form before forwarding to UI pages.

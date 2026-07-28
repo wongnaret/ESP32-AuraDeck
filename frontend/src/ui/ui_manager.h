@@ -64,8 +64,9 @@ public:
      * @param mqttConnected mqtt broker connection status
      * @param batPercent battery charge percentage (0-100)
      * @param isCharging true if USB power/charging active
+     * @param isUsbOnly true if powered by USB without 18650 battery
      */
-    void updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected, int batPercent = 100, bool isCharging = false);
+    void updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected, int batPercent = 100, bool isCharging = false, bool isUsbOnly = false);
 
     /**
      * @brief Transitions the display to the TV-style pairing PIN screen.
