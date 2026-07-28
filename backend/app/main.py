@@ -165,6 +165,13 @@ def on_startup():
         minutes=1,
         max_instances=1
     )
+    scheduler.add_job(
+        id="time_sync_job",
+        func=trigger_time_sync,
+        trigger="interval",
+        seconds=10,
+        max_instances=1
+    )
     
     scheduler.start()
     logger.info("Background Schedulers started successfully.")
@@ -172,6 +179,7 @@ def on_startup():
     # Trigger initial data publish for all services immediately on startup
     try:
         logger.info("Triggering initial data poll for all services on startup...")
+        trigger_time_sync()
         trigger_spotify_polling()
         trigger_calendar_polling()
         trigger_stocks_polling()
@@ -293,6 +301,28 @@ def trigger_antigravity_polling():
             mqtt_service.publish(f"auradeck/device/{mac}/antigravity", data)
     except Exception as e:
         logger.error(f"Error in background Antigravity poller: {e}")
+
+def trigger_time_sync():
+    """Publishes current server datetime for hardware RTC synchronization on paired screens."""
+    try:
+        from datetime import datetime
+        now = datetime.now()
+        payload = {
+            "year": now.year,
+            "month": now.month,
+            "day": now.day,
+            "hour": now.hour,
+            "minute": now.minute,
+            "second": now.second,
+            "time": now.strftime("%H:%M"),
+            "date": now.strftime("%A, %B %d")
+        }
+        mqtt_service.publish("auradeck/time_sync", payload)
+        mappings = load_device_mappings()
+        for mac in mappings:
+            mqtt_service.publish(f"auradeck/device/{mac}/time_sync", payload)
+    except Exception as e:
+        logger.error(f"Error in time sync publisher: {e}")
 
 
 # --- Page Routing ---

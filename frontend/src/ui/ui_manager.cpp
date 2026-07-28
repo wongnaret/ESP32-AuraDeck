@@ -159,11 +159,17 @@ void UIManager::createPersistentHeader() {
     lv_obj_align(m_headerTitleLabel, LV_ALIGN_LEFT_MID, 38, 0);
     lv_label_set_text(m_headerTitleLabel, "AuraDeck");
 
-    // Temperature — right side, before clock (x=-68)
+    // Temperature — right side (x=-135)
     m_headerSensorLabel = lv_label_create(m_topHeaderContainer);
     lv_obj_set_style_text_font(m_headerSensorLabel, &lv_font_montserrat_12, 0);
-    lv_obj_align(m_headerSensorLabel, LV_ALIGN_RIGHT_MID, -68, 0);
+    lv_obj_align(m_headerSensorLabel, LV_ALIGN_RIGHT_MID, -135, 0);
     lv_label_set_text(m_headerSensorLabel, "25.0" "\xC2\xB0" "C");
+
+    // Battery Status & Percentage — right side (x=-55)
+    m_headerBatteryLabel = lv_label_create(m_topHeaderContainer);
+    lv_obj_set_style_text_font(m_headerBatteryLabel, &lv_font_montserrat_12, 0);
+    lv_obj_align(m_headerBatteryLabel, LV_ALIGN_RIGHT_MID, -55, 0);
+    lv_label_set_text(m_headerBatteryLabel, LV_SYMBOL_CHARGE " 100%");
 
     // Clock — rightmost element (x=-5)
     m_headerTimeLabel = lv_label_create(m_topHeaderContainer);
@@ -177,7 +183,7 @@ void UIManager::createPersistentHeader() {
     lv_line_set_points(line, line_points, 2);
 }
 
-void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected) {
+void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected, int batPercent, bool isCharging) {
     if (m_headerTimeLabel && time) {
         lv_label_set_text(m_headerTimeLabel, time);
     }
@@ -188,13 +194,33 @@ void UIManager::updateHeader(const char* time, float temp, float hum, bool wifiC
         lv_label_set_text(m_headerSensorLabel, buf);
     }
 
+    if (m_headerBatteryLabel) {
+        char buf[32];
+        const char* batIcon = LV_SYMBOL_BATTERY_FULL;
+        if (isCharging) {
+            batIcon = LV_SYMBOL_CHARGE;
+        } else if (batPercent >= 80) {
+            batIcon = LV_SYMBOL_BATTERY_FULL;
+        } else if (batPercent >= 55) {
+            batIcon = LV_SYMBOL_BATTERY_3;
+        } else if (batPercent >= 30) {
+            batIcon = LV_SYMBOL_BATTERY_2;
+        } else if (batPercent >= 10) {
+            batIcon = LV_SYMBOL_BATTERY_1;
+        } else {
+            batIcon = LV_SYMBOL_BATTERY_EMPTY;
+        }
+        snprintf(buf, sizeof(buf), "%s %d%%", batIcon, batPercent);
+        lv_label_set_text(m_headerBatteryLabel, buf);
+    }
+
     // WiFi icon: LV_SYMBOL_WIFI when connected, LV_SYMBOL_WARNING when offline
     if (m_headerWifiIconLabel) {
         lv_label_set_text(m_headerWifiIconLabel,
             wifiConnected ? LV_SYMBOL_WIFI : LV_SYMBOL_WARNING);
     }
 
-    // MQTT dot: filled '●' when broker connected, hollow 'o' when disconnected
+    // MQTT dot: filled '*' when broker connected, hollow 'o' when disconnected
     if (m_headerMqttDotLabel) {
         lv_label_set_text(m_headerMqttDotLabel, mqttConnected ? "*" : "o");
     }

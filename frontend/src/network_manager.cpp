@@ -213,11 +213,8 @@ void AuraNetworkManager::tick() {
     connectWifi();
 
     if (isConnected()) {
-        // Handle NTP time sync once on initial Wi-Fi connection
+        // Non-blocking NTP time sync check
         if (!m_timeSynced) {
-            Serial.printf("✅ Wi-Fi Connected! Local IP: %s | Gateway/Pi IP: %s\n",
-                          WiFi.localIP().toString().c_str(),
-                          WiFi.gatewayIP().toString().c_str());
             syncNTPTime();
         }
 

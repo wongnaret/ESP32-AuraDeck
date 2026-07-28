@@ -62,8 +62,10 @@ public:
      * @param hum live humidity float
      * @param wifiConnected wifi status boolean
      * @param mqttConnected mqtt broker connection status
+     * @param batPercent battery charge percentage (0-100)
+     * @param isCharging true if USB power/charging active
      */
-    void updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected);
+    void updateHeader(const char* time, float temp, float hum, bool wifiConnected, bool mqttConnected, int batPercent = 100, bool isCharging = false);
 
     /**
      * @brief Transitions the display to the TV-style pairing PIN screen.
@@ -91,6 +93,7 @@ private:
     lv_obj_t* m_headerTitleLabel    = nullptr;  ///< Page name (left side)
     lv_obj_t* m_headerTimeLabel     = nullptr;  ///< HH:MM clock (right side)
     lv_obj_t* m_headerSensorLabel   = nullptr;  ///< Temperature reading
+    lv_obj_t* m_headerBatteryLabel  = nullptr;  ///< Battery status & percentage
     lv_obj_t* m_headerWifiIconLabel = nullptr;  ///< WiFi symbol (LV_SYMBOL_WIFI)
     lv_obj_t* m_headerMqttDotLabel  = nullptr;  ///< MQTT broker dot indicator
 

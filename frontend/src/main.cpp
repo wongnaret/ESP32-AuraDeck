@@ -258,14 +258,26 @@ void loop() {
         bool isWifi = g_network.isConnected();
         bool isMqtt = g_network.isMqttConnected();
 
-        // Safe Fallback: Check for sensor connection failure/disconnections (Rule 3: Graceful Degradation)
-        if (isnan(temperature) || isnan(humidity)) {
-            temperature = 0.0;
-            humidity = 0.0;
+        // 5.1 Read Battery Voltage & Charging state via ADC GPIO4 (PIN_BAT_ADC)
+        pinMode(PIN_BAT_ADC, INPUT);
+        uint32_t raw_mv = analogReadMilliVolts(PIN_BAT_ADC);
+        float batVoltage = (raw_mv * 2.0f) / 1000.0f; // 2:1 divider ratio
+        int batPercent = 100;
+        bool isCharging = false;
+
+        if (batVoltage >= 4.25f) {
+            isCharging = true;
+            batPercent = 100;
+        } else {
+            isCharging = false;
+            float pct = ((batVoltage - 3.3f) / (4.15f - 3.3f)) * 100.0f;
+            if (pct < 0.0f) pct = 0.0f;
+            if (pct > 100.0f) pct = 100.0f;
+            batPercent = (int)pct;
         }
 
-        // Update top status bar with latest telemetry (WiFi + MQTT combined status)
-        g_ui.updateHeader(currentTime.c_str(), temperature, humidity, isWifi, isMqtt);
+        // Update top status bar with latest telemetry (WiFi + MQTT + Battery)
+        g_ui.updateHeader(currentTime.c_str(), temperature, humidity, isWifi, isMqtt, batPercent, isCharging);
 
         // Forward local telemetry to active views (e.g. updating bold digital clock on Page 0 Home)
         DynamicJsonDocument telemetryDoc(256);
