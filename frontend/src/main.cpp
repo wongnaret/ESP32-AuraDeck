@@ -268,18 +268,24 @@ void loop() {
         bool isCharging = false;
         bool isUsbOnly = false;
 
-        if (batVoltage < 3.0f || raw_mv < 1500) {
+        if (batVoltage < 2.0f) {
             isUsbOnly = true;
-        } else if (batVoltage >= 4.15f) {
+        } else if (batVoltage >= 4.18f) {
             isCharging = true;
             batPercent = 100;
         } else {
             isCharging = false;
-            float pct = ((batVoltage - 3.3f) / (4.15f - 3.3f)) * 100.0f;
+            isUsbOnly = false;
+            float pct = ((batVoltage - 3.2f) / (4.15f - 3.2f)) * 100.0f;
             if (pct < 0.0f) pct = 0.0f;
             if (pct > 100.0f) pct = 100.0f;
             batPercent = (int)pct;
         }
+
+        Serial.printf("🔋 Battery ADC: raw_mv=%d, batVoltage=%.2fV -> %s (%d%%)\n",
+                      raw_mv, batVoltage, 
+                      isUsbOnly ? "USB Only" : (isCharging ? "Charging" : "Discharging"), 
+                      batPercent);
 
         // Update top status bar with latest telemetry (WiFi + MQTT + Battery)
         g_ui.updateHeader(currentTime.c_str(), temperature, humidity, isWifi, isMqtt, batPercent, isCharging, isUsbOnly);
