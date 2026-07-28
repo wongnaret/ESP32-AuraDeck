@@ -417,6 +417,26 @@ def login_spotify(profile_id: Optional[str] = None, active_profile_id: Optional[
     return RedirectResponse(url=get_spotify_auth_url(pid))
 
 
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
+
+@app.get("/api/spotify/cover.png")
+def get_spotify_cover_png(profile_id: str = "default"):
+    """Serves 80x80 1-bit monochrome PNG preview for Web Dashboard viewer."""
+    out_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
+    png_path = os.path.join(out_dir, "spotify_cover.png")
+    if os.path.exists(png_path):
+        return FileResponse(png_path, media_type="image/png")
+    raise HTTPException(status_code=404, detail="Cover art preview not available.")
+
+@app.get("/api/spotify/cover.bmp")
+def get_spotify_cover_bmp(profile_id: str = "default"):
+    """Serves 80x80 1-bit monochrome BMP image for ESP32 hardware display."""
+    out_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
+    bmp_path = os.path.join(out_dir, "spotify_cover.bmp")
+    if os.path.exists(bmp_path):
+        return FileResponse(bmp_path, media_type="image/x-ms-bmp")
+    raise HTTPException(status_code=404, detail="Cover art BMP not available.")
+
 @app.get("/spotify/callback")
 async def callback_spotify(code: str, state: str = "default"):
     """Accepts authorized code callback, maps it back to correct profile."""
