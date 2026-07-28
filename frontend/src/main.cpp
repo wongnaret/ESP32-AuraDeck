@@ -268,7 +268,7 @@ void loop() {
         bool isCharging = false;
         bool isUsbOnly = false;
 
-        if (batVoltage < 0.25f || raw_mv < 50) {
+        if (batVoltage < 3.0f || raw_mv < 1500) {
             isUsbOnly = true;
         } else if (batVoltage >= 4.15f) {
             isCharging = true;

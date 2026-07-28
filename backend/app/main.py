@@ -198,6 +198,21 @@ def on_shutdown():
 
 # --- Background Polling Triggers (Multi-Profile Aware) ---
 
+def run_async_safe(coro):
+    """Safely runs an async coroutine whether or not an event loop is currently running."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(lambda: asyncio.run(coro))
+            return future.result()
+    else:
+        return asyncio.run(coro)
+
 def trigger_spotify_polling():
     """Polls Spotify currently-playing for all active profiles and publishes to paired devices."""
     try:
@@ -207,7 +222,7 @@ def trigger_spotify_polling():
             pid = p["id"]
             mgr = ProfileTokenManager(pid, "Spotify")
             if mgr.has_credentials():
-                data = asyncio.run(get_spotify_currently_playing(pid))
+                data = run_async_safe(get_spotify_currently_playing(pid))
                 
                 # Publish to all devices paired to this profile
                 for mac, m_data in mappings.items():
@@ -229,7 +244,7 @@ def trigger_calendar_polling():
             pid = p["id"]
             mgr = ProfileTokenManager(pid, "Google")
             if mgr.has_credentials():
-                data = asyncio.run(get_google_calendar_and_tasks(pid))
+                data = run_async_safe(get_google_calendar_and_tasks(pid))
                 
                 # Publish to all devices paired to this profile
                 for mac, m_data in mappings.items():
@@ -250,7 +265,7 @@ def trigger_stocks_polling():
         mappings = load_device_mappings()
         
         # Publish default/global stocks
-        default_prices = asyncio.run(get_multi_asset_prices())
+        default_prices = run_async_safe(get_multi_asset_prices())
         mqtt_service.publish("auradeck/stocks", default_prices)
         
         for p in profiles:
@@ -258,7 +273,7 @@ def trigger_stocks_polling():
             prof_settings = load_profile_settings(pid)
             watchlist_items = prof_settings.get("stock_watchlist")
             if watchlist_items is not None:
-                p_prices = asyncio.run(get_multi_asset_prices(watchlist_items=watchlist_items))
+                p_prices = run_async_safe(get_multi_asset_prices(watchlist_items=watchlist_items))
                 mqtt_service.publish(f"auradeck/profile/{pid}/stocks", p_prices)
                 
                 # Mirror to paired devices for this profile
@@ -303,10 +318,11 @@ def trigger_antigravity_polling():
         logger.error(f"Error in background Antigravity poller: {e}")
 
 def trigger_time_sync():
-    """Publishes current server datetime for hardware RTC synchronization on paired screens."""
+    """Publishes current server datetime in Thailand (GMT+7) for hardware RTC synchronization on paired screens."""
     try:
-        from datetime import datetime
-        now = datetime.now()
+        from datetime import datetime, timezone, timedelta
+        tz_th = timezone(timedelta(hours=7))
+        now = datetime.now(tz_th)
         payload = {
             "year": now.year,
             "month": now.month,

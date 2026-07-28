@@ -127,7 +127,7 @@ async def fetch_yahoo_finance_price(symbol: str, override_name: Optional[str] = 
 async def scrape_thai_gold_price() -> Dict[str, Any]:
     """
     Scrapes the official Gold Traders Association of Thailand website (goldtraders.or.th)
-    for live Thai Gold bar prices using lightweight and robust regular expressions.
+    or falls back to Yahoo Finance Gold Futures (GC=F) for gold bar pricing.
     """
     url = "https://www.goldtraders.or.th/"
     headers = {
@@ -141,47 +141,32 @@ async def scrape_thai_gold_price() -> Dict[str, Any]:
             if response.status_code == 200:
                 html = response.text
                 
-                # Regex match for buy and sell prices of Gold Bar (96.5%)
-                buy_match = re.search(r'id="DetailPlace_uc_goldprices1_lblBLBuy"[^>]*>([\d,]+)</span>', html)
-                sell_match = re.search(r'id="DetailPlace_uc_goldprices1_lblBLSell"[^>]*>([\d,]+)</span>', html)
-                
-                # Regex match for daily change (diff)
-                diff_match = re.search(r'id="DetailPlace_uc_goldprices1_lblDiff"[^>]*>([^<]+)</span>', html)
-                
-                if buy_match and sell_match:
-                    buy_price = float(buy_match.group(1).replace(",", ""))
-                    sell_price = float(sell_match.group(1).replace(",", ""))
+                # Match price numbers in GoldTraders HTML (typically 40,000 - 55,000 Baht range)
+                prices = re.findall(r'(\d{2},\d{3})', html)
+                if len(prices) >= 2:
+                    sell_price = float(prices[0].replace(",", ""))
+                    buy_price = float(prices[1].replace(",", ""))
                     
-                    diff_val = 0.0
-                    if diff_match:
-                        # Clean up HTML tags or text within diff
-                        diff_text = diff_match.group(1)
-                        # Extract any numbers with plus/minus signs
-                        clean_diff = re.search(r'([+-]?\d+)', diff_text.replace(",", ""))
-                        if clean_diff:
-                            diff_val = float(clean_diff.group(1))
-                            
-                    # Calculate change percentage based on yesterday's closing price
-                    change_pct = 0.0
-                    prev_close = sell_price - diff_val
-                    if prev_close > 0:
-                        change_pct = round((diff_val / prev_close) * 100, 2)
-                        
                     return {
                         "symbol": "GOLD/TH",
                         "raw_symbol": "GOLD/TH",
                         "name": "Thai Gold Bar 96.5%",
-                        "price": sell_price, # We display the main sell price of Gold Bar
-                        "change_pct": change_pct,
+                        "price": sell_price,
+                        "change_pct": 0.0,
                         "type": "GOLD"
                     }
                     
-            logger.warning(f"GoldTraders.or.th scraper returned status code: {response.status_code}")
-            return {}
-            
     except Exception as e:
-        logger.error(f"Failed to scrape GoldTraders.or.th: {e}")
-        return {}
+        logger.warning(f"GoldTraders.or.th scraper failed ({e}), falling back to Yahoo Finance Gold Futures...")
+        
+    # Fallback to Gold Futures (GC=F) via Yahoo Finance
+    yf_gold = await fetch_yahoo_finance_price("GC=F", override_name="Gold Futures")
+    if yf_gold:
+        yf_gold["symbol"] = "GOLD"
+        yf_gold["type"] = "GOLD"
+        return yf_gold
+
+    return {}
 
 
 async def get_multi_asset_prices(watchlist_items: Optional[List[Dict[str, str]]] = None) -> List[Dict[str, Any]]:

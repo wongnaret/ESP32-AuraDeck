@@ -7,6 +7,9 @@
 #include "page_spotify.h"
 #include "ui/thai_reshaper.h"
 #include <Arduino.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 static lv_obj_t* s_trackLabel = nullptr;
 static lv_obj_t* s_artistLabel = nullptr;
@@ -16,12 +19,14 @@ static lv_obj_t* s_durationTimeLabel = nullptr;
 static lv_obj_t* s_stateLabel = nullptr;
 static lv_obj_t* s_albumBox = nullptr;
 static lv_obj_t* s_albumIconLabel = nullptr;
+static lv_obj_t* s_albumImg = nullptr;
 
 // Live playback state tracking for 1-second local progress bar animation tick
 static bool s_isPlaying = false;
 static int s_progressSec = 0;
 static int s_durationSec = 0;
 static uint32_t s_lastProgressTickMs = 0;
+static String s_lastCoverUrl = "";
 
 static void formatTime(int totalSeconds, char* outBuf, size_t bufSize) {
     int minutes = totalSeconds / 60;
@@ -39,6 +44,7 @@ void create_page_spotify(lv_obj_t* parent) {
     s_stateLabel        = nullptr;
     s_albumBox          = nullptr;
     s_albumIconLabel    = nullptr;
+    s_albumImg          = nullptr;
 
     // 1. Screen Title Header
     lv_obj_t* title = lv_label_create(parent);
@@ -51,7 +57,9 @@ void create_page_spotify(lv_obj_t* parent) {
     lv_obj_set_size(s_albumBox, 80, 80);
     lv_obj_align(s_albumBox, LV_ALIGN_TOP_LEFT, 15, 38);
     lv_obj_set_style_radius(s_albumBox, 6, 0);
+    lv_obj_set_style_border_color(s_albumBox, lv_color_black(), 0);
     lv_obj_set_style_border_width(s_albumBox, 2, 0);
+    lv_obj_set_style_bg_color(s_albumBox, lv_color_white(), 0);
     lv_obj_set_style_pad_all(s_albumBox, 0, 0);
     lv_obj_clear_flag(s_albumBox, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -76,22 +84,29 @@ void create_page_spotify(lv_obj_t* parent) {
     lv_obj_align(s_artistLabel, LV_ALIGN_TOP_LEFT, 110, 80);
     lv_label_set_text(s_artistLabel, "Connect device to sync music");
 
-    // 5. Playback Progress Bar (Full width underneath)
+    // 5. Playback Progress Bar (Full width underneath with high contrast black/white styling)
     s_bar = lv_bar_create(parent);
-    lv_obj_set_size(s_bar, 360, 10);
+    lv_obj_set_size(s_bar, 360, 12);
     lv_obj_align(s_bar, LV_ALIGN_TOP_MID, 0, 138);
+    lv_obj_set_style_bg_color(s_bar, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_bar, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_bar, 2, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_bar, lv_color_black(), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(s_bar, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(s_bar, 3, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_bar, 3, LV_PART_INDICATOR);
     lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
 
     // 6. Progress Time (Left Under Bar)
     s_progressTimeLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_progressTimeLabel, &lv_font_montserrat_12, 0);
-    lv_obj_align(s_progressTimeLabel, LV_ALIGN_TOP_LEFT, 20, 155);
+    lv_obj_align(s_progressTimeLabel, LV_ALIGN_TOP_LEFT, 20, 158);
     lv_label_set_text(s_progressTimeLabel, "0:00");
 
     // 7. Duration Time (Right Under Bar)
     s_durationTimeLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_durationTimeLabel, &lv_font_montserrat_12, 0);
-    lv_obj_align(s_durationTimeLabel, LV_ALIGN_TOP_RIGHT, -20, 155);
+    lv_obj_align(s_durationTimeLabel, LV_ALIGN_TOP_RIGHT, -20, 158);
     lv_label_set_text(s_durationTimeLabel, "0:00");
 
     // 8. Status Footer Info
@@ -181,4 +196,5 @@ void destroy_page_spotify() {
     s_stateLabel        = nullptr;
     s_albumBox          = nullptr;
     s_albumIconLabel    = nullptr;
+    s_albumImg          = nullptr;
 }

@@ -249,9 +249,11 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
     // Helper: extract service name from either generic or device-specific topics
     // Generic:  "auradeck/{service}"
     // Device:   "auradeck/device/{mac}/{service}"
+    bool isDeviceTopic = false;
     const char* service = nullptr;
     const char* prefix = "auradeck/device/";
     if (strncmp(topic, prefix, strlen(prefix)) == 0) {
+        isDeviceTopic = true;
         // Device-specific topic: skip past "auradeck/device/{mac}/"
         const char* macEnd = strchr(topic + strlen(prefix), '/');
         service = (macEnd != nullptr) ? macEnd + 1 : nullptr;
@@ -262,6 +264,14 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
 
     if (service == nullptr) {
         Serial.printf("⚠️ Unrecognized MQTT topic format: %s\n", topic);
+        return;
+    }
+
+    // Ignore generic broadcast topics if device-specific profile topics have already arrived
+    static bool s_hasReceivedDeviceTopic = false;
+    if (isDeviceTopic) {
+        s_hasReceivedDeviceTopic = true;
+    } else if (s_hasReceivedDeviceTopic && m_deviceMac[0] != '\0') {
         return;
     }
 
