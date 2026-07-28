@@ -272,7 +272,7 @@ def trigger_stocks_polling():
             pid = p["id"]
             prof_settings = load_profile_settings(pid)
             watchlist_items = prof_settings.get("stock_watchlist")
-            if watchlist_items is not None:
+            if watchlist_items:
                 p_prices = run_async_safe(get_multi_asset_prices(watchlist_items=watchlist_items))
                 mqtt_service.publish(f"auradeck/profile/{pid}/stocks", p_prices)
                 

@@ -267,14 +267,6 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
         return;
     }
 
-    // Ignore generic broadcast topics if device-specific profile topics have already arrived
-    static bool s_hasReceivedDeviceTopic = false;
-    if (isDeviceTopic) {
-        s_hasReceivedDeviceTopic = true;
-    } else if (s_hasReceivedDeviceTopic && m_deviceMac[0] != '\0') {
-        return;
-    }
-
     if (strcmp(service, "spotify") == 0) {
         bool isPlaying = doc["is_playing"] | false;
         if (isPlaying) {
