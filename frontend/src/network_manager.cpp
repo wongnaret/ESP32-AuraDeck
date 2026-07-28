@@ -115,14 +115,16 @@ void AuraNetworkManager::connectMqtt() {
     if (now - m_lastMqttReconnectTime > 8000) {
         m_lastMqttReconnectTime = now;
         
-        // Auto-discover MQTT Server IP from Gateway IP (Raspberry Pi Hotspot IP)
         IPAddress targetServerIp;
         IPAddress gatewayIp = WiFi.gatewayIP();
 
-        if (gatewayIp != IPAddress(0, 0, 0, 0)) {
+        // Check if gateway matches Raspberry Pi Hotspot IP or if MQTT_SERVER is explicit
+        if (targetServerIp.fromString(MQTT_SERVER) && targetServerIp != IPAddress(0, 0, 0, 0)) {
+            // Use explicit MQTT_SERVER config
+        } else if (gatewayIp != IPAddress(0, 0, 0, 0)) {
             targetServerIp = gatewayIp;
         } else {
-            targetServerIp.fromString(MQTT_SERVER);
+            targetServerIp.fromString("10.42.0.1");
         }
 
         m_mqttClient.setServer(targetServerIp, MQTT_PORT);
@@ -174,24 +176,37 @@ void AuraNetworkManager::subscribeDeviceTopics(const char* mac) {
 bool AuraNetworkManager::syncNTPTime() {
     if (m_timeSynced || !isConnected()) return false;
 
-    Serial.println("🌐 Connecting to NTP server to synchronize system clock...");
-    configTime(UTC_OFFSET_SECS, 0, NTP_SERVER_1, NTP_SERVER_2);
+    uint32_t now = millis();
 
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 3000)) { // wait up to 3 seconds for NTP packet response
-        // Convert to DateTime format
-        DateTime ntp_dt(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-        
-        // Push current NTP time to physical RTC registers
-        m_rtc->adjust(ntp_dt);
-        m_timeSynced = true;
-        Serial.println("🌐 Success: NTP clock is synced and hardware RTC registers are updated.");
-        return true;
-    } else {
-        Serial.println("⚠️ Warning: NTP sync timed out. Will retry next loop.");
-        return false;
+    // Start background SNTP daemon ONCE on connect, or retry every 30 seconds if unsynced
+    if (!m_sntpStarted || (now - m_lastNtpRetryTime > 30000)) {
+        m_sntpStarted = true;
+        m_lastNtpRetryTime = now;
+        String gwIp = WiFi.gatewayIP().toString();
+        Serial.printf("🌐 Starting background SNTP daemon (GW: %s, NTP1: %s, NTP2: %s)...\n",
+                      gwIp.c_str(), NTP_SERVER_1, NTP_SERVER_2);
+        configTime(UTC_OFFSET_SECS, 0, gwIp.c_str(), NTP_SERVER_1, NTP_SERVER_2);
     }
+
+    // Non-blocking check (10ms timeout) for time synchronization
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo, 10)) {
+        if (timeinfo.tm_year > 120) { // Valid year after 2020
+            DateTime ntp_dt(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+            
+            if (m_rtc) {
+                m_rtc->adjust(ntp_dt);
+            }
+            m_timeSynced = true;
+            Serial.printf("🌐 Success: NTP clock is synced [%04d-%02d-%02d %02d:%02d:%02d] and hardware RTC updated.\n",
+                          timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                          timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void AuraNetworkManager::tick() {
@@ -255,10 +270,12 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
     if (strcmp(service, "spotify") == 0) {
         bool isPlaying = doc["is_playing"] | false;
         if (isPlaying) {
-            const char* track = doc["track"] | "Unknown Track";
+            const char* track = doc["title"] | doc["track"] | "Unknown Track";
             const char* artist = doc["artist"] | "Unknown Artist";
-            int progress = doc["progress"] | 0;
-            int duration = doc["duration"] | 0;
+            int progressMs = doc["progress_ms"] | 0;
+            int durationMs = doc["duration_ms"] | 0;
+            int progress = (progressMs > 0) ? progressMs / 1000 : (doc["progress"] | 0);
+            int duration = (durationMs > 0) ? durationMs / 1000 : (doc["duration"] | 0);
             Serial.printf("  🎵 Spotify Playing: %s - %s [%d/%ds]\n", track, artist, progress, duration);
         } else {
             Serial.println("  🎵 Spotify Offline (No track active)");
@@ -280,27 +297,49 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
         }
     } 
     else if (strcmp(service, "todos") == 0) {
-        JsonArrayConst todos = doc["todos"].as<JsonArrayConst>();
+        // Todos payload is a root array of objects [{title:...}, ...] or wrapped {todos:[...]}
+        JsonArrayConst todos;
+        if (doc.is<JsonArray>()) {
+            todos = doc.as<JsonArrayConst>();
+        } else if (doc.containsKey("todos")) {
+            todos = doc["todos"].as<JsonArrayConst>();
+        }
         Serial.println("  📋 Google Checklist Items:");
-        for (const char* todo : todos) {
-            Serial.printf("    - [ ] %s\n", todo);
+        for (JsonVariantConst item : todos) {
+            if (item.is<JsonObject>()) {
+                const char* title = item["title"] | "Untitled";
+                Serial.printf("    - [ ] %s\n", title);
+            } else {
+                const char* str = item.as<const char*>();
+                Serial.printf("    - [ ] %s\n", str ? str : "(null)");
+            }
         }
     } 
     else if (strcmp(service, "stocks") == 0) {
-        JsonArrayConst stocks = doc["stocks"].as<JsonArrayConst>();
+        // Stocks payload is a root array [{symbol:..., price:..., change_pct:...}, ...]
+        JsonArrayConst stocks;
+        if (doc.is<JsonArray>()) {
+            stocks = doc.as<JsonArrayConst>();
+        } else if (doc.containsKey("stocks")) {
+            stocks = doc["stocks"].as<JsonArrayConst>();
+        }
         Serial.println("  📈 Watchlist Quotes:");
         for (JsonObjectConst s : stocks) {
             const char* sym = s["symbol"] | "";
             float price = s["price"] | 0.0;
-            float pct   = s["change_percent"] | 0.0;
+            float pct   = s["change_pct"] | s["change_percent"] | 0.0;
             Serial.printf("    - %s: %.2f (%+.2f%%)\n", sym, price, pct);
         }
     } 
     else if (strcmp(service, "analytics") == 0) {
-        int   activeUsers = doc["active_users"]  | 0;
-        float mtdBilling  = doc["mtd_billing"]   | 0.0;
-        Serial.printf("  📊 GA4 Active Visitors : %d\n",    activeUsers);
-        Serial.printf("  💵 GCP Cloud Billing   : $%.2f MTD\n", mtdBilling);
+        int   activeUsers = doc["ga4_active_users"] | doc["active_users"] | 0;
+        Serial.printf("  📊 GA4 Active Visitors : %d\n", activeUsers);
+        if (doc.containsKey("gcp_billing")) {
+            float totalMtd = 0.0;
+            JsonArrayConst billing = doc["gcp_billing"].as<JsonArrayConst>();
+            for (JsonObjectConst p : billing) { totalMtd += p["cost_mtd"] | 0.0f; }
+            Serial.printf("  💵 GCP Cloud Billing   : $%.2f MTD\n", totalMtd);
+        }
     } 
     else if (strcmp(service, "antigravity") == 0) {
         float remaining = doc["credit_hours_remaining"] | 0.0;
@@ -308,6 +347,11 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
         Serial.printf("  🛸 Antigravity Credits: %.1f hours remaining (%.1f%% used)\n", remaining, percent);
     }
 
-    // Forward telemetry payload dynamically to active pages in UI
-    g_ui.dispatchData(topic, doc);
+    // Normalize topic to generic form before forwarding to UI pages.
+    // This decouples UI dispatch from both generic (auradeck/{service}) and
+    // device-specific (auradeck/device/{mac}/{service}) topic formats,
+    // so dispatchData() always receives a predictable auradeck/{service} topic.
+    char normalizedTopic[48];
+    snprintf(normalizedTopic, sizeof(normalizedTopic), "auradeck/%s", service);
+    g_ui.dispatchData(normalizedTopic, doc);
 }

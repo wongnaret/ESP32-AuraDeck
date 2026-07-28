@@ -57,18 +57,43 @@ void create_page_analytics(lv_obj_t* parent) {
 }
 
 void update_page_analytics(const JsonDocument& doc) {
-    if (doc.containsKey("active_users")) {
-        int visitors = doc["active_users"] | 0;
+    // Backend payload uses "ga4_active_users" (not "active_users")
+    // and "gcp_billing" array (not flat "mtd_billing")
+    // Field name reference: backend/app/services/analytics.py get_combined_analytics()
+
+    // Update GA4 active visitors count
+    int visitors = 0;
+    if (doc.containsKey("ga4_active_users")) {
+        visitors = doc["ga4_active_users"] | 0;
+    } else if (doc.containsKey("active_users")) {
+        visitors = doc["active_users"] | 0; // legacy fallback
+    }
+    if (s_visitorsLabel) {
         char buf[16];
         snprintf(buf, sizeof(buf), "%02d", visitors);
-        if (s_visitorsLabel) lv_label_set_text(s_visitorsLabel, buf);
+        lv_label_set_text(s_visitorsLabel, buf);
     }
 
-    if (doc.containsKey("mtd_billing")) {
+    // Update GCP billing — backend sends array, we sum all projects for a single total
+    if (doc.containsKey("gcp_billing")) {
+        float totalMtd = 0.0;
+        JsonArrayConst billing = doc["gcp_billing"].as<JsonArrayConst>();
+        for (JsonObjectConst project : billing) {
+            totalMtd += project["cost_mtd"] | 0.0f;
+        }
+        if (s_billingLabel) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "$%.2f MTD", totalMtd);
+            lv_label_set_text(s_billingLabel, buf);
+        }
+    } else if (doc.containsKey("mtd_billing")) {
+        // Legacy flat field fallback
         float billing = doc["mtd_billing"] | 0.0;
-        char buf[32];
-        snprintf(buf, sizeof(buf), "$%.2f MTD", billing);
-        if (s_billingLabel) lv_label_set_text(s_billingLabel, buf);
+        if (s_billingLabel) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "$%.2f MTD", billing);
+            lv_label_set_text(s_billingLabel, buf);
+        }
     }
 }
 

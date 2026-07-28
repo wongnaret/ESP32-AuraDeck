@@ -9,6 +9,9 @@
 #include <ArduinoJson.h>
 #include "drivers/display_st7305.h"
 
+// Number of MQTT services that cache data for page replay
+#define AURADECK_SERVICE_COUNT 7
+
 class UIManager {
 public:
     UIManager();
@@ -92,6 +95,15 @@ private:
     lv_obj_t* m_headerMqttDotLabel  = nullptr;  ///< MQTT broker dot indicator
 
     int m_currentPageIndex = 0;
+
+    // --- MQTT Data Cache (per-service) ---
+    // Stores the last-received MQTT payload for each service so that when the
+    // user navigates to a page, we can immediately replay the cached data to
+    // populate widgets with real values instead of showing stale placeholders.
+    // Index: 0=spotify, 1=calendar, 2=todos, 3=stocks, 4=analytics, 5=antigravity, 6=home_telemetry
+    DynamicJsonDocument* m_dataCache[AURADECK_SERVICE_COUNT] = { nullptr };
+    int serviceTopicToIndex(const char* topic);
+    void replayCachedData(int pageIndex);
 
     // Custom LVGL flush callback bridge
     static void dispFlushCallback(lv_disp_drv_t* disp_drv, const lv_area_t* area, lv_color_t* color_p);

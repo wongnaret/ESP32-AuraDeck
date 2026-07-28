@@ -35,17 +35,47 @@ void create_page_todos(lv_obj_t* parent) {
 }
 
 void update_page_todos(const JsonDocument& doc) {
-    if (!doc.containsKey("todos")) return;
+    // Support two payload shapes from backend:
+    //   Shape A — root array (from device-specific MQTT topics after normalization):
+    //     [{"id":"...", "title":"[Shopping] Buy milk", "completed": false}, ...]
+    //   Shape B — wrapped object (from generic MQTT topics):
+    //     {"todos": [{"id":"...", "title":"...", "completed": false}, ...]}
+    //
+    // The "title" field may carry a list prefix like "[List Name] Task" when the
+    // profile has multiple Google Task lists configured — no extra parsing needed.
+    JsonArrayConst todos;
+    if (doc.is<JsonArray>()) {
+        todos = doc.as<JsonArrayConst>(); // Shape A: root array
+    } else if (doc.containsKey("todos")) {
+        todos = doc["todos"].as<JsonArrayConst>(); // Shape B: wrapped object
+    } else {
+        return; // Unrecognized payload format — skip silently
+    }
 
-    JsonArrayConst todos = doc["todos"].as<JsonArrayConst>();
     int idx = 0;
 
-    for (const char* todo : todos) {
+    for (JsonVariantConst item : todos) {
         if (idx >= 4) break;
 
-        // Apply Thai Unicode Reshaper to prevent overlapping floating vowels
-        String reshapedTodo = ThaiReshaper::reshape(todo);
-        
+        const char* todoText = nullptr;
+
+        if (item.is<JsonObject>()) {
+            // Object element: {"id":"...", "title":"[List] Task", "completed": false}
+            // title already includes multi-list prefix added by backend (google_api.py)
+            todoText = item["title"] | "Untitled Task";
+        } else {
+            // Plain string element (legacy / fallback format)
+            todoText = item.as<const char*>();
+        }
+
+        if (!todoText || todoText[0] == '\0') {
+            idx++;
+            continue;
+        }
+
+        // Apply Thai Unicode Reshaper to handle Thai floating vowel rendering
+        String reshapedTodo = ThaiReshaper::reshape(todoText);
+
         char buf[128];
         snprintf(buf, sizeof(buf), "[ ] %s", reshapedTodo.c_str());
 
@@ -55,7 +85,7 @@ void update_page_todos(const JsonDocument& doc) {
         idx++;
     }
 
-    // Clear remaining rows if checklist contains fewer than 4 items
+    // Clear remaining rows if checklist has fewer than 4 items
     for (int i = idx; i < 4; i++) {
         if (s_todoRows[i]) {
             lv_label_set_text(s_todoRows[i], "");

@@ -51,12 +51,23 @@ class ProfileTokenManager:
             logger.error(f"Failed to save {self.service_name} credentials for profile {self.profile_id}: {e}")
 
     def load_tokens(self) -> Optional[Dict[str, Any]]:
-        """Loads cached tokens from disk."""
-        if not os.path.exists(self.token_path):
-            return None
+        """Loads cached tokens from disk, checking profile directory first then root tokens fallback."""
+        target_path = self.token_path
+        if not os.path.exists(target_path):
+            # Fallback check for single-user / legacy tokens at root TOKENS_DIR
+            root_fallback = os.path.join(settings.TOKENS_DIR, f"{self.service_name.lower()}_tokens.json")
+            if os.path.exists(root_fallback):
+                target_path = root_fallback
+                logger.info(f"Using root token fallback for {self.service_name} on profile {self.profile_id}")
+            else:
+                return None
         try:
-            with open(self.token_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            with open(target_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            # If loaded from root fallback, auto-migrate to profile directory for future calls
+            if target_path != self.token_path:
+                self.save_tokens(data)
+            return data
         except Exception as e:
             logger.error(f"Failed to load {self.service_name} credentials for profile {self.profile_id}: {e}")
             return None

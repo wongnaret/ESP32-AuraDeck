@@ -327,17 +327,28 @@ auradeck/device/{mac}/analytics
 
 All payloads published to local topics are formatted as high-density, flat JSON objects, optimized for minimal parsing overhead on the ESP32-S3 microcontroller.
 
+> **📌 ESP32 Topic Normalization:** The ESP32 firmware (`network_manager.cpp`) automatically normalizes device-specific topics (`auradeck/device/{mac}/{service}`) into their generic form (`auradeck/{service}`) before dispatching to UI page modules. This means `ui_manager.dispatchData()` and all page `update_page_*()` functions remain agnostic to whether the device is paired or running in generic dev mode.
+
 ### 1. Spotify Now Playing (`auradeck/device/{mac}/spotify`)
 Contains playback tracking metrics.
 ```json
 {
   "is_playing": true,
-  "track": "เพลงรักในสายลม",
+  "title": "เพลงรักในสายลม",
   "artist": "วงดนตรีสากล",
-  "progress": 128,
-  "duration": 240
+  "progress_ms": 128000,
+  "duration_ms": 240000
 }
 ```
+| Field | Type | Description |
+|-------|------|-------------|
+| `is_playing` | bool | Whether Spotify is actively streaming |
+| `title` | string | Track name (from Spotify API `item.name`) |
+| `artist` | string | Comma-separated artist names |
+| `progress_ms` | int | Playback progress in **milliseconds** |
+| `duration_ms` | int | Total track duration in **milliseconds** |
+
+> **ESP32 Handling:** `page_spotify.cpp` reads `title` (with `track` as legacy fallback) and converts `progress_ms`/`duration_ms` from milliseconds to seconds for UI display.
 
 ### 2. Calendar Agenda (`auradeck/device/{mac}/calendar`)
 Combines a monthly grid marker list with specific details for Today and Tomorrow.
@@ -352,13 +363,21 @@ Combines a monthly grid marker list with specific details for Today and Tomorrow
 ```
 
 ### 3. Google Tasks Checklist (`auradeck/device/{mac}/todos`)
-A flat array of aggregated task items, with the list name appended inside brackets:
+Published as a **root JSON array** of task objects. When multiple Google Task lists are configured in the profile (`active_task_lists`), each task's `title` includes a `[List Name]` prefix for contextual visibility.
 ```json
 [
-  { "id": "1", "title": "[Work] ตรวจทาน Pull Request #42", "completed": false },
-  { "id": "2", "title": "[Home] ซื้อของเข้าบ้าน", "completed": false }
+  { "id": "task_abc123", "title": "[Work] ตรวจทาน Pull Request #42", "completed": false },
+  { "id": "task_def456", "title": "[Shopping] ซื้อของเข้าบ้าน", "completed": false },
+  { "id": "task_ghi789", "title": "Deploy hotfix to production", "completed": false }
 ]
 ```
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Google Tasks internal task ID |
+| `title` | string | Task text, prefixed with `[List Name]` when from a non-default list |
+| `completed` | bool | Always `false` (completed tasks are filtered server-side) |
+
+> **ESP32 Handling:** `page_todos.cpp` supports both root-array (from device topics) and wrapped `{"todos": [...]}` (from generic topics) formats for backward compatibility. Renders up to **4 items**; remaining rows are cleared.
 
 ### 4. Multi-Asset Stocks & Commodities Watchlist (`auradeck/device/{mac}/stocks`)
 Holds current prices, percentage change direction, and asset categories (Thai Equities, Gold bars, Cryptocurrencies).

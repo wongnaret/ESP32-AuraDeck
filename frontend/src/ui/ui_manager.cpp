@@ -17,6 +17,13 @@ UIManager::UIManager() {}
 
 UIManager::~UIManager() {
     if (m_lvBuffer1) free(m_lvBuffer1);
+    // Free cached MQTT data documents
+    for (int i = 0; i < AURADECK_SERVICE_COUNT; i++) {
+        if (m_dataCache[i]) {
+            delete m_dataCache[i];
+            m_dataCache[i] = nullptr;
+        }
+    }
 }
 
 bool UIManager::begin(ST7305Display* display) {
@@ -231,11 +238,72 @@ void UIManager::showPage(int pageIndex) {
 
     // Force LVGL display refresh cycle
     lv_refr_now(nullptr);
+
+    // Step 5: Replay any cached MQTT data to immediately populate the new page
+    // This ensures pages show real data instead of stale placeholders when navigated to.
+    replayCachedData(pageIndex);
+}
+
+// --- MQTT Data Cache Helpers ---
+
+int UIManager::serviceTopicToIndex(const char* topic) {
+    // Map normalized topic string to cache index
+    if (strcmp(topic, "auradeck/spotify") == 0)       return 0;
+    if (strcmp(topic, "auradeck/calendar") == 0)      return 1;
+    if (strcmp(topic, "auradeck/todos") == 0)          return 2;
+    if (strcmp(topic, "auradeck/stocks") == 0)         return 3;
+    if (strcmp(topic, "auradeck/analytics") == 0)      return 4;
+    if (strcmp(topic, "auradeck/antigravity") == 0)    return 5;
+    if (strcmp(topic, "auradeck/home_telemetry") == 0) return 6;
+    return -1; // Unknown service
+}
+
+void UIManager::replayCachedData(int pageIndex) {
+    // Map page index → cache index and replay if data exists
+    // Page indexes: 0=home, 1=antigravity, 2=stocks, 3=todos, 4=calendar, 5=spotify, 6=analytics
+    // Cache indexes: 0=spotify, 1=calendar, 2=todos, 3=stocks, 4=analytics, 5=antigravity, 6=home_telemetry
+    int cacheIdx = -1;
+    switch (pageIndex) {
+        case 0: cacheIdx = 6; break; // home → home_telemetry
+        case 1: cacheIdx = 5; break; // antigravity
+        case 2: cacheIdx = 3; break; // stocks
+        case 3: cacheIdx = 2; break; // todos
+        case 4: cacheIdx = 1; break; // calendar
+        case 5: cacheIdx = 0; break; // spotify
+        case 6: cacheIdx = 4; break; // analytics
+        default: return;
+    }
+
+    if (cacheIdx >= 0 && m_dataCache[cacheIdx] != nullptr) {
+        Serial.printf("📦 Replaying cached data for page %d (cache[%d])\n", pageIndex, cacheIdx);
+        switch (pageIndex) {
+            case 0: update_page_home(*m_dataCache[cacheIdx]);        break;
+            case 1: update_page_antigravity(*m_dataCache[cacheIdx]); break;
+            case 2: update_page_stocks(*m_dataCache[cacheIdx]);      break;
+            case 3: update_page_todos(*m_dataCache[cacheIdx]);       break;
+            case 4: update_page_calendar(*m_dataCache[cacheIdx]);    break;
+            case 5: update_page_spotify(*m_dataCache[cacheIdx]);     break;
+            case 6: update_page_analytics(*m_dataCache[cacheIdx]);   break;
+            default: break;
+        }
+    }
 }
 
 void UIManager::dispatchData(const char* topic, const JsonDocument& doc) {
-    // Forward MQTT payload to individual pages to keep widgets updated in memory
-    // Note: To preserve CPU, we only update widgets if data corresponds to that view
+    // 1. Cache the incoming data for page replay on navigation
+    int cacheIdx = serviceTopicToIndex(topic);
+    if (cacheIdx >= 0) {
+        // Free previous cached document for this service
+        if (m_dataCache[cacheIdx]) {
+            delete m_dataCache[cacheIdx];
+        }
+        // Allocate a new document and deep-copy the incoming data
+        m_dataCache[cacheIdx] = new DynamicJsonDocument(4096);
+        m_dataCache[cacheIdx]->set(doc.as<JsonVariantConst>());
+    }
+
+    // 2. Forward MQTT payload to individual pages to update live widgets
+    //    (only effective if the page's widgets currently exist in memory)
     if (strcmp(topic, "auradeck/spotify") == 0) {
         update_page_spotify(doc);
     } else if (strcmp(topic, "auradeck/home_telemetry") == 0) {
@@ -334,6 +402,9 @@ void UIManager::showDashboard() {
 
     create_page_home(m_activePageContainer);
     lv_refr_now(nullptr);
+
+    // Replay any data cached during pairing flow
+    replayCachedData(0);
 
     Serial.println("🎉 Pairing complete! Transitioned to interactive dashboard.");
 }

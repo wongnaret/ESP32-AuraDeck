@@ -119,6 +119,7 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
   * Up to 4 vertical checklist items with standard `[ ]` markers.
   * Full support for Thai Unicode characters via the custom C++ ThaiReshaper.
   * Built-in `LV_LABEL_LONG_DOT` auto-truncation for longer task titles to prevent boundary overlaps.
+* **Multi-List Support:** When multiple Google Task lists are configured in the profile, tasks from each list are prefixed with `[List Name]` in the title (e.g., `[ ] [Work] ตรวจทาน PR #42`) for contextual visibility.
 
 ---
 
@@ -155,16 +156,21 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 ## 4. Server-to-ESP32 MQTT Payload Schema
 The Raspberry Pi publishes structured, single-responsibility telemetry objects on specific MQTT topics. Below are the implemented JSON schemas:
 
+> **Topic Normalization:** The ESP32 `network_manager.cpp` normalizes both generic topics (`auradeck/{service}`) and device-specific topics (`auradeck/device/{mac}/{service}`) into the same generic form before dispatching to UI pages. This means UI page modules always receive payloads via the generic topic format regardless of pairing state.
+
+> **Data Cache Layer:** `ui_manager.cpp` maintains a per-service `DynamicJsonDocument` cache (`m_dataCache[]`). Every incoming MQTT payload is deep-copied into the cache before being forwarded to page `update_*()` functions. When the user navigates to a page via `showPage()`, the cached data is immediately replayed via `replayCachedData()` — ensuring pages always display the most recent backend data, even if it arrived while the user was viewing a different page.
+
 ### Topic: `auradeck/spotify`
 ```json
 {
   "is_playing": true,
-  "track": "เพลงรักในสายลม",
+  "title": "เพลงรักในสายลม",
   "artist": "วงดนตรีสากล",
-  "progress": 128,
-  "duration": 240
+  "progress_ms": 128000,
+  "duration_ms": 240000
 }
 ```
+> **ESP32 Handling:** `page_spotify.cpp` reads `title` (with `track` as legacy fallback) and converts `progress_ms`/`duration_ms` from milliseconds to seconds for display.
 
 ### Topic: `auradeck/calendar`
 ```json
@@ -178,26 +184,25 @@ The Raspberry Pi publishes structured, single-responsibility telemetry objects o
 ```
 
 ### Topic: `auradeck/todos`
+Published as a **root JSON array** of task objects. Each item's `title` field may carry a `[List Name]` prefix when the profile has multiple Google Task lists configured.
 ```json
-{
-  "todos": [
-    "ตรวจทาน Pull Request #42",
-    "ติดตั้งโปรแกรมปรับปรุงระบบฐานข้อมูล"
-  ]
-}
+[
+  { "id": "task_abc123", "title": "[Work] ตรวจทาน Pull Request #42", "completed": false },
+  { "id": "task_def456", "title": "[Shopping] ซื้อของเข้าบ้าน", "completed": false }
+]
 ```
+> **ESP32 Handling:** `page_todos.cpp` supports both root-array format (from device-specific topics) and wrapped `{"todos": [...]}` format (from generic topics) for full backward compatibility. The `title` field is extracted directly, preserving the multi-list prefix as display context.
 
 ### Topic: `auradeck/stocks`
+Published as a **root JSON array** of asset objects. The `type` field drives display formatting on the ESP32 (`GOLD` = Thai Baht, `TH_STOCK` = local equity, `CRYPTO`/`GLOBAL` = USD prefix).
 ```json
-{
-  "stocks": [
-    { "symbol": "SET50", "price": 942.50, "change_percent": 1.33 },
-    { "symbol": "CPALL.BK", "price": 57.25, "change_percent": -0.45 },
-    { "symbol": "GOLD", "price": 41200.00, "change_percent": 0.24 },
-    { "symbol": "BTC-THB", "price": 2350000.00, "change_percent": 2.15 }
-  ]
-}
+[
+  { "symbol": "GOLD/TH", "raw_symbol": "GOLD/TH", "name": "Thai Gold Bar 96.5%", "price": 41200.0, "change_pct": 0.24, "type": "GOLD" },
+  { "symbol": "CPALL",   "raw_symbol": "CPALL.BK", "name": "CP ALL Public Company Limited", "price": 57.25, "change_pct": 1.33, "type": "TH_STOCK" },
+  { "symbol": "BTC/USD", "raw_symbol": "BTC-USD",  "name": "Bitcoin USD", "price": 64500.0, "change_pct": 2.15, "type": "CRYPTO" }
+]
 ```
+> **ESP32 Handling:** `page_stocks.cpp` detects root-array vs wrapped-object format. Asset formatting (currency symbol, decimal places) is driven by the `type` field. The `change_pct` field (backend native) is preferred over the legacy `change_percent` field.
 
 ### Topic: `auradeck/antigravity`
 ```json
@@ -234,10 +239,17 @@ The Raspberry Pi publishes structured, single-responsibility telemetry objects o
 ### Topic: `auradeck/analytics`
 ```json
 {
-  "active_users": 15,
-  "mtd_billing": 160.70
+  "gcp_status": "OK",
+  "ga4_active_users": 34,
+  "gsc_clicks": 1420,
+  "gsc_impressions": 28500,
+  "gcp_billing": [
+    { "project_name": "AuraDeck Dev", "cost_mtd": 12.50, "currency": "USD" },
+    { "project_name": "Client Prod",  "cost_mtd": 148.20, "currency": "USD" }
+  ]
 }
 ```
+> **ESP32 Handling:** `page_analytics.cpp` reads `ga4_active_users` (not `active_users`) and sums all `cost_mtd` values from the `gcp_billing` array to display a single total MTD figure.
 
 ---
 

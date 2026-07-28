@@ -58,7 +58,9 @@ private:
 
     uint32_t m_lastWifiCheckTime = 0;
     uint32_t m_lastMqttReconnectTime = 0;
+    uint32_t m_lastNtpRetryTime = 0;
     bool m_timeSynced = false;
+    bool m_sntpStarted = false;
 
     void connectWifi();
     void connectMqtt();

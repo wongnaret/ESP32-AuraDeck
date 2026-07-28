@@ -106,6 +106,75 @@ If you already completed the OAuth logins on your local computer and do not want
 3.  Copy/FTP the entire `profiles` folder directly to the `/backend/tokens/profiles/` path on your Raspberry Pi.
 4.  The backend service on the Pi will immediately detect these directories, and you can log in directly or allow paired screens to fetch synchronized widgets without further setup!
 
+### 7. Configure Backend Autostart on Pi Reboot (ตั้งค่าให้ Backend เริ่มทำงานอัตโนมัติเมื่อ Restart Pi)
+To ensure the backend stack (`auradeck_backend` and `auradeck_mosquitto`) automatically starts every time your Raspberry Pi reboots, you can use any of the following methods:
+
+#### Option A: Docker Service Enable (Recommended & Standard)
+Since `docker-compose.yml` already includes `restart: unless-stopped`, Docker automatically manages container auto-restarts as long as the Docker daemon is enabled on system boot:
+
+1. **Enable Docker Daemon on System Boot:**
+   ```bash
+   sudo systemctl enable docker
+   ```
+2. **Start the Stack Once:**
+   ```bash
+   chmod +x backend/scripts/start_backend.sh
+   ./backend/scripts/start_backend.sh
+   ```
+   *Docker will preserve container states and automatically bring up the cluster whenever the Raspberry Pi boots up.*
+
+---
+
+#### Option B: Systemd Service Unit (Full System Lifecycle Management)
+If you want systemd to manage the AuraDeck container cluster explicitly:
+
+1. **Create a Systemd Service File:**
+   ```bash
+   sudo nano /etc/systemd/system/auradeck.service
+   ```
+2. **Add the following configuration** (replace `/path/to/ESP32-AuraDeck` with your actual repository directory on the Pi):
+   ```ini
+   [Unit]
+   Description=AuraDeck Backend Stack (FastAPI & Mosquitto)
+   After=docker.service network-online.target
+   Wants=docker.service network-online.target
+
+   [Service]
+   Type=oneshot
+   RemainAfterExit=yes
+   WorkingDirectory=/path/to/ESP32-AuraDeck
+   ExecStart=/usr/bin/docker compose up -d
+   ExecStop=/usr/bin/docker compose down
+   TimeoutStartSec=0
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+3. **Enable and Start the Service:**
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable auradeck.service
+   sudo systemctl start auradeck.service
+   ```
+4. **Verify Service Status:**
+   ```bash
+   sudo systemctl status auradeck.service
+   ```
+
+---
+
+#### Option C: Host Crontab `@reboot` Schedule
+Alternatively, you can schedule the startup script to run on boot via user crontab:
+
+1. **Edit User Crontab:**
+   ```bash
+   crontab -e
+   ```
+2. **Add the `@reboot` entry** (replace `/path/to/ESP32-AuraDeck` with your actual repository path):
+   ```cron
+   @reboot /bin/bash /path/to/ESP32-AuraDeck/backend/scripts/start_backend.sh >> /tmp/auradeck_autostart.log 2>&1
+   ```
+
 ---
 
 ## 🧪 Developer Sandbox & Mock API Bench

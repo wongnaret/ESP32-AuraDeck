@@ -169,11 +169,16 @@ def on_startup():
     scheduler.start()
     logger.info("Background Schedulers started successfully.")
     
-    # Trigger initial antigravity publish immediately
+    # Trigger initial data publish for all services immediately on startup
     try:
+        logger.info("Triggering initial data poll for all services on startup...")
+        trigger_spotify_polling()
+        trigger_calendar_polling()
+        trigger_stocks_polling()
+        trigger_analytics_polling()
         trigger_antigravity_polling()
     except Exception as e:
-        logger.error(f"Error running initial antigravity poll on startup: {e}")
+        logger.error(f"Error running initial data poll on startup: {e}")
 
 
 @app.on_event("shutdown")
@@ -665,6 +670,18 @@ def api_verify_pairing_code(request: DevicePairRequest, active_profile_id: Optio
     # Remove pairing pin from cache
     PAIRING_CODES_CACHE.pop(pin, None)
     logger.info(f"Successfully paired device {mac} to Profile {profile_id}")
+
+    # Immediately trigger data poll and publish for the newly paired device
+    try:
+        logger.info(f"Triggering immediate data publish for newly paired device {mac}...")
+        trigger_spotify_polling()
+        trigger_calendar_polling()
+        trigger_stocks_polling()
+        trigger_analytics_polling()
+        trigger_antigravity_polling()
+    except Exception as e:
+        logger.error(f"Error publishing initial data for paired device {mac}: {e}")
+
     return {"status": "success", "message": "Device paired successfully!", "mac": mac}
 
 

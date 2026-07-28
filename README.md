@@ -49,6 +49,7 @@ To make the codebase highly modular and maintainable, setup details, firmware fl
 ### ⚡ [Backend Server Setup & Developer Guide](./docs/backend.md)
 *   **Docker Ingestion & Deployment**: Step-by-step procedures to build and start the cluster (`FastAPI` & `Mosquitto Broker`) in the background.
 *   **Raspberry Pi Local Access Point**: Restructuring the Pi into a standalone Wi-Fi hotspot, and solving supplicant or Broadcom driver handshake timeouts.
+*   **Automatic Startup Configuration**: Configuring Docker daemon, systemd service unit, or cron `@reboot` to autostart backend on Pi restart.
 *   **Secure OAuth via ngrok & Token Mirroring**: Tunneling redirects safely and managing fallback tokens locally.
 *   **Developer Sandbox**: Publishing mock JSON payloads to test screen layouts instantaneously without live cloud logins.
 *   **System Diagnostics**: Log checking and common Linux/Docker privilege troubleshooting.

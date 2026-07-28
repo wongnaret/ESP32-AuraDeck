@@ -88,10 +88,16 @@ void update_page_spotify(const JsonDocument& doc) {
         return;
     }
 
-    const char* track = doc["track"] | "Unknown Track";
+    // Backend uses "title" (not "track") — see backend/app/services/spotify.py
+    const char* track = doc["title"] | doc["track"] | "Unknown Track";
     const char* artist = doc["artist"] | "Unknown Artist";
-    int progress = doc["progress"] | 0;
-    int duration = doc["duration"] | 0;
+
+    // Backend sends "progress_ms" and "duration_ms" in milliseconds
+    // Convert to seconds for display (supports legacy "progress"/"duration" in seconds)
+    int progressMs = doc["progress_ms"] | 0;
+    int durationMs = doc["duration_ms"] | 0;
+    int progress = (progressMs > 0) ? progressMs / 1000 : (doc["progress"] | 0);
+    int duration = (durationMs > 0) ? durationMs / 1000 : (doc["duration"] | 0);
 
     // Apply Thai Unicode Reshaper to track and artist (for Thai music)
     String reshapedTrack = ThaiReshaper::reshape(track);

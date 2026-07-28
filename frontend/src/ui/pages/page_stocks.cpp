@@ -36,9 +36,24 @@ void create_page_stocks(lv_obj_t* parent) {
 }
 
 void update_page_stocks(const JsonDocument& doc) {
-    if (!doc.containsKey("stocks")) return;
+    // Support two payload shapes from backend:
+    //   Shape A — root array (from device-specific topics, get_multi_asset_prices() return type):
+    //     [{"symbol":"GOLD/TH", "price":41200, "change_pct":0.12, "type":"GOLD"}, ...]
+    //   Shape B — wrapped object (from generic topic):
+    //     {"stocks": [{"symbol":"...", "price":..., "change_percent":...}, ...]}
+    JsonArrayConst stocks;
+    bool useChangePct = false; // true = read "change_pct" field (backend native), false = read "change_percent"
 
-    JsonArrayConst stocks = doc["stocks"].as<JsonArrayConst>();
+    if (doc.is<JsonArray>()) {
+        stocks = doc.as<JsonArrayConst>(); // Shape A: root array
+        useChangePct = true; // backend native field name
+    } else if (doc.containsKey("stocks")) {
+        stocks = doc["stocks"].as<JsonArrayConst>(); // Shape B: wrapped object
+        useChangePct = false; // legacy field name
+    } else {
+        return; // Unrecognized payload — skip silently
+    }
+
     int idx = 0;
 
     for (JsonObjectConst stock : stocks) {
@@ -46,19 +61,28 @@ void update_page_stocks(const JsonDocument& doc) {
 
         const char* symbol = stock["symbol"] | "";
         float price = stock["price"] | 0.0;
-        float changePct = stock["change_percent"] | 0.0;
+        // Support both field names for cross-format compatibility
+        float changePct = useChangePct
+            ? (stock["change_pct"] | 0.0)
+            : (stock["change_percent"] | stock["change_pct"] | 0.0);
 
         char buf[64];
-        const char* trendSign = (changePct >= 0) ? "▲ +" : "▼ ";
-        const char* currency = (strcmp(symbol, "GOLD") == 0) ? "฿" : (strcmp(symbol, "SET50") == 0) ? "pts" : "$";
+        const char* trendSign = (changePct >= 0) ? "+ " : "- ";
+        // Normalize negative change for display (sign is already shown via trendSign)
+        float absPct = changePct < 0 ? -changePct : changePct;
 
-        // Align SET50 and GOLD prices appropriately
-        if (strcmp(symbol, "SET50") == 0) {
-            snprintf(buf, sizeof(buf), "%-10s  %.1f pts  %s%.2f%%", symbol, price, trendSign, changePct);
-        } else if (strcmp(symbol, "GOLD") == 0) {
-            snprintf(buf, sizeof(buf), "%-10s  ฿%d  %s%.2f%%", symbol, (int)price, trendSign, changePct);
+        // Format based on asset type
+        const char* assetType = stock["type"] | "";
+        if (strcmp(assetType, "GOLD") == 0) {
+            snprintf(buf, sizeof(buf), "%-10s  \xE0\xB8\xBF%d  %s%.2f%%",
+                     symbol, (int)price, trendSign, absPct);
+        } else if (strcmp(assetType, "TH_STOCK") == 0) {
+            snprintf(buf, sizeof(buf), "%-10s  %.2f  %s%.2f%%",
+                     symbol, price, trendSign, absPct);
         } else {
-            snprintf(buf, sizeof(buf), "%-10s  $%.2f  %s%.2f%%", symbol, price, trendSign, changePct);
+            // CRYPTO, GLOBAL, etc.
+            snprintf(buf, sizeof(buf), "%-10s  $%.2f  %s%.2f%%",
+                     symbol, price, trendSign, absPct);
         }
 
         if (s_stockRows[idx]) {
