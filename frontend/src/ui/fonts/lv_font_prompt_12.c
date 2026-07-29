@@ -771,7 +771,8 @@ static const lv_font_fmt_txt_glyph_dsc_t glyph_dsc[] = {
     {.bitmap_index = 947, .adv_w = 138, .box_w = 8, .box_h = 7, .ofs_x = 1, .ofs_y = 0},
     {.bitmap_index = 954, .adv_w = 161, .box_w = 9, .box_h = 7, .ofs_x = 1, .ofs_y = 0},
     {.bitmap_index = 962, .adv_w = 218, .box_w = 13, .box_h = 6, .ofs_x = 1, .ofs_y = 0},
-    /* PUA 0xF70A..0xF70E Shifted High Tone Marks (y_offset shifted +3px) */
+    /* PUA 0xF709..0xF70E Shifted High Tone Marks & Mai Taikhu & Karan (y_offset shifted +3px) */
+    {.bitmap_index = 869, .adv_w = 0, .box_w = 5, .box_h = 3, .ofs_x = -5, .ofs_y = 11},
     {.bitmap_index = 871, .adv_w = 0, .box_w = 1, .box_h = 2, .ofs_x = -2, .ofs_y = 11},
     {.bitmap_index = 872, .adv_w = 0, .box_w = 4, .box_h = 2, .ofs_x = -4, .ofs_y = 11},
     {.bitmap_index = 873, .adv_w = 0, .box_w = 5, .box_h = 3, .ofs_x = -6, .ofs_y = 11},
@@ -801,7 +802,7 @@ static const lv_font_fmt_txt_cmap_t cmaps[] =
         .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
     },
     {
-        .range_start = 0xF70A, .range_length = 5, .glyph_id_start = 183,
+        .range_start = 0xF709, .range_length = 6, .glyph_id_start = 183,
         .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
     }
 };

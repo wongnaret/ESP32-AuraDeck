@@ -69,12 +69,12 @@ String ThaiReshaper::reshape(const char* input) {
         }
     }
 
-    // Rule C: Shift Tone Marks that follow an Upper Vowel to PUA High Level (0xF70A..0xF70E)
+    // Rule C: Shift Tone Marks / Mai Taikhu / Karan that follow an Upper Vowel to PUA High Level (0xF709..0xF70E)
     for (int idx = 1; idx < clusterSize; idx++) {
         if (cluster[idx].isToneMark && cluster[idx - 1].isUpperVowel) {
             uint32_t code = cluster[idx].code;
-            if (code >= 0x0E48 && code <= 0x0E4C) {
-                cluster[idx].code = 0xF70A + (code - 0x0E48);
+            if (code >= 0x0E47 && code <= 0x0E4C) {
+                cluster[idx].code = 0xF709 + (code - 0x0E47);
             }
         }
     }
