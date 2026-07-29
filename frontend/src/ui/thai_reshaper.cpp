@@ -69,6 +69,16 @@ String ThaiReshaper::reshape(const char* input) {
         }
     }
 
+    // Rule C: Shift Tone Marks that follow an Upper Vowel to PUA High Level (0xF70A..0xF70E)
+    for (int idx = 1; idx < clusterSize; idx++) {
+        if (cluster[idx].isToneMark && cluster[idx - 1].isUpperVowel) {
+            uint32_t code = cluster[idx].code;
+            if (code >= 0x0E48 && code <= 0x0E4C) {
+                cluster[idx].code = 0xF70A + (code - 0x0E48);
+            }
+        }
+    }
+
     // 3. Write reshaped and reordered UTF-8 glyphs back to output
     for (int idx = 0; idx < clusterSize; idx++) {
         output += encodeUTF8(cluster[idx].code);

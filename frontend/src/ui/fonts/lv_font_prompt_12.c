@@ -770,7 +770,13 @@ static const lv_font_fmt_txt_glyph_dsc_t glyph_dsc[] = {
     {.bitmap_index = 940, .adv_w = 127, .box_w = 7, .box_h = 8, .ofs_x = 1, .ofs_y = 0},
     {.bitmap_index = 947, .adv_w = 138, .box_w = 8, .box_h = 7, .ofs_x = 1, .ofs_y = 0},
     {.bitmap_index = 954, .adv_w = 161, .box_w = 9, .box_h = 7, .ofs_x = 1, .ofs_y = 0},
-    {.bitmap_index = 962, .adv_w = 218, .box_w = 13, .box_h = 6, .ofs_x = 1, .ofs_y = 0}
+    {.bitmap_index = 962, .adv_w = 218, .box_w = 13, .box_h = 6, .ofs_x = 1, .ofs_y = 0},
+    /* PUA 0xF70A..0xF70E Shifted High Tone Marks (y_offset shifted +3px) */
+    {.bitmap_index = 871, .adv_w = 0, .box_w = 1, .box_h = 2, .ofs_x = -2, .ofs_y = 11},
+    {.bitmap_index = 872, .adv_w = 0, .box_w = 4, .box_h = 2, .ofs_x = -4, .ofs_y = 11},
+    {.bitmap_index = 873, .adv_w = 0, .box_w = 5, .box_h = 3, .ofs_x = -6, .ofs_y = 11},
+    {.bitmap_index = 875, .adv_w = 0, .box_w = 3, .box_h = 2, .ofs_x = -3, .ofs_y = 11},
+    {.bitmap_index = 876, .adv_w = 0, .box_w = 4, .box_h = 2, .ofs_x = -4, .ofs_y = 11}
 };
 
 /*---------------------
@@ -792,6 +798,10 @@ static const lv_font_fmt_txt_cmap_t cmaps[] =
     },
     {
         .range_start = 3647, .range_length = 29, .glyph_id_start = 154,
+        .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
+    },
+    {
+        .range_start = 0xF70A, .range_length = 5, .glyph_id_start = 183,
         .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
     }
 };
@@ -1242,7 +1252,7 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
     .cmaps = cmaps,
     .kern_dsc = &kern_classes,
     .kern_scale = 16,
-    .cmap_num = 3,
+    .cmap_num = 4,
     .bpp = 1,
     .kern_classes = 1,
     .bitmap_format = 0,
