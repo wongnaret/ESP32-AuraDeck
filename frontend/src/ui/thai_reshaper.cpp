@@ -1,6 +1,6 @@
 /**
  * @file thai_reshaper.cpp
- * @brief Helper class to handle Thai Unicode reshaping and prevent floating vowels (สระลอย).
+ * @brief Helper class to handle Thai Unicode reshaping and prevent floating vowels (สระลอย) and tone mark sequence collisions.
  */
 
 #include "thai_reshaper.h"
@@ -29,12 +29,11 @@ String ThaiReshaper::reshape(const char* input) {
         bool isLowerVowel = false;
     };
 
-    ThaiGlyph cluster[100];
+    ThaiGlyph cluster[128];
     int clusterSize = 0;
 
     // 1. Decode entire string into structured glyph tokens
-    while (i < len && clusterSize < 99) {
-        int prev_idx = i;
+    while (i < len && clusterSize < 127) {
         uint32_t unicode = decodeUTF8(input, i);
         if (unicode == 0) break;
 
@@ -51,27 +50,28 @@ String ThaiReshaper::reshape(const char* input) {
         cluster[clusterSize++] = glyph;
     }
 
-    // 2. Perform Reshaping Rules (Resolving floating vowels and tones)
-    for (int idx = 0; idx < clusterSize; idx++) {
-        ThaiGlyph& current = cluster[idx];
-
-        // Rule: If a tone mark follows a consonant AND there is an upper vowel present
-        // In some specific Thai PUA fonts, we replace standard tone marks with shifted ones:
-        // - Standard Tone Marks: ่ (0x0E48), ้ (0x0E49), ๊ (0x0E4A), ๋ (0x0E4B)
-        // - Shifted Tone Marks (PUA): Often located at 0xF70A - 0xF70D
-        // Here, we provide standard normalization so that tone marks are stacked after vowels:
-        if (current.isToneMark && idx > 0) {
-            ThaiGlyph& prev = cluster[idx - 1];
-            
-            // If previous was an upper vowel, ensure proper stacking order: Consonant -> Vowel -> Tone
-            if (prev.isUpperVowel && idx > 1) {
-                // Stack is already correctly sequenced: Consonant (idx-2) -> UpperVowel (idx-1) -> Tone (idx)
-                // We keep it as is, or shift tone character codes if a specialized font is present.
-            }
+    // 2. Perform Reshaping & Reordering Rules
+    // Rule A: Swap Tone Mark + Upper Vowel -> Upper Vowel + Tone Mark
+    for (int idx = 0; idx < clusterSize - 1; idx++) {
+        if (cluster[idx].isToneMark && cluster[idx + 1].isUpperVowel) {
+            ThaiGlyph temp = cluster[idx];
+            cluster[idx] = cluster[idx + 1];
+            cluster[idx + 1] = temp;
         }
+    }
 
-        // Write reshaped characters back to output string
-        output += encodeUTF8(current.code);
+    // Rule B: Swap Tone Mark + Lower Vowel -> Lower Vowel + Tone Mark
+    for (int idx = 0; idx < clusterSize - 1; idx++) {
+        if (cluster[idx].isToneMark && cluster[idx + 1].isLowerVowel) {
+            ThaiGlyph temp = cluster[idx];
+            cluster[idx] = cluster[idx + 1];
+            cluster[idx + 1] = temp;
+        }
+    }
+
+    // 3. Write reshaped and reordered UTF-8 glyphs back to output
+    for (int idx = 0; idx < clusterSize; idx++) {
+        output += encodeUTF8(cluster[idx].code);
     }
 
     return output;
@@ -83,13 +83,13 @@ bool ThaiReshaper::isThaiConsonant(uint16_t unicode) {
 }
 
 bool ThaiReshaper::isThaiUpperVowel(uint16_t unicode) {
-    // ิ (0x0E34), ี (0x0E35), ึ (0x0E36), ื (0x0E37), ็ (0x0E47), ั (0x0E31)
+    // ิ (0x0E34), ี (0x0E35), ึ (0x0E36), ื (0x0E37), ็ (0x0E47), ั (0x0E31), ์ (0x0E4C)
     return (unicode == 0x0E31 || (unicode >= 0x0E34 && unicode <= 0x0E37) || unicode == 0x0E47);
 }
 
 bool ThaiReshaper::isThaiToneMark(uint16_t unicode) {
-    // ่ (0x0E48), ้ (0x0E49), ๊ (0x0E4A), ๋ (0x0E4B)
-    return (unicode >= 0x0E48 && unicode <= 0x0E4B);
+    // ่ (0x0E48), ้ (0x0E49), ๊ (0x0E4A), ๋ (0x0E4B), ์ (0x0E4C), ํ (0x0E4D)
+    return (unicode >= 0x0E48 && unicode <= 0x0E4D);
 }
 
 bool ThaiReshaper::isThaiLowerVowel(uint16_t unicode) {
