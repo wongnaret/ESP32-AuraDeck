@@ -69,21 +69,21 @@ void create_page_spotify(lv_obj_t* parent) {
     lv_obj_center(s_albumIconLabel);
     lv_label_set_text(s_albumIconLabel, LV_SYMBOL_AUDIO);
 
-    // 3. Track Name (Right of Album Box, width=270)
+    // 3. Track Name (Right of Album Box, width=270, smooth Circular Marquee for long titles)
     s_trackLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_trackLabel, &lv_font_prompt_24, 0);
     lv_obj_set_style_text_color(s_trackLabel, lv_color_black(), 0);
     lv_obj_set_width(s_trackLabel, 270);
-    lv_label_set_long_mode(s_trackLabel, LV_LABEL_LONG_DOT);
+    lv_label_set_long_mode(s_trackLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_trackLabel, LV_ALIGN_TOP_LEFT, 110, 42);
     lv_label_set_text(s_trackLabel, "Spotify Offline");
 
-    // 4. Sub-label for Artist Names
+    // 4. Sub-label for Artist Names (Circular Marquee for long artist lists)
     s_artistLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_artistLabel, &lv_font_prompt_16, 0);
     lv_obj_set_style_text_color(s_artistLabel, lv_color_black(), 0);
     lv_obj_set_width(s_artistLabel, 270);
-    lv_label_set_long_mode(s_artistLabel, LV_LABEL_LONG_DOT);
+    lv_label_set_long_mode(s_artistLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_artistLabel, LV_ALIGN_TOP_LEFT, 110, 80);
     lv_label_set_text(s_artistLabel, "Connect device to sync music");
 
