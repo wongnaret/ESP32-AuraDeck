@@ -5,6 +5,7 @@
 
 #include "page_calendar.h"
 #include "ui/thai_reshaper.h"
+#include "ui/fonts/lv_font_prompt.h"
 
 static lv_obj_t* s_eventRows[3] = { nullptr };
 
@@ -24,7 +25,7 @@ void create_page_calendar(lv_obj_t* parent) {
 
     for (int i = 0; i < 3; i++) {
         s_eventRows[i] = lv_label_create(parent);
-        lv_obj_set_style_text_font(s_eventRows[i], &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_font(s_eventRows[i], &lv_font_prompt_16, 0);
         lv_obj_set_width(s_eventRows[i], 360);
         lv_label_set_long_mode(s_eventRows[i], LV_LABEL_LONG_DOT);
         lv_obj_align(s_eventRows[i], LV_ALIGN_TOP_LEFT, 20, startY + (i * rowSpacing));

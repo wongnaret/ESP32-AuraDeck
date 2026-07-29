@@ -5,6 +5,7 @@
 
 #include "page_todos.h"
 #include "ui/thai_reshaper.h"
+#include "ui/fonts/lv_font_prompt.h"
 
 static lv_obj_t* s_todoRows[4] = { nullptr };
 
@@ -24,7 +25,7 @@ void create_page_todos(lv_obj_t* parent) {
 
     for (int i = 0; i < 4; i++) {
         s_todoRows[i] = lv_label_create(parent);
-        lv_obj_set_style_text_font(s_todoRows[i], &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_font(s_todoRows[i], &lv_font_prompt_16, 0);
         lv_obj_set_width(s_todoRows[i], 360); // Constrain width for wrapping
         lv_label_set_long_mode(s_todoRows[i], LV_LABEL_LONG_DOT); // Ellipsis truncation (...)
         lv_obj_align(s_todoRows[i], LV_ALIGN_TOP_LEFT, 20, startY + (i * rowSpacing));

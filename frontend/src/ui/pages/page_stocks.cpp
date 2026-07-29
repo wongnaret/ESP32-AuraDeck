@@ -4,6 +4,7 @@
  */
 
 #include "page_stocks.h"
+#include "ui/fonts/lv_font_prompt.h"
 
 // Setup 6 static row labels for stock quotes
 static lv_obj_t* s_stockRows[6] = { nullptr };
@@ -24,7 +25,7 @@ void create_page_stocks(lv_obj_t* parent) {
 
     for (int i = 0; i < 6; i++) {
         s_stockRows[i] = lv_label_create(parent);
-        lv_obj_set_style_text_font(s_stockRows[i], &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_font(s_stockRows[i], &lv_font_prompt_16, 0);
         lv_obj_align(s_stockRows[i], LV_ALIGN_TOP_LEFT, 20, startY + (i * rowSpacing));
         lv_label_set_text(s_stockRows[i], ""); // blank until payload arrives
     }
