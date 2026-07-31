@@ -341,7 +341,7 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, JsonVariantConst d
         }
         Serial.println("  📋 Google Checklist Items:");
         for (JsonVariantConst item : todos) {
-            if (item.is<JsonObject>()) {
+            if (item.is<JsonObjectConst>()) {
                 const char* title = item["title"] | "Untitled";
                 Serial.printf("    - [ ] %s\n", title);
             } else {

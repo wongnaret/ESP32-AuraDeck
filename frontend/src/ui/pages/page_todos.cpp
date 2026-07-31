@@ -7,31 +7,30 @@
 #include "ui/thai_reshaper.h"
 #include "ui/fonts/lv_font_prompt.h"
 
-static lv_obj_t* s_todoRows[4] = { nullptr };
+// Support up to 8 tasks (matches backend google_api.py limit of 8 aggregated tasks)
+static lv_obj_t* s_todoRows[8] = { nullptr };
 
 void create_page_todos(lv_obj_t* parent) {
-    // Reset static row pointers first (safety guard for re-entry)
-    for (int i = 0; i < 4; i++) s_todoRows[i] = nullptr;
+    // Reset all row pointers (safety guard for re-entry)
+    for (int i = 0; i < 8; i++) s_todoRows[i] = nullptr;
 
-    // 1. Screen Title
+    // Screen Title
     lv_obj_t* title = lv_label_create(parent);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
     lv_label_set_text(title, "Checklist Tasks");
 
-    // 2. Setup 4 fixed task items
-    const int startY = 70;
-    const int rowSpacing = 45;
+    // 8 task rows — rowSpacing=27 keeps all 8 within the 274px content area
+    const int startY     = 55;
+    const int rowSpacing = 27;
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 8; i++) {
         s_todoRows[i] = lv_label_create(parent);
         lv_obj_set_style_text_font(s_todoRows[i], &lv_font_prompt_16, 0);
-        lv_obj_set_width(s_todoRows[i], 360); // Constrain width for wrapping
-        lv_label_set_long_mode(s_todoRows[i], LV_LABEL_LONG_DOT); // Ellipsis truncation (...)
+        lv_obj_set_width(s_todoRows[i], 370);              // Constrain width for ellipsis
+        lv_label_set_long_mode(s_todoRows[i], LV_LABEL_LONG_DOT);
         lv_obj_align(s_todoRows[i], LV_ALIGN_TOP_LEFT, 20, startY + (i * rowSpacing));
-        
-        // Default placeholder
-        lv_label_set_text(s_todoRows[i], "[ ] No active tasks");
+        lv_label_set_text(s_todoRows[i], "");              // Blank until payload arrives
     }
 }
 
@@ -48,13 +47,12 @@ void update_page_todos(JsonVariantConst data) {
     int idx = 0;
 
     for (JsonVariantConst item : todos) {
-        if (idx >= 4) break;
+        if (idx >= 8) break;
 
         const char* todoText = nullptr;
 
-        if (item.is<JsonObject>()) {
-            // Object element: {"id":"...", "title":"[List] Task", "completed": false}
-            // title already includes multi-list prefix added by backend (google_api.py)
+        if (item.is<JsonObjectConst>()) {
+            // Object: {"id":"...", "title":"[List] Task", "completed":false}
             todoText = item["title"] | "Untitled Task";
         } else {
             // Plain string element (legacy / fallback format)
@@ -78,8 +76,8 @@ void update_page_todos(JsonVariantConst data) {
         idx++;
     }
 
-    // Clear remaining rows if checklist has fewer than 4 items
-    for (int i = idx; i < 4; i++) {
+    // Clear remaining slots
+    for (int i = idx; i < 8; i++) {
         if (s_todoRows[i]) {
             lv_label_set_text(s_todoRows[i], "");
         }
@@ -87,6 +85,5 @@ void update_page_todos(JsonVariantConst data) {
 }
 
 void destroy_page_todos() {
-    // Invalidate all static widget pointers before LVGL frees the parent container.
-    for (int i = 0; i < 4; i++) s_todoRows[i] = nullptr;
+    for (int i = 0; i < 8; i++) s_todoRows[i] = nullptr;
 }
