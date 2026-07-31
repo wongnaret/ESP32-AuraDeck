@@ -268,28 +268,38 @@ def trigger_stocks_polling():
         profiles = list_all_profiles()
         mappings = load_device_mappings()
         
+        logger.info(f"📈 [Stocks] Polling {len(profiles)} profile(s), {len(mappings)} paired device(s)")
+        
         # Publish default/global stocks
         default_prices = run_async_safe(get_multi_asset_prices())
         mqtt_service.publish("auradeck/stocks", default_prices)
+        logger.info(f"  → Published default {len(default_prices)} items to auradeck/stocks")
         
         for p in profiles:
             pid = p["id"]
             prof_settings = load_profile_settings(pid)
             watchlist_items = prof_settings.get("stock_watchlist")
+            
             if watchlist_items:
+                logger.info(f"  [Profile '{pid}'] Custom watchlist: {[i.get('symbol') for i in watchlist_items]}")
                 p_prices = run_async_safe(get_multi_asset_prices(watchlist_items=watchlist_items))
                 mqtt_service.publish(f"auradeck/profile/{pid}/stocks", p_prices)
+                logger.info(f"    → Published {len(p_prices)} items to profile topic")
                 
                 # Mirror to paired devices for this profile
                 for mac, m_data in mappings.items():
                     if m_data.get("profile_id") == pid:
                         mqtt_service.publish(f"auradeck/device/{mac}/stocks", p_prices)
+                        logger.info(f"    → Mirrored to device {mac}")
             else:
+                logger.info(f"  [Profile '{pid}'] No custom watchlist — using default prices")
                 for mac, m_data in mappings.items():
                     if m_data.get("profile_id") == pid:
                         mqtt_service.publish(f"auradeck/device/{mac}/stocks", default_prices)
+                        logger.info(f"    → Sent default prices to device {mac}")
     except Exception as e:
-        logger.error(f"Error in background Stocks poller: {e}")
+        logger.error(f"Error in background Stocks poller: {e}", exc_info=True)
+
 
 def trigger_analytics_polling():
     """Polls GA4 and GCP Billing for all profiles and publishes to paired devices."""
