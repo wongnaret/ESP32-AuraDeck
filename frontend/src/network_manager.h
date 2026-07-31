@@ -8,6 +8,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
 #include "drivers/rtc_pcf85063.h"
 
 class AuraNetworkManager {
@@ -65,6 +66,8 @@ private:
     void connectWifi();
     void connectMqtt();
     bool syncNTPTime();
+
+    Preferences m_prefs; ///< NVS storage for persisting pairing state across reboots
 
     // Inbound MQTT parser callback
     static void staticMqttCallback(char* topic, byte* payload, unsigned int length);

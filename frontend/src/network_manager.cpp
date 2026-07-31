@@ -146,7 +146,18 @@ void AuraNetworkManager::connectMqtt() {
             m_mqttClient.subscribe("auradeck/time_sync");
             Serial.println("📬 Subscribed to generic AuraDeck topics (dev mode).");
 
-            // If device is already paired, also subscribe to MAC-addressed production topics
+            // Restore device-specific topics from NVS if previously paired
+            if (m_deviceMac[0] == '\0') {
+                m_prefs.begin("auradeck", true); // read-only
+                String savedMac = m_prefs.getString("device_mac", "");
+                m_prefs.end();
+                if (savedMac.length() > 0) {
+                    strncpy(m_deviceMac, savedMac.c_str(), sizeof(m_deviceMac) - 1);
+                    Serial.printf("🔑 Restored pairing MAC from NVS: %s\n", m_deviceMac);
+                }
+            }
+
+            // If device is paired (fresh or restored from NVS), subscribe to device topics
             if (m_deviceMac[0] != '\0') {
                 subscribeDeviceTopics(m_deviceMac);
             }
@@ -158,6 +169,12 @@ void AuraNetworkManager::connectMqtt() {
 
 void AuraNetworkManager::subscribeDeviceTopics(const char* mac) {
     strncpy(m_deviceMac, mac, sizeof(m_deviceMac) - 1);
+
+    // Persist MAC to NVS so device-specific topics survive firmware reboots
+    m_prefs.begin("auradeck", false); // read-write
+    m_prefs.putString("device_mac", mac);
+    m_prefs.end();
+    Serial.printf("💾 Pairing MAC saved to NVS: %s\n", mac);
 
     if (!m_mqttClient.connected()) {
         Serial.println("[Network] subscribeDeviceTopics: MQTT not connected. Will subscribe on reconnect.");
