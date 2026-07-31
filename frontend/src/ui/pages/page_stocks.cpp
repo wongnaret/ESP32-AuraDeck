@@ -56,19 +56,26 @@ void update_page_stocks(const JsonDocument& doc) {
             ? (stock["change_pct"] | 0.0)
             : (stock["change_percent"] | stock["change_pct"] | 0.0);
 
-        char buf[64];
+        char buf[80];
         const char* trendSign = (changePct >= 0) ? "+ " : "- ";
         float absPct = changePct < 0 ? -changePct : changePct;
 
         const char* assetType = stock["type"] | "";
         if (strcmp(assetType, "GOLD") == 0) {
-            snprintf(buf, sizeof(buf), "%-10s  \xE0\xB8\xBF%d  %s%.2f%%",
+            // Thai Gold: display in Baht (฿ = 0xE3F)
+            snprintf(buf, sizeof(buf), "%-8s \xE0\xB8\xBF%-7d %s%.2f%%",
                      symbol, (int)price, trendSign, absPct);
         } else if (strcmp(assetType, "TH_STOCK") == 0) {
-            snprintf(buf, sizeof(buf), "%-10s  %.2f  %s%.2f%%",
+            // Thai SET stock: no currency prefix
+            snprintf(buf, sizeof(buf), "%-8s %-9.2f %s%.2f%%",
+                     symbol, price, trendSign, absPct);
+        } else if (strcmp(assetType, "COMMODITY") == 0) {
+            // Commodity futures (Gold Futures, Oil etc.): USD price
+            snprintf(buf, sizeof(buf), "%-8s $%-8.2f %s%.2f%%",
                      symbol, price, trendSign, absPct);
         } else {
-            snprintf(buf, sizeof(buf), "%-10s  $%.2f  %s%.2f%%",
+            // CRYPTO, GLOBAL: USD price with $
+            snprintf(buf, sizeof(buf), "%-8s $%-8.2f %s%.2f%%",
                      symbol, price, trendSign, absPct);
         }
 

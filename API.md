@@ -310,6 +310,27 @@ Removes a stock from the specified profile's watchlist.
     }
     ```
 
+#### `GET /api/v1/stocks/debug?publish={bool}&profile_id={profile_id}`
+Diagnostic endpoint — fetches fresh prices from all data sources and reports MQTT connection status. Optionally republishes to all relevant MQTT topics.
+*   **Query Parameters:** `publish` (default `false`), `profile_id` (default `"default"`)
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "mqtt_connected": true,
+      "profile_id": "default",
+      "watchlist_configured": false,
+      "watchlist_items": null,
+      "default_prices": [
+        { "symbol": "GOLD/TH", "price": 45000.0, "change_pct": 0.0, "type": "GOLD" },
+        { "symbol": "CPALL", "price": 47.0, "change_pct": 1.08, "type": "TH_STOCK" },
+        { "symbol": "BTC/USD", "price": 65000.0, "change_pct": 2.5, "type": "CRYPTO" },
+        { "symbol": "GC", "price": 2350.0, "change_pct": 0.3, "type": "COMMODITY" }
+      ],
+      "profile_prices": [ "... same as default_prices if no custom watchlist ..." ]
+    }
+    ```
+*   **Asset type values:** `GOLD` (Thai gold bar), `TH_STOCK` (SET-listed equity), `CRYPTO` (cryptocurrency), `COMMODITY` (futures like GC=F), `GLOBAL` (other international equities)
+
 ---
 
 ## 📡 MQTT Topic Payload Schemas

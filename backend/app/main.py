@@ -177,7 +177,10 @@ def on_startup():
     logger.info("Background Schedulers started successfully.")
     
     # Trigger initial data publish for all services immediately on startup
+    # Wait up to 10s for MQTT connection first (connect_async is non-blocking)
     try:
+        logger.info("Waiting for MQTT broker connection before initial data poll...")
+        mqtt_service.wait_for_connect(timeout_secs=10.0)
         logger.info("Triggering initial data poll for all services on startup...")
         trigger_time_sync()
         trigger_spotify_polling()
@@ -187,6 +190,7 @@ def on_startup():
         trigger_antigravity_polling()
     except Exception as e:
         logger.error(f"Error running initial data poll on startup: {e}")
+
 
 
 @app.on_event("shutdown")
@@ -966,6 +970,39 @@ async def api_search_stocks(q: str = Query(..., min_length=1)):
     """Searches stock/crypto tickers and company names via Yahoo Finance autocomplete."""
     results = await search_stocks_yahoo(q)
     return results
+
+
+@app.get("/api/v1/stocks/debug")
+async def api_debug_stocks(
+    publish: bool = Query(False, description="If true, also publishes fresh prices to MQTT"),
+    profile_id: Optional[str] = Query(None),
+    active_profile_id: Optional[str] = Cookie(None)
+):
+    """Debug endpoint: fetches fresh stock prices and reports MQTT status.
+    Useful for diagnosing Market Watchlist display issues on the ESP32."""
+    pid = profile_id or active_profile_id or "default"
+    prof_settings = load_profile_settings(pid)
+    watchlist_items = prof_settings.get("stock_watchlist")
+    
+    default_prices = await get_multi_asset_prices()
+    profile_prices = await get_multi_asset_prices(watchlist_items=watchlist_items) if watchlist_items else default_prices
+    
+    result = {
+        "mqtt_connected": mqtt_service.connected,
+        "profile_id": pid,
+        "watchlist_configured": watchlist_items is not None,
+        "watchlist_items": watchlist_items,
+        "default_prices": default_prices,
+        "profile_prices": profile_prices,
+    }
+    
+    if publish:
+        ok1 = mqtt_service.publish("auradeck/stocks", default_prices)
+        ok2 = mqtt_service.publish(f"auradeck/profile/{pid}/stocks", profile_prices)
+        result["mqtt_publish_status"] = {"default_topic": ok1, "profile_topic": ok2}
+        logger.info(f"[Debug] Manual stocks publish: default={ok1}, profile={ok2}")
+    
+    return result
 
 
 @app.get("/api/v1/stocks/watchlist")

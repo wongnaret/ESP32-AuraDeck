@@ -43,13 +43,33 @@ class MqttService:
         # Start client loop anyway, paho will automatically attempt reconnects
         self.client.loop_start()
 
-    def publish(self, topic: str, payload: dict) -> bool:
-        """Publishes a JSON payload to a specified topic."""
+    def wait_for_connect(self, timeout_secs: float = 10.0) -> bool:
+        """Blocks until MQTT is connected or timeout expires. Returns True if connected."""
+        deadline = time.time() + timeout_secs
+        while not self.connected and time.time() < deadline:
+            time.sleep(0.2)
+        if not self.connected:
+            logger.warning(f"MQTT not connected after {timeout_secs}s wait.")
+        return self.connected
+
+    def publish(self, topic: str, payload, retain: bool = True) -> bool:
+        """Publishes a JSON payload to a specified topic.
+        
+        Accepts dict or list as payload. Skips publish if not connected.
+        Returns True if message was queued/published successfully.
+        """
+        if not self.connected:
+            logger.warning(f"MQTT not connected — skipping publish to {topic}.")
+            return False
         try:
             payload_str = json.dumps(payload, ensure_ascii=False)
-            info = self.client.publish(topic, payload_str, qos=1, retain=True)
-            info.wait_for_publish()
-            logger.info(f"Published to {topic}: {payload_str}")
+            info = self.client.publish(topic, payload_str, qos=1, retain=retain)
+            # Wait up to 5 seconds for the broker to acknowledge
+            info.wait_for_publish(timeout=5.0)
+            if info.is_published():
+                logger.info(f"✅ Published to {topic} ({len(payload_str)} bytes)")
+            else:
+                logger.warning(f"⚠️ Publish to {topic} did not confirm within timeout (rc={info.rc})")
             return info.is_published()
         except Exception as e:
             logger.error(f"Failed to publish to {topic}: {e}")

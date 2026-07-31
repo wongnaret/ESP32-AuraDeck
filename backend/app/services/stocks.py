@@ -72,7 +72,12 @@ async def fetch_yahoo_finance_price(symbol: str, override_name: Optional[str] = 
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
     params = {"interval": "1d", "range": "1d"}
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Referer": "https://finance.yahoo.com/",
+        "Origin": "https://finance.yahoo.com",
     }
     
     try:
@@ -95,8 +100,9 @@ async def fetch_yahoo_finance_price(symbol: str, override_name: Optional[str] = 
                         
                         full_name = override_name or meta.get("longName") or meta.get("shortName") or symbol
 
-                        # Clean symbol for UI display (e.g. CPALL.BK -> CPALL, BTC-USD -> BTC/USD)
-                        clean_symbol = symbol.split(".")[0]
+                        # Clean symbol for UI display (e.g. CPALL.BK -> CPALL, BTC-USD -> BTC/USD, GC=F -> GOLD)
+                        clean_symbol = symbol.split(".")[0]  # strip exchange suffix (.BK)
+                        clean_symbol = clean_symbol.split("=")[0]  # strip futures suffix (=F)
                         if "-" in clean_symbol:
                             clean_symbol = clean_symbol.replace("-", "/")
                             
@@ -106,6 +112,8 @@ async def fetch_yahoo_finance_price(symbol: str, override_name: Optional[str] = 
                             asset_type = "TH_STOCK"
                         elif "USD" in symbol or "THB" in symbol:
                             asset_type = "CRYPTO"
+                        elif "=F" in symbol:  # Futures contracts (GC=F, CL=F etc.)
+                            asset_type = "COMMODITY"
                             
                         return {
                             "symbol": clean_symbol,
@@ -126,27 +134,53 @@ async def fetch_yahoo_finance_price(symbol: str, override_name: Optional[str] = 
 
 async def scrape_thai_gold_price() -> Dict[str, Any]:
     """
-    Scrapes the official Gold Traders Association of Thailand website (goldtraders.or.th)
-    or falls back to Yahoo Finance Gold Futures (GC=F) for gold bar pricing.
+    Fetches Thai gold bar price (96.5%) from GoldTraders API or HTML fallback,
+    or falls back to Yahoo Finance Gold Futures (GC=F) if unavailable.
     """
-    url = "https://www.goldtraders.or.th/"
+    # Try GoldTraders JSON API first (more reliable than scraping)
+    api_urls = [
+        "https://www.goldtraders.or.th/api/Price",
+        "https://www.goldtraders.or.th/",
+    ]
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/html, */*",
     }
     
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, timeout=5.0)
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            # Attempt JSON API endpoint first
+            try:
+                api_response = await client.get(api_urls[0], headers=headers, timeout=5.0)
+                if api_response.status_code == 200:
+                    data = api_response.json()
+                    # GoldTraders API returns {sell: ..., buy: ...} or [{name:..., sell:...}] etc.
+                    sell_price = None
+                    if isinstance(data, dict):
+                        sell_price = data.get("sell") or data.get("Sell") or data.get("price") or data.get("Price")
+                    elif isinstance(data, list) and len(data) > 0:
+                        sell_price = data[0].get("sell") or data[0].get("Sell")
+                    if sell_price and isinstance(sell_price, (int, float)) and 30000 < float(sell_price) < 80000:
+                        return {
+                            "symbol": "GOLD/TH",
+                            "raw_symbol": "GOLD/TH",
+                            "name": "Thai Gold Bar 96.5%",
+                            "price": float(sell_price),
+                            "change_pct": 0.0,
+                            "type": "GOLD"
+                        }
+            except Exception:
+                pass  # Fall through to HTML scraping
             
+            # HTML scraping fallback — match realistic Thai gold prices (40,000–65,000 THB range)
+            response = await client.get(api_urls[1], headers=headers, timeout=5.0)
             if response.status_code == 200:
                 html = response.text
-                
-                # Match price numbers in GoldTraders HTML (typically 40,000 - 55,000 Baht range)
-                prices = re.findall(r'(\d{2},\d{3})', html)
-                if len(prices) >= 2:
+                # Match 5-digit prices like 44,000 - 64,999 (realistic gold range in THB)
+                prices = re.findall(r'\b([4-6]\d,\d{3})\b', html)
+                if len(prices) >= 1:
                     sell_price = float(prices[0].replace(",", ""))
-                    buy_price = float(prices[1].replace(",", ""))
-                    
+                    logger.info(f"GoldTraders HTML scraper: found gold price {sell_price} THB")
                     return {
                         "symbol": "GOLD/TH",
                         "raw_symbol": "GOLD/TH",
@@ -159,6 +193,7 @@ async def scrape_thai_gold_price() -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"GoldTraders.or.th scraper failed ({e}), falling back to Yahoo Finance Gold Futures...")
         
+
     # Fallback to Gold Futures (GC=F) via Yahoo Finance
     yf_gold = await fetch_yahoo_finance_price("GC=F", override_name="Gold Futures")
     if yf_gold:
