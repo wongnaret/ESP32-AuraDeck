@@ -225,14 +225,29 @@ async def get_multi_asset_prices(watchlist_items: Optional[List[Dict[str, str]]]
         env_symbols = [s.strip() for s in settings.STOCK_WATCHLIST.split(",") if s.strip()]
         watchlist_items = [{"symbol": s, "name": s} for s in env_symbols] if env_symbols else DEFAULT_WATCHLIST
 
+    # Track raw symbols already fetched (from gold scraper) to avoid duplicates in watchlist loop
+    fetched_raw_symbols = set()
+    if gold_data:
+        fetched_raw_symbols.add(gold_data.get("raw_symbol", ""))
+
     for item in watchlist_items:
         symbol = item.get("symbol")
         if not symbol or symbol == "GOLD/TH":
             continue
+        # Skip if this raw_symbol was already fetched (e.g. GC=F already used as gold fallback)
+        if symbol in fetched_raw_symbols:
+            logger.debug(f"Skipping {symbol} — already fetched via gold scraper fallback.")
+            continue
+        # If name == symbol (auto-parsed from env, not a user-set display name),
+        # pass None so fetch_yahoo_finance_price uses the proper longName from Yahoo
         override_name = item.get("name")
+        if override_name == symbol:
+            override_name = None
         asset_data = await fetch_yahoo_finance_price(symbol, override_name=override_name)
         if asset_data:
+            fetched_raw_symbols.add(symbol)
             aggregated_prices.append(asset_data)
+
             
     # Graceful degradation logic (Rule 3)
     if aggregated_prices:
