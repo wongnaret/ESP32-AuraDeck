@@ -924,11 +924,12 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
         data = res.get("todos", [])
         mqtt_service.publish(f"auradeck/profile/{pid}/calendar", res.get("calendar", {}))
     elif service == "stocks":
-        prof_settings = load_profile_settings(pid)
-        watchlist_items = prof_settings.get("stock_watchlist")
-        data = await get_multi_asset_prices(watchlist_items=watchlist_items)
-        topic = f"auradeck/profile/{pid}/stocks"
-        mqtt_service.publish("auradeck/stocks", data)
+        # When called without a session cookie (e.g. via curl), delegate to the full
+        # scheduler job which correctly iterates every profile and their custom watchlists.
+        # This avoids the cookie-less call falling back to 'default' and missing watchlist.
+        trigger_stocks_polling()
+        # Return the default prices as a response preview
+        return run_async_safe(get_multi_asset_prices())
     elif service == "antigravity":
         data = await get_antigravity_credits()
         topic = "auradeck/antigravity"
@@ -997,10 +998,10 @@ async def api_debug_stocks(
     }
     
     if publish:
-        ok1 = mqtt_service.publish("auradeck/stocks", default_prices)
-        ok2 = mqtt_service.publish(f"auradeck/profile/{pid}/stocks", profile_prices)
-        result["mqtt_publish_status"] = {"default_topic": ok1, "profile_topic": ok2}
-        logger.info(f"[Debug] Manual stocks publish: default={ok1}, profile={ok2}")
+        # Use trigger_stocks_polling() which correctly covers all profiles and device mappings
+        trigger_stocks_polling()
+        result["mqtt_publish_status"] = {"triggered": True, "note": "Published via trigger_stocks_polling() for all profiles"}
+        logger.info("[Debug] Manual stocks publish via trigger_stocks_polling()")
     
     return result
 
