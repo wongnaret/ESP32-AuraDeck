@@ -48,57 +48,55 @@ void create_page_antigravity(lv_obj_t* parent) {
     lv_label_set_text(s_resetLabel, "API Quota Resets in 3 days");
 }
 
-void update_page_antigravity(const JsonDocument& doc) {
+void update_page_antigravity(JsonVariantConst data) {
     // Check for error or unauthenticated status
-    if (doc.containsKey("status")) {
-        const char* st = doc["status"] | "ok";
-        if (strcmp(st, "unauthenticated") == 0 || strcmp(st, "error") == 0) {
-            if (s_creditsLabel) lv_label_set_text(s_creditsLabel, "Auth Required");
-            if (s_bar) lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
-            if (s_percentLabel) lv_label_set_text(s_percentLabel, "Quota Used: N/A");
-            
-            const char* err = doc["error_message"] | "Check Antigravity CLI Login";
-            if (s_resetLabel) lv_label_set_text(s_resetLabel, err);
-            return;
-        }
+    const char* st = data["status"] | nullptr;
+    if (st && (strcmp(st, "unauthenticated") == 0 || strcmp(st, "error") == 0)) {
+        if (s_creditsLabel) lv_label_set_text(s_creditsLabel, "Auth Required");
+        if (s_bar) lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
+        if (s_percentLabel) lv_label_set_text(s_percentLabel, "Quota Used: N/A");
+        const char* err = data["error_message"] | "Check Antigravity CLI Login";
+        if (s_resetLabel) lv_label_set_text(s_resetLabel, err);
+        return;
     }
 
     // 1. Available AI Credits or Remaining Hours
-    if (doc.containsKey("available_credits") || doc.containsKey("ai_credits")) {
-        int credits = doc["available_credits"] | doc["ai_credits"] | 0;
+    int credits = data["available_credits"] | data["ai_credits"] | -1;
+    float remaining = data["credit_hours_remaining"] | -1.0f;
+    if (credits >= 0) {
         char buf[32];
         snprintf(buf, sizeof(buf), "%d Credits", credits);
         if (s_creditsLabel) lv_label_set_text(s_creditsLabel, buf);
-    } else if (doc.containsKey("credit_hours_remaining")) {
-        float remaining = doc["credit_hours_remaining"] | 0.0;
+    } else if (remaining >= 0.0f) {
         char buf[32];
         snprintf(buf, sizeof(buf), "%.1f Hrs Left", remaining);
         if (s_creditsLabel) lv_label_set_text(s_creditsLabel, buf);
     }
 
     // 2. Quota Used Bar & Percentage
-    if (doc.containsKey("percent_quota_used")) {
-        float percent = doc["percent_quota_used"] | 0.0;
+    float percent = data["percent_quota_used"] | -1.0f;
+    if (percent >= 0.0f) {
         int pct_val = (int)percent;
         if (pct_val < 0) pct_val = 0;
         if (pct_val > 100) pct_val = 100;
-
         if (s_bar) lv_bar_set_value(s_bar, pct_val, LV_ANIM_OFF);
-
         char buf[32];
         snprintf(buf, sizeof(buf), "Quota Used: %d%%", pct_val);
         if (s_percentLabel) lv_label_set_text(s_percentLabel, buf);
     }
 
     // 3. Plan Name and Reset Footer
-    const char* plan = doc["plan"] | "Google AI Pro";
-    const char* reset = doc["next_reset"] | "03h 47m";
-    if (doc.containsKey("plan") || doc.containsKey("next_reset")) {
+    const char* plan  = data["plan"] | nullptr;
+    const char* reset = data["next_reset"] | nullptr;
+    if (plan || reset) {
         char buf[64];
-        snprintf(buf, sizeof(buf), "%s | Reset in %s", plan, reset);
+        snprintf(buf, sizeof(buf), "%s | Reset in %s",
+                 plan  ? plan  : "Google AI Pro",
+                 reset ? reset : "03h 47m");
         if (s_resetLabel) lv_label_set_text(s_resetLabel, buf);
     }
 }
+
 
 void destroy_page_antigravity() {
     // Invalidate all static widget pointers before LVGL frees the parent container.

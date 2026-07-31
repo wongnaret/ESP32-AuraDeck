@@ -35,20 +35,12 @@ void create_page_todos(lv_obj_t* parent) {
     }
 }
 
-void update_page_todos(const JsonDocument& doc) {
-    // Support two payload shapes from backend:
-    //   Shape A — root array (from device-specific MQTT topics after normalization):
-    //     [{"id":"...", "title":"[Shopping] Buy milk", "completed": false}, ...]
-    //   Shape B — wrapped object (from generic MQTT topics):
-    //     {"todos": [{"id":"...", "title":"...", "completed": false}, ...]}
-    //
-    // The "title" field may carry a list prefix like "[List Name] Task" when the
-    // profile has multiple Google Task lists configured — no extra parsing needed.
+void update_page_todos(JsonVariantConst data) {
     JsonArrayConst todos;
-    if (doc.is<JsonArray>()) {
-        todos = doc.as<JsonArrayConst>(); // Shape A: root array
-    } else if (doc.containsKey("todos")) {
-        todos = doc["todos"].as<JsonArrayConst>(); // Shape B: wrapped object
+    if (data.is<JsonArrayConst>()) {
+        todos = data.as<JsonArrayConst>(); // Shape A: root array
+    } else if (data["todos"].is<JsonArrayConst>()) {
+        todos = data["todos"].as<JsonArrayConst>(); // Shape B: wrapped object
     } else {
         return; // Unrecognized payload format — skip silently
     }

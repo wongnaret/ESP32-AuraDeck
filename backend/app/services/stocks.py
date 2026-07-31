@@ -120,6 +120,7 @@ async def fetch_yahoo_finance_price(symbol: str, override_name: Optional[str] = 
                             "raw_symbol": symbol,
                             "name": full_name,
                             "price": round(price, 2),
+                            "prev_close": round(prev_close, 2) if prev_close else 0.0,
                             "change_pct": change_pct,
                             "type": asset_type
                         }
@@ -166,6 +167,7 @@ async def scrape_thai_gold_price() -> Dict[str, Any]:
                             "raw_symbol": "GOLD/TH",
                             "name": "Thai Gold Bar 96.5%",
                             "price": float(sell_price),
+                            "prev_close": 0.0,  # GoldTraders spot price only — no historical data
                             "change_pct": 0.0,
                             "type": "GOLD"
                         }
@@ -186,6 +188,7 @@ async def scrape_thai_gold_price() -> Dict[str, Any]:
                         "raw_symbol": "GOLD/TH",
                         "name": "Thai Gold Bar 96.5%",
                         "price": sell_price,
+                        "prev_close": 0.0,  # GoldTraders spot price only — no historical data
                         "change_pct": 0.0,
                         "type": "GOLD"
                     }

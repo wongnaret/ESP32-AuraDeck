@@ -47,23 +47,20 @@ void create_page_home(lv_obj_t* parent) {
     lv_label_set_text(s_statusLabel, "System Gateway Active • AP Mode Connected");
 }
 
-void update_page_home(const JsonDocument& doc) {
+void update_page_home(JsonVariantConst data) {
     // Update local date/time from document telemetry if provided
-    if (doc.containsKey("time")) {
-        const char* timeStr = doc["time"];
-        if (s_clockLabel) lv_label_set_text(s_clockLabel, timeStr);
-    }
-    if (doc.containsKey("date")) {
-        const char* dateStr = doc["date"];
-        if (s_dateLabel) lv_label_set_text(s_dateLabel, dateStr);
-    }
+    const char* timeStr = data["time"] | nullptr;
+    if (timeStr && s_clockLabel) lv_label_set_text(s_clockLabel, timeStr);
+
+    const char* dateStr = data["date"] | nullptr;
+    if (dateStr && s_dateLabel) lv_label_set_text(s_dateLabel, dateStr);
 
     // Update environmental readouts if live sensor payload is passed
-    if (doc.containsKey("temp") && doc.containsKey("humidity")) {
-        float temp = doc["temp"] | 0.0;
-        float hum = doc["humidity"] | 0.0;
+    float temp = data["temp"] | -999.0f;
+    float hum  = data["humidity"] | -999.0f;
+    if (temp > -999.0f && hum > -999.0f) {
         char buf[48];
-        snprintf(buf, sizeof(buf), "Temp: %.1f °C  |  Humidity: %.1f %%", temp, hum);
+        snprintf(buf, sizeof(buf), "Temp: %.1f \xC2\xB0C  |  Humidity: %.1f %%", temp, hum);
         if (s_sensorLabel) lv_label_set_text(s_sensorLabel, buf);
     }
 }

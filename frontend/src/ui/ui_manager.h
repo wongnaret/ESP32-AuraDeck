@@ -53,7 +53,7 @@ public:
      * @param topic Target MQTT topic.
      * @param doc Parsed JSON document.
      */
-    void dispatchData(const char* topic, const JsonDocument& doc);
+    void dispatchData(const char* topic, JsonVariantConst data);
 
     /**
      * @brief Updates top header labels directly.

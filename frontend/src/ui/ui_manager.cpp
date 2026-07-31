@@ -307,19 +307,19 @@ void UIManager::replayCachedData(int pageIndex) {
     if (cacheIdx >= 0 && m_dataCache[cacheIdx] != nullptr) {
         Serial.printf("📦 Replaying cached data for page %d (cache[%d])\n", pageIndex, cacheIdx);
         switch (pageIndex) {
-            case 0: update_page_home(*m_dataCache[cacheIdx]);        break;
-            case 1: update_page_antigravity(*m_dataCache[cacheIdx]); break;
-            case 2: update_page_stocks(*m_dataCache[cacheIdx]);      break;
-            case 3: update_page_todos(*m_dataCache[cacheIdx]);       break;
-            case 4: update_page_calendar(*m_dataCache[cacheIdx]);    break;
-            case 5: update_page_spotify(*m_dataCache[cacheIdx]);     break;
-            case 6: update_page_analytics(*m_dataCache[cacheIdx]);   break;
+            case 0: update_page_home(m_dataCache[cacheIdx]->as<JsonVariantConst>());        break;
+            case 1: update_page_antigravity(m_dataCache[cacheIdx]->as<JsonVariantConst>()); break;
+            case 2: update_page_stocks(m_dataCache[cacheIdx]->as<JsonVariantConst>());      break;
+            case 3: update_page_todos(m_dataCache[cacheIdx]->as<JsonVariantConst>());       break;
+            case 4: update_page_calendar(m_dataCache[cacheIdx]->as<JsonVariantConst>());    break;
+            case 5: update_page_spotify(m_dataCache[cacheIdx]->as<JsonVariantConst>());     break;
+            case 6: update_page_analytics(m_dataCache[cacheIdx]->as<JsonVariantConst>());   break;
             default: break;
         }
     }
 }
 
-void UIManager::dispatchData(const char* topic, const JsonDocument& doc) {
+void UIManager::dispatchData(const char* topic, JsonVariantConst data) {
     // 1. Cache the incoming data for page replay on navigation
     int cacheIdx = serviceTopicToIndex(topic);
     if (cacheIdx >= 0) {
@@ -329,25 +329,25 @@ void UIManager::dispatchData(const char* topic, const JsonDocument& doc) {
         }
         // Allocate a new document and deep-copy the incoming data
         m_dataCache[cacheIdx] = new DynamicJsonDocument(4096);
-        m_dataCache[cacheIdx]->set(doc.as<JsonVariantConst>());
+        m_dataCache[cacheIdx]->set(data);
     }
 
     // 2. Forward MQTT payload to individual pages to update live widgets
     //    (only effective if the page's widgets currently exist in memory)
     if (strcmp(topic, "auradeck/spotify") == 0) {
-        update_page_spotify(doc);
+        update_page_spotify(data);
     } else if (strcmp(topic, "auradeck/home_telemetry") == 0) {
-        update_page_home(doc);
+        update_page_home(data);
     } else if (strcmp(topic, "auradeck/calendar") == 0) {
-        update_page_calendar(doc);
+        update_page_calendar(data);
     } else if (strcmp(topic, "auradeck/todos") == 0) {
-        update_page_todos(doc);
+        update_page_todos(data);
     } else if (strcmp(topic, "auradeck/stocks") == 0) {
-        update_page_stocks(doc);
+        update_page_stocks(data);
     } else if (strcmp(topic, "auradeck/analytics") == 0) {
-        update_page_analytics(doc);
+        update_page_analytics(data);
     } else if (strcmp(topic, "auradeck/antigravity") == 0) {
-        update_page_antigravity(doc);
+        update_page_antigravity(data);
     }
 }
 

@@ -71,7 +71,7 @@ private:
 
     // Inbound MQTT parser callback
     static void staticMqttCallback(char* topic, byte* payload, unsigned int length);
-    void handleMqttMessage(const char* topic, const JsonDocument& doc);
+    void handleMqttMessage(const char* topic, JsonVariantConst data);
 
     char m_deviceMac[18] = {0}; ///< Stored MAC after pairing, used for device topic subscriptions
 };

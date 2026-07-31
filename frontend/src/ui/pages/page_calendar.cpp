@@ -35,10 +35,9 @@ void create_page_calendar(lv_obj_t* parent) {
     }
 }
 
-void update_page_calendar(const JsonDocument& doc) {
-    if (!doc.containsKey("events")) return;
-
-    JsonArrayConst events = doc["events"].as<JsonArrayConst>();
+void update_page_calendar(JsonVariantConst data) {
+    JsonArrayConst events = data["events"].as<JsonArrayConst>();
+    if (!events) return;
     int idx = 0;
 
     for (JsonObjectConst event : events) {

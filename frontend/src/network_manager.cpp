@@ -248,19 +248,37 @@ void AuraNetworkManager::tick() {
 void AuraNetworkManager::staticMqttCallback(char* topic, byte* payload, unsigned int length) {
     if (s_instance == nullptr) return;
 
-    // Allocate JSON document buffer (4KB size limit matches config)
-    DynamicJsonDocument doc(4096);
-    DeserializationError error = deserializeJson(doc, payload, length);
+    // NOTE: ArduinoJson v6 requires char* (not byte*/uint8_t*) for reliable
+    // zero-copy mutable mode. Casting byte* → char* ensures the correct reader path.
+    // Also: payload is PubSubClient's internal buffer — NOT null-terminated.
+    // We temporarily null-terminate it for robust parsing (safe: PubSubClient
+    // guarantees payload[length] is within the allocated setBufferSize() region).
+    char* buf = reinterpret_cast<char*>(payload);
+    char savedByte = buf[length];
+    buf[length] = '\0'; // Temporarily null-terminate
+
+    DynamicJsonDocument doc(8192); // 8KB: safe margin for large watchlists (7+ items)
+    // Use (const char*) to force COPY mode — strings are owned by doc's pool.
+    // This is critical: if we use (char*), ArduinoJson uses zero-copy mode and stores
+    // key/value strings as raw pointers into PubSubClient's buffer.  Once the callback
+    // returns the buffer is reused, making all cached string accesses (key lookups like
+    // stock["price"]) return stale garbage → zeros on screen after page navigation.
+    DeserializationError error = deserializeJson(doc, (const char*)buf);
+
+    buf[length] = savedByte; // Restore original byte immediately after parsing
 
     if (error) {
-        Serial.printf("❌ Error: Failed to deserialize JSON on topic [%s]: %s\n", topic, error.c_str());
+        Serial.printf("❌ Error: Failed to deserialize JSON on topic [%s]: %s (len=%u)\n",
+                      topic, error.c_str(), length);
         return;
     }
 
-    s_instance->handleMqttMessage(topic, doc);
+    Serial.printf("  DBG: len=%u, is_array=%d, size=%u\n",
+                  length, (int)doc.is<JsonArrayConst>(), (unsigned)doc.size());
+    s_instance->handleMqttMessage(topic, doc.as<JsonVariantConst>());
 }
 
-void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument& doc) {
+void AuraNetworkManager::handleMqttMessage(const char* topic, JsonVariantConst data) {
     Serial.printf("\n📥 [MQTT Received] Topic: %s\n", topic);
 
     // Helper: extract service name from either generic or device-specific topics
@@ -285,26 +303,26 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
     }
 
     if (strcmp(service, "spotify") == 0) {
-        bool isPlaying = doc["is_playing"] | false;
+        bool isPlaying = data["is_playing"] | false;
         if (isPlaying) {
-            const char* track = doc["title"] | doc["track"] | "Unknown Track";
-            const char* artist = doc["artist"] | "Unknown Artist";
-            int progressMs = doc["progress_ms"] | 0;
-            int durationMs = doc["duration_ms"] | 0;
-            int progress = (progressMs > 0) ? progressMs / 1000 : (doc["progress"] | 0);
-            int duration = (durationMs > 0) ? durationMs / 1000 : (doc["duration"] | 0);
+            const char* track = data["title"] | data["track"] | "Unknown Track";
+            const char* artist = data["artist"] | "Unknown Artist";
+            int progressMs = data["progress_ms"] | 0;
+            int durationMs = data["duration_ms"] | 0;
+            int progress = (progressMs > 0) ? progressMs / 1000 : (data["progress"] | 0);
+            int duration = (durationMs > 0) ? durationMs / 1000 : (data["duration"] | 0);
             Serial.printf("  🎵 Spotify Playing: %s - %s [%d/%ds]\n", track, artist, progress, duration);
         } else {
             Serial.println("  🎵 Spotify Offline (No track active)");
         }
     } 
     else if (strcmp(service, "calendar") == 0) {
-        JsonArrayConst monthEvents = doc["month_days_with_events"].as<JsonArrayConst>();
+        JsonArrayConst monthEvents = data["month_days_with_events"].as<JsonArrayConst>();
         Serial.print("  📅 Calendar Month Event Days: ");
         for (int val : monthEvents) { Serial.printf("%d ", val); }
         Serial.println();
 
-        JsonArrayConst events = doc["events"].as<JsonArrayConst>();
+        JsonArrayConst events = data["events"].as<JsonArrayConst>();
         Serial.println("  📅 Daily Agendas:");
         for (JsonObjectConst event : events) {
             const char* time  = event["time"]  | "";
@@ -316,10 +334,10 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
     else if (strcmp(service, "todos") == 0) {
         // Todos payload is a root array of objects [{title:...}, ...] or wrapped {todos:[...]}
         JsonArrayConst todos;
-        if (doc.is<JsonArray>()) {
-            todos = doc.as<JsonArrayConst>();
-        } else if (doc.containsKey("todos")) {
-            todos = doc["todos"].as<JsonArrayConst>();
+        if (data.is<JsonArrayConst>()) {
+            todos = data.as<JsonArrayConst>();
+        } else if (data["todos"].is<JsonArrayConst>()) {
+            todos = data["todos"].as<JsonArrayConst>();
         }
         Serial.println("  📋 Google Checklist Items:");
         for (JsonVariantConst item : todos) {
@@ -335,41 +353,49 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
     else if (strcmp(service, "stocks") == 0) {
         // Stocks payload is a root array [{symbol:..., price:..., change_pct:...}, ...]
         JsonArrayConst stocks;
-        if (doc.is<JsonArray>()) {
-            stocks = doc.as<JsonArrayConst>();
-        } else if (doc.containsKey("stocks")) {
-            stocks = doc["stocks"].as<JsonArrayConst>();
+        if (data.is<JsonArrayConst>()) {
+            stocks = data.as<JsonArrayConst>();
+        } else if (data["stocks"].is<JsonArrayConst>()) {
+            stocks = data["stocks"].as<JsonArrayConst>();
         }
+        Serial.printf("  DBG2: is_arr=%d stocks_sz=%d\n",
+                      (int)data.is<JsonArrayConst>(), (int)stocks.size());
         Serial.println("  📈 Watchlist Quotes:");
-        for (JsonObjectConst s : stocks) {
-            const char* sym = s["symbol"] | "";
-            float price = s["price"] | 0.0;
-            float pct   = s["change_pct"] | s["change_percent"] | 0.0;
+        int itemIdx = 0;
+        for (JsonVariantConst item : stocks) {
+            bool isObj = item.is<JsonObjectConst>();
+            Serial.printf("  DBG2 item[%d]: isObj=%d\n", itemIdx, (int)isObj);
+            JsonObjectConst s = item.as<JsonObjectConst>();
+            const char* sym = s["symbol"] | "??";
+            float price = s["price"] | 0.0f;
+            float pct   = s["change_pct"] | s["change_percent"] | 0.0f;
             Serial.printf("    - %s: %.2f (%+.2f%%)\n", sym, price, pct);
+            itemIdx++;
         }
+        Serial.printf("  DBG2: total=%d items logged\n", itemIdx);
     } 
     else if (strcmp(service, "analytics") == 0) {
-        int   activeUsers = doc["ga4_active_users"] | doc["active_users"] | 0;
+        int   activeUsers = data["ga4_active_users"] | data["active_users"] | 0;
         Serial.printf("  📊 GA4 Active Visitors : %d\n", activeUsers);
-        if (doc.containsKey("gcp_billing")) {
+        if (data["gcp_billing"].is<JsonArrayConst>()) {
             float totalMtd = 0.0;
-            JsonArrayConst billing = doc["gcp_billing"].as<JsonArrayConst>();
+            JsonArrayConst billing = data["gcp_billing"].as<JsonArrayConst>();
             for (JsonObjectConst p : billing) { totalMtd += p["cost_mtd"] | 0.0f; }
             Serial.printf("  💵 GCP Cloud Billing   : $%.2f MTD\n", totalMtd);
         }
     } 
     else if (strcmp(service, "antigravity") == 0) {
-        float remaining = doc["credit_hours_remaining"] | 0.0;
-        float percent   = doc["percent_quota_used"]     | 0.0;
+        float remaining = data["credit_hours_remaining"] | 0.0;
+        float percent   = data["percent_quota_used"]     | 0.0;
         Serial.printf("  🛸 Antigravity Credits: %.1f hours remaining (%.1f%% used)\n", remaining, percent);
     }
     else if (strcmp(service, "time_sync") == 0) {
-        int yr  = doc["year"]   | 0;
-        int mon = doc["month"]  | 0;
-        int day = doc["day"]    | 0;
-        int hr  = doc["hour"]   | 0;
-        int min = doc["minute"] | 0;
-        int sec = doc["second"] | 0;
+        int yr  = data["year"]   | 0;
+        int mon = data["month"]  | 0;
+        int day = data["day"]    | 0;
+        int hr  = data["hour"]   | 0;
+        int min = data["minute"] | 0;
+        int sec = data["second"] | 0;
 
         if (yr >= 2024 && mon >= 1 && mon <= 12 && day >= 1 && day <= 31) {
             DateTime server_dt(yr, mon, day, hr, min, sec);
@@ -388,5 +414,5 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, const JsonDocument
     // so dispatchData() always receives a predictable auradeck/{service} topic.
     char normalizedTopic[48];
     snprintf(normalizedTopic, sizeof(normalizedTopic), "auradeck/%s", service);
-    g_ui.dispatchData(normalizedTopic, doc);
+    g_ui.dispatchData(normalizedTopic, data);
 }

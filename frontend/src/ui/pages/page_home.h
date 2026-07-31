@@ -16,7 +16,7 @@ void create_page_home(lv_obj_t* parent);
 /**
  * @brief Dynamically updates Home Screen contents with new telemetry/sensor data.
  */
-void update_page_home(const JsonDocument& doc);
+void update_page_home(JsonVariantConst data);
 
 /**
  * @brief Resets all static widget pointers to nullptr before the parent container is cleaned.

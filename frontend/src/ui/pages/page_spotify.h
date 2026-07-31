@@ -9,7 +9,7 @@
 #include <ArduinoJson.h>
 
 void create_page_spotify(lv_obj_t* parent);
-void update_page_spotify(const JsonDocument& doc);
+void update_page_spotify(JsonVariantConst data);
 void update_page_spotify_tick();
 
 /// @brief Resets static widget pointers to nullptr. Call before lv_obj_clean() on page switch.

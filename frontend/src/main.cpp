@@ -300,7 +300,7 @@ void loop() {
         telemetryDoc["temp"] = temperature;
         telemetryDoc["humidity"] = humidity;
 
-        g_ui.dispatchData("auradeck/home_telemetry", telemetryDoc);
+        g_ui.dispatchData("auradeck/home_telemetry", telemetryDoc.as<JsonVariantConst>());
     }
 
     // 6. Print physical clock telemetry to Serial Console every 10 seconds

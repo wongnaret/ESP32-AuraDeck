@@ -56,18 +56,9 @@ void create_page_analytics(lv_obj_t* parent) {
     lv_label_set_text(foot, "Google Cloud Platform Connected");
 }
 
-void update_page_analytics(const JsonDocument& doc) {
-    // Backend payload uses "ga4_active_users" (not "active_users")
-    // and "gcp_billing" array (not flat "mtd_billing")
-    // Field name reference: backend/app/services/analytics.py get_combined_analytics()
-
+void update_page_analytics(JsonVariantConst data) {
     // Update GA4 active visitors count
-    int visitors = 0;
-    if (doc.containsKey("ga4_active_users")) {
-        visitors = doc["ga4_active_users"] | 0;
-    } else if (doc.containsKey("active_users")) {
-        visitors = doc["active_users"] | 0; // legacy fallback
-    }
+    int visitors = data["ga4_active_users"] | data["active_users"] | 0;
     if (s_visitorsLabel) {
         char buf[16];
         snprintf(buf, sizeof(buf), "%02d", visitors);
@@ -75,9 +66,9 @@ void update_page_analytics(const JsonDocument& doc) {
     }
 
     // Update GCP billing — backend sends array, we sum all projects for a single total
-    if (doc.containsKey("gcp_billing")) {
+    JsonArrayConst billing = data["gcp_billing"].as<JsonArrayConst>();
+    if (billing) {
         float totalMtd = 0.0;
-        JsonArrayConst billing = doc["gcp_billing"].as<JsonArrayConst>();
         for (JsonObjectConst project : billing) {
             totalMtd += project["cost_mtd"] | 0.0f;
         }
@@ -86,12 +77,12 @@ void update_page_analytics(const JsonDocument& doc) {
             snprintf(buf, sizeof(buf), "$%.2f MTD", totalMtd);
             lv_label_set_text(s_billingLabel, buf);
         }
-    } else if (doc.containsKey("mtd_billing")) {
+    } else {
         // Legacy flat field fallback
-        float billing = doc["mtd_billing"] | 0.0;
-        if (s_billingLabel) {
+        float legacyBilling = data["mtd_billing"] | -1.0f;
+        if (legacyBilling >= 0.0f && s_billingLabel) {
             char buf[32];
-            snprintf(buf, sizeof(buf), "$%.2f MTD", billing);
+            snprintf(buf, sizeof(buf), "$%.2f MTD", legacyBilling);
             lv_label_set_text(s_billingLabel, buf);
         }
     }

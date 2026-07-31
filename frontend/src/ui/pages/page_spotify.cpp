@@ -119,8 +119,8 @@ void create_page_spotify(lv_obj_t* parent) {
     lv_label_set_text(s_stateLabel, "Playback Stopped");
 }
 
-void update_page_spotify(const JsonDocument& doc) {
-    bool isPlaying = doc["is_playing"] | false;
+void update_page_spotify(JsonVariantConst data) {
+    bool isPlaying = data["is_playing"] | false;
     s_isPlaying = isPlaying;
 
     if (!isPlaying) {
@@ -135,13 +135,13 @@ void update_page_spotify(const JsonDocument& doc) {
         return;
     }
 
-    const char* track = doc["title"] | doc["track"] | "Unknown Track";
-    const char* artist = doc["artist"] | "Unknown Artist";
+    const char* track = data["title"] | data["track"] | "Unknown Track";
+    const char* artist = data["artist"] | "Unknown Artist";
 
-    int progressMs = doc["progress_ms"] | 0;
-    int durationMs = doc["duration_ms"] | 0;
-    s_progressSec = (progressMs > 0) ? progressMs / 1000 : (doc["progress"] | 0);
-    s_durationSec = (durationMs > 0) ? durationMs / 1000 : (doc["duration"] | 0);
+    int progressMs = data["progress_ms"] | 0;
+    int durationMs = data["duration_ms"] | 0;
+    s_progressSec = (progressMs > 0) ? progressMs / 1000 : (data["progress"] | 0);
+    s_durationSec = (durationMs > 0) ? durationMs / 1000 : (data["duration"] | 0);
     s_lastProgressTickMs = millis();
 
     String reshapedTrack = ThaiReshaper::reshape(track);
@@ -168,6 +168,7 @@ void update_page_spotify(const JsonDocument& doc) {
 
     if (s_stateLabel) lv_label_set_text(s_stateLabel, "Active Streaming...");
 }
+
 
 void update_page_spotify_tick() {
     if (!s_isPlaying || s_durationSec <= 0 || s_bar == nullptr) return;
