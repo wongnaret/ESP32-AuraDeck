@@ -121,6 +121,41 @@ flowchart LR
 
 ---
 
+### 🔄 การอัปเดตโค้ด Backend & Restart Docker
+
+เมื่อมีการแก้ไขโค้ด หรือดึงโค้ดเวอร์ชันล่าสุด (`git pull`) มาลงบน Raspberry Pi ให้สั่ง Restart ระบบตามขั้นตอนดังนี้:
+
+#### 1. ดึงโค้ดเวอร์ชันล่าสุด
+```bash
+cd ~/ESP32-AuraDeck
+git pull origin main
+```
+
+#### 2. คำสั่ง Restart Docker ตามรูปแบบการแก้ไข
+
+* **⚡ วิธีที่ 1: Rebuild & Restart (แนะนำ — ใช้เมื่ออัปเดตโค้ด, Dockerfile หรือเพิ่ม library ใหม่)**
+  ```bash
+  docker compose up -d --build
+  ```
+  *(ระบบจะ Build Image ใหม่และสลับ Container ให้ทันที)*
+
+* **⚡ วิธีที่ 2: Quick Restart (รีสตาร์ตแบบรวดเร็ว — ใช้เมื่อแก้ไขไฟล์ Python ทั่วไป)**
+  ```bash
+  docker compose restart backend
+  ```
+
+#### 3. ดู Log เพื่อตรวจสอบสถานะการทำงาน (Live Logs)
+```bash
+# ดู Log เฉพาะ FastAPI Backend
+docker compose logs -f backend
+
+# หรือดู Log ของทั้งระบบ (Backend + MQTT Broker)
+docker compose logs -f
+```
+*(กด `Ctrl + C` เพื่อออกจากหน้าจอแสดง Log โดยที่ Container ยังคงทำงานอยู่ตามปกติในเบื้องหลัง)*
+
+---
+
 ## 🌐 การตั้งค่ารีโมตเข้า Raspberry Pi ด้วย Tailscale (Mesh VPN)
 
 ### ทำไมต้อง Tailscale?
