@@ -8,27 +8,32 @@ The system leverages a **Raspberry Pi** (or any local home server running Docker
 
 ## 🏗️ System Architecture
 
-```
-                 [ Third-Party Cloud APIs ]
- (Google Calendar / Tasks, Spotify, Yahoo Finance, GCP Billing)
-                            │
-                            ▼
-          ┌───────────────────────────────────┐
-          │      Raspberry Pi (Backend)       │
-          │  - Python FastAPI Service         │
-          │  - Eclipse Mosquitto Broker       │
-          │  - Periodic Cron Background Poll  │
-          │  - OAuth2 Silent Refresh Manager  │
-          └─────────────────┬─────────────────┘
-                            │ Wi-Fi (JSON Payload)
-                            ▼
-          ┌───────────────────────────────────┐
-          │  ESP32-S3 RLCD Smart Terminal     │
-          │  - 4.2" 1-bit reflective LCD      │
-          │  - LVGL v8 Graphics Engine        │
-          │  - Real-time Temp/Hum (SHTC3)     │
-          │  - Hardware RTC (PCF85063)        │
-          └───────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Cloud["☁️ Third-Party Cloud APIs"]
+        APIs["Google Calendar / Tasks<br/>Spotify Web API<br/>Yahoo Finance & Stocks<br/>GCP Billing & Analytics"]
+    end
+
+    subgraph Pi["🍓 Raspberry Pi (Backend Server)"]
+        FastAPI["FastAPI Web Service (Port 8000)"]
+        MQTT["Eclipse Mosquitto Broker (Port 1883)"]
+        Cron["Cron & Background Pollers"]
+        OAuth["OAuth2 Silent Token Refresh"]
+        Tailscale["Tailscale Mesh VPN (100.x.y.z)"]
+        AP["Wi-Fi Access Point (10.42.0.1)"]
+    end
+
+    subgraph ESP32["🖥️ ESP32-S3 RLCD Terminal (Frontend)"]
+        LVGL["LVGL v8 Monochrome Engine (400x300)"]
+        SHTC3["SHTC3 Temp & Humidity (I2C)"]
+        RTC["PCF85063 Real-Time Clock (I2C)"]
+        BAT["Battery ADC Power Sense (GPIO4)"]
+    end
+
+    APIs -->|REST API / HTTPS| FastAPI
+    FastAPI --> MQTT
+    MQTT -->|Wi-Fi JSON / MQTT Topics| LVGL
+    AP -.->|Local Hotspot| ESP32
 ```
 
 ---
@@ -67,13 +72,13 @@ To make the codebase highly modular and maintainable, setup details, firmware fl
 
 เมื่อเริ่มติดตั้งระบบครั้งแรก หรือต้องการเปิดใช้งานใหม่ ให้ทำตามลำดับขั้นตอนดังนี้:
 
-```
-┌─────────────────────────┐     ┌─────────────────────────┐     ┌─────────────────────────┐
-│   1. Raspberry Pi       │ ──► │   2. OAuth Login        │ ──► │   3. ESP32-S3 Display   │
-│ - Docker Compose (Up)   │     │ - รัน ngrok tunnel      │     │ - เปิดเครื่อง เชื่อม Wi-Fi│
-│ - Tailscale (รีโมต/SSH) │     │ - ล็อกอิน Google/Spotify│     │ - กรอก PIN 6 หลัก Pairing │
-│ - Wi-Fi AP Hotspot      │     │ - ปิด ngrok ได้เลย      │     │ - ดึงข้อมูลอัตโนมัติ      │
-└─────────────────────────┘     └─────────────────────────┘     └─────────────────────────┘
+```mermaid
+flowchart LR
+    Step1["<b>1. Raspberry Pi</b><br/>• Docker Compose (Up)<br/>• Tailscale (Remote/SSH)<br/>• Wi-Fi AP Hotspot (10.42.0.1)"]
+    Step2["<b>2. OAuth Login</b><br/>• รัน ngrok tunnel<br/>• ล็อกอิน Google / Spotify<br/>• ปิด ngrok ได้ทันที"]
+    Step3["<b>3. ESP32-S3 Display</b><br/>• เปิดเครื่อง & เกาะ Wi-Fi<br/>• กรอก PIN 6 หลัก Pairing<br/>• ดึงข้อมูลอัตโนมัติ"]
+
+    Step1 --> Step2 --> Step3
 ```
 
 ### ขั้นที่ 1: เตรียม Raspberry Pi (Server)

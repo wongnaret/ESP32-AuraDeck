@@ -6,27 +6,28 @@ This guide details the system architecture, step-by-step installation instructio
 
 ## 🏗️ System Architecture
 
-```
-                 [ Third-Party Cloud APIs ]
- (Google Calendar / Tasks, Spotify, Yahoo Finance, GCP Billing)
-                            │
-                            ▼
-          ┌───────────────────────────────────┐
-          │      Raspberry Pi (Backend)       │
-          │  - Python FastAPI Service         │
-          │  - Eclipse Mosquitto Broker       │
-          │  - Periodic Cron Background Poll  │
-          │  - OAuth2 Silent Refresh Manager  │
-          └─────────────────┬─────────────────┘
-                            │ Wi-Fi (JSON Payload)
-                            ▼
-          ┌───────────────────────────────────┐
-          │  ESP32-S3 RLCD Smart Terminal     │
-          │  - 4.2" 1-bit reflective LCD      │
-          │  - LVGL v8 Graphics Engine        │
-          │  - Real-time Temp/Hum (SHTC3)     │
-          │  - Hardware RTC (PCF85063)        │
-          └───────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Cloud["☁️ Third-Party Cloud APIs"]
+        APIs["Google Calendar / Tasks<br/>Spotify Web API<br/>Yahoo Finance & Stocks<br/>GCP Billing & Analytics"]
+    end
+
+    subgraph Pi["🍓 Raspberry Pi (Backend Server)"]
+        FastAPI["FastAPI Web Service (Port 8000)"]
+        MQTT["Eclipse Mosquitto Broker (Port 1883)"]
+        Cron["Cron & Background Pollers"]
+        OAuth["OAuth2 Silent Token Refresh"]
+    end
+
+    subgraph ESP32["🖥️ ESP32-S3 RLCD Terminal (Frontend)"]
+        LVGL["LVGL v8 Graphics Engine (400x300)"]
+        SHTC3["SHTC3 Temp & Humidity Sensor (I2C)"]
+        RTC["PCF85063 Real-Time Clock (I2C)"]
+    end
+
+    APIs -->|REST API / HTTPS| FastAPI
+    FastAPI --> MQTT
+    MQTT -->|Wi-Fi JSON / MQTT Topics| LVGL
 ```
 
 ---
