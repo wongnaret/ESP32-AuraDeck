@@ -46,4 +46,5 @@
 #define PIN_KEY_BUTTON 18
 
 // Battery ADC Power Sense
-#define PIN_BAT_ADC    4
+#define PIN_BAT_ADC       4
+#define BAT_ADC_DIVIDER   3.0f  // Calibrated: 4.138V real / 1.383V ADC = 3.0 (3:1 divider)

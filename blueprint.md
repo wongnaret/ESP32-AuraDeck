@@ -53,6 +53,8 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
     * `PIN_TP_RESET`  = GPIO42 (Must be held HIGH to prevent a floating chip state from locking the shared I2C bus low!)
   * **Side Navigation Button:**
     * `PIN_BUTTON`    = GPIO18 (Hardware interrupt with 150ms debounce suppression)
+  * **Battery ADC Power Sense:**
+    * `PIN_BAT_ADC`   = GPIO4 (Reads battery voltage via onboard voltage divider, configurable ratio `BAT_ADC_DIVIDER` in `config.h`)
 * **Physical Hardware Modules Utilized:**
   * `ST7305`: Display controller with custom precomputed O(1) pixel LUT transpositions for landscape rendering.
   * `SHTC3`: Ambient Temperature & Humidity Sensor polled via raw non-clock-stretching TwoWire.
@@ -73,6 +75,8 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 * **Elements:**
   * Page Title Name (Left aligned, dynamically reflects the current screen context)
   * Wi-Fi Connection Icon (Left aligned: `📶` when online, `⚠️` when offline)
+  * MQTT Broker Dot Indicator (Left aligned: green dot when connected, red dot when disconnected)
+  * Battery Status & Percentage (Right aligned: `🔌 USB` / `⚡ XX%` / `🔋 XX%` with tier icons)
   * SHTC3 Live Temperature (Right aligned: e.g. `26.5°C`)
   * Local Time (`HH:MM`) synced via NTP + RTC (Right aligned)
   * Bottom divider line rule (1px high-contrast stroke at y=25px)

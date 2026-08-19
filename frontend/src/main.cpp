@@ -151,11 +151,16 @@ void setup() {
     g_ui.drawBootStatus("Configuring Interrupt Keys...", 85);
     g_button.begin(onPageCycleButtonPress);
 
-    // 8. Start Network Services (Wi-Fi, NTP auto-sync, MQTT subscribers)
+    // 8. Initialize Battery ADC pin once (avoid re-init every loop iteration)
+    pinMode(PIN_BAT_ADC, INPUT);
+    analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
+    Serial.printf("🔋 Battery ADC configured on GPIO%d (11dB attenuation, divider=%.1f).\n", PIN_BAT_ADC, BAT_ADC_DIVIDER);
+
+    // 9. Start Network Services (Wi-Fi, NTP auto-sync, MQTT subscribers)
     g_ui.drawBootStatus("Connecting to Local Hotspot...", 95);
     g_network.begin(&g_rtc);
 
-    // 9. Transition cleanly to Interactive Dashboard
+    // 10. Transition cleanly to Interactive Dashboard
     g_ui.drawBootStatus("Booting Dashboard...", 100);
     delay(500);
     g_ui.completeBoot();
@@ -260,17 +265,23 @@ void loop() {
         bool isMqtt = g_network.isMqttConnected();
 
         // 5.1 Read Battery Voltage & Charging state via ADC GPIO4 (PIN_BAT_ADC)
-        pinMode(PIN_BAT_ADC, INPUT);
-        analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
-        uint32_t raw_mv = analogReadMilliVolts(PIN_BAT_ADC);
-        float batVoltage = (raw_mv * 2.0f) / 1000.0f; // 2:1 divider ratio
+        // Multi-sample ADC read for stability (16 samples averaged)
+        uint32_t adcSum = 0;
+        for (int i = 0; i < 16; i++) {
+            adcSum += analogReadMilliVolts(PIN_BAT_ADC);
+        }
+        uint32_t raw_mv = adcSum / 16;
+        // Apply voltage divider ratio from config.h (BAT_ADC_DIVIDER)
+        float batVoltage = (raw_mv / 1000.0f) * BAT_ADC_DIVIDER;
         int batPercent = 100;
         bool isCharging = false;
         bool isUsbOnly = false;
 
-        if (batVoltage < 2.0f) {
+        if (batVoltage < 1.0f) {
+            // No battery detected — powered by USB only
             isUsbOnly = true;
-        } else if (batVoltage >= 4.18f) {
+        } else if (batVoltage >= 4.15f) {
+            // Battery fully charged or charging at near-full voltage
             isCharging = true;
             batPercent = 100;
         } else {
@@ -282,9 +293,9 @@ void loop() {
             batPercent = (int)pct;
         }
 
-        Serial.printf("🔋 Battery ADC: raw_mv=%d, batVoltage=%.2fV -> %s (%d%%)\n",
-                      raw_mv, batVoltage, 
-                      isUsbOnly ? "USB Only" : (isCharging ? "Charging" : "Discharging"), 
+        Serial.printf("🔋 Battery ADC: raw_mv=%lu (avg16), divider=%.1f, batV=%.3fV -> %s (%d%%)\n",
+                      (unsigned long)raw_mv, BAT_ADC_DIVIDER, batVoltage,
+                      isUsbOnly ? "USB_ONLY" : (isCharging ? "CHARGING" : "ON_BATTERY"),
                       batPercent);
 
         // Update top status bar with latest telemetry (WiFi + MQTT + Battery)
