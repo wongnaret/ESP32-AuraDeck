@@ -145,17 +145,35 @@ curl -fsSL https://tailscale.com/install.sh | sh
 
 #### 1.2 เริ่มต้นและเชื่อมต่อบัญชี
 
+สามารถเลือกวิธีเชื่อมต่อได้ 2 รูปแบบ:
+
+##### 🔑 วิธีที่ 1: ใช้ Auth Key (แนะนำ — สะดวกและไม่ต้องคลิกลิงก์)
+1. ไปที่ **[Tailscale Admin Settings > Keys](https://login.tailscale.com/admin/settings/keys)** บนเครื่องคอมพิวเตอร์
+2. กด **Generate auth key...** แล้วคัดลอก Key (`tskey-auth-...`)
+3. รันคำสั่งบน Raspberry Pi:
+   ```bash
+   sudo tailscale up --authkey="tskey-auth-xxxxxxxxxxxx"
+   ```
+   *(ระบบจะยืนยันตัวตนสำเร็จทันที ไม่ต้องเปิดเว็บ)*
+
+##### 🌐 วิธีที่ 2: ล็อกอินผ่านลิงก์เบราว์เซอร์
 ```bash
 sudo tailscale up
 ```
+คำสั่งนี้จะแสดง **URL สำหรับยืนยันตัวตน** ในเทอร์มินัล เช่น:
+```
+To authenticate, visit:
+    https://login.tailscale.com/a/xxxxxxxxxxxx
+```
+ให้คัดลอกลิงก์ไปเปิดในเบราว์เซอร์แล้วล็อกอินด้วย Google / Microsoft / GitHub
 
-> [!NOTE]
-> คำสั่งนี้จะแสดง **URL สำหรับยืนยันตัวตน** ในเทอร์มินัล เช่น:
-> ```
-> To authenticate, visit:
->     https://login.tailscale.com/a/xxxxxxxxxxxx
-> ```
-> ให้เปิดลิงก์นี้ในเบราว์เซอร์บนเครื่องที่มีหน้าจอ แล้วล็อกอินด้วย Google, Microsoft หรือ GitHub Account เมื่อยืนยันเสร็จ Tailscale จะเชื่อมต่ออัตโนมัติ
+> [!WARNING]
+> **ถ้าเจอปัญหา `403 Session Expired` ตอนล็อกอินด้วย Google:**
+> - **สาเหตุ:** ลิงก์ยืนยันตัวตนหมดอายุอย่างรวดเร็ว หรือมีปัญหา Session ค้างในเบราว์เซอร์
+> - **วิธีแก้:** 
+>   1. **ใช้ Auth Key (วิธีที่ 1 ด้านบน)** — ชัวร์ที่สุด 100%
+>   2. หรือรัน `sudo tailscale up --reset` แล้วนำลิงก์ใหม่ไปเปิดใน **หน้าต่างไม่ระบุตัวตน (Incognito Window)** ทันที
+>   3. ตรวจสอบเวลาเครื่อง Pi ให้ตรง: `sudo timedatectl set-ntp true`
 
 #### 1.3 ตรวจสอบ IP ของ Tailscale
 
