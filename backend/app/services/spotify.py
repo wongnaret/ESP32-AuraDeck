@@ -68,10 +68,14 @@ async def get_spotify_currently_playing(profile_id: str = "default") -> Dict[str
         "is_playing": False,
         "title": "Not Playing",
         "artist": "N/A",
+        "album": "",
         "progress_ms": 0,
         "duration_ms": 0,
         "album_art_url": "",
-        "cover_hash": ""
+        "cover_hash": "",
+        "has_lyrics": False,
+        "current_lyric": "",
+        "next_lyric": ""
     }
 
     mgr = ProfileTokenManager(profile_id, "Spotify")
@@ -110,12 +114,17 @@ async def get_spotify_currently_playing(profile_id: str = "default") -> Dict[str
                 return fallback_state
 
             item = data.get("item", {})
+            track_id = item.get("id", "")
+            track_title = item.get("name", "Unknown Title")
             artists = item.get("artists", [])
             artist_names = ", ".join([artist.get("name", "") for artist in artists]) if artists else "Unknown"
             
+            # Extract album metadata
+            album = item.get("album", {})
+            album_name = album.get("name", "")
+            
             # Extract smallest / medium album cover image URL
             album_art_url = ""
-            album = item.get("album", {})
             images = album.get("images", [])
             if images:
                 album_art_url = images[0].get("url", "")
@@ -124,14 +133,32 @@ async def get_spotify_currently_playing(profile_id: str = "default") -> Dict[str
             if album_art_url:
                 cover_hash = await process_monochrome_album_art(album_art_url, profile_id)
 
+            progress_ms = data.get("progress_ms", 0)
+            duration_ms = item.get("duration_ms", 0)
+
+            # Fetch active synced lyrics lines from LRCLIB
+            from app.services.lyrics import get_active_lyrics_lines
+            lyrics_info = await get_active_lyrics_lines(
+                track_id=track_id,
+                track_name=track_title,
+                artist_name=artist_names,
+                album_name=album_name,
+                duration_ms=duration_ms,
+                progress_ms=progress_ms
+            )
+
             return {
                 "is_playing": data.get("is_playing", False),
-                "title": item.get("name", "Unknown Title"),
+                "title": track_title,
                 "artist": artist_names,
-                "progress_ms": data.get("progress_ms", 0),
-                "duration_ms": item.get("duration_ms", 0),
+                "album": album_name,
+                "progress_ms": progress_ms,
+                "duration_ms": duration_ms,
                 "album_art_url": album_art_url,
-                "cover_hash": cover_hash
+                "cover_hash": cover_hash,
+                "has_lyrics": lyrics_info.get("has_lyrics", False),
+                "current_lyric": lyrics_info.get("current_lyric", ""),
+                "next_lyric": lyrics_info.get("next_lyric", "")
             }
 
         logger.warning(f"Spotify API returned unexpected status code: {response.status_code} for profile {profile_id}")

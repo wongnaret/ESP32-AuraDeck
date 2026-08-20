@@ -137,14 +137,19 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 5: Spotify Now Playing
-* **Purpose:** Real-time media progress and track status.
+### Page 5: Spotify Now Playing & Live Synced Lyrics
+* **Purpose:** Real-time media progress, album artwork, track status, and time-synced lyrics display.
 * **Layout Elements:**
-  * **Track Title:** Primary bold 24px label with ellipsis protection.
-  * **Artist Name:** Sub-title artist metadata (~16px).
+  * **Track Title:** Primary bold 24px label (`Prompt 24`) with smooth circular scrolling marquee.
+  * **Artist Name:** Sub-title artist metadata (`Prompt 16`) with smooth circular scrolling marquee.
+  * **Album Art Container:** 80x80 container rendering 1-bit Floyd-Steinberg dithered album cover.
   * **Linear Progress Bar:** Full playback visualizer showing elapsed vs total duration.
-  * **Elapsed Timestamps:** Left and right text readouts (e.g. `1:23 / 3:45`).
-  * **Graceful Degradation:** Displays a beautiful "Spotify Offline / Idle" layout when inactive.
+  * **Elapsed Timestamps:** Left and right text readouts (e.g. `1:23` / `3:45`).
+  * **Time-Synced Lyrics Container (364x82):** Positioned directly beneath the progress bar, displaying 2 dynamic lines:
+    * **Current Lyric Line:** Bold, prominent 16px prompt font (`lv_font_prompt_16`) with ThaiReshaper support.
+    * **Next Upcoming Lyric Line:** Secondary 16px prompt font (`lv_font_prompt_16`) previewing the next verse.
+    * **Fallback Metadata:** Shows album name (`Album: ...`) and artist/composer info if track has no lyrics.
+  * **Graceful Degradation:** Displays a clean "Spotify Offline / Idle" layout when inactive.
 
 ---
 
@@ -170,11 +175,15 @@ The Raspberry Pi publishes structured, single-responsibility telemetry objects o
   "is_playing": true,
   "title": "เพลงรักในสายลม",
   "artist": "วงดนตรีสากล",
+  "album": "บทเพลงแห่งความคิดถึง",
   "progress_ms": 128000,
-  "duration_ms": 240000
+  "duration_ms": 240000,
+  "has_lyrics": true,
+  "current_lyric": "อยากบอกให้เธอรู้ ว่าฉันรักเธอเท่าไหร่...",
+  "next_lyric": "แม้เวลาจะหมุนเวียนเปลี่ยนไปนานแค่ไหน..."
 }
 ```
-> **ESP32 Handling:** `page_spotify.cpp` reads `title` (with `track` as legacy fallback) and converts `progress_ms`/`duration_ms` from milliseconds to seconds for display.
+> **ESP32 Handling:** `page_spotify.cpp` reads `title`, `artist`, `current_lyric`, and `next_lyric`, passes them through `ThaiReshaper::reshape()`, and renders the active + upcoming lyrics lines with local 1-second progress bar animation ticks.
 
 ### Topic: `auradeck/calendar`
 ```json
