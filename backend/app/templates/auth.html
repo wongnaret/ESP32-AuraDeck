@@ -1473,8 +1473,22 @@
             }
         };
 
-        function loadMockTemplate() {
+        async function loadMockTemplate() {
             const topic = document.getElementById('mqtt-topic').value;
+            if (topic === 'auradeck/stocks' && typeof profileId !== 'undefined' && profileId) {
+                try {
+                    const response = await fetch(`/api/v1/stocks/watchlist?profile_id=${profileId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.items && data.items.length > 0) {
+                            document.getElementById('mqtt-payload').value = JSON.stringify(data.items, null, 4);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Could not load live stock watchlist for sandbox:", e);
+                }
+            }
             const template = mockTemplates[topic];
             document.getElementById('mqtt-payload').value = JSON.stringify(template, null, 4);
         }

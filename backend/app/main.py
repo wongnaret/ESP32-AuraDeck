@@ -934,12 +934,10 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
         data = res.get("todos", [])
         mqtt_service.publish(f"auradeck/profile/{pid}/calendar", res.get("calendar", {}))
     elif service == "stocks":
-        # When called without a session cookie (e.g. via curl), delegate to the full
-        # scheduler job which correctly iterates every profile and their custom watchlists.
-        # This avoids the cookie-less call falling back to 'default' and missing watchlist.
+        prof_settings = load_profile_settings(pid)
+        watchlist_items = prof_settings.get("stock_watchlist")
+        data = await get_multi_asset_prices(watchlist_items=watchlist_items)
         trigger_stocks_polling()
-        # Return the default prices as a response preview
-        return run_async_safe(get_multi_asset_prices())
     elif service == "antigravity":
         data = await get_antigravity_credits()
         topic = "auradeck/antigravity"
