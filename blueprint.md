@@ -293,3 +293,32 @@ When an unconfigured ESP32 screen boots up, it communicates with the Raspberry P
 
 ### Container-to-Host D-Bus AP Communication
 The FastAPI backend container mounts the host Raspberry Pi's system bus (`/var/run/dbus/system_bus_socket`) inside the Docker container environment and utilizes the native `network-manager` tool (`nmcli`) to safely toggle, query, and monitor the host's physical AuraDeck hotspot without security escalation.
+
+---
+
+## 7. Configurable Background Polling Intervals & Live Sync
+
+AuraDeck allows users to customize background polling frequencies on a per-profile basis directly through the Web Control Center UI, balancing data freshness against API quotas and device power consumption.
+
+### Polling Interval Schema (`settings.json` / `/api/v1/profile/intervals`)
+```json
+{
+  "tasks_calendar_mins": 15,
+  "stocks_mins": 5,
+  "antigravity_mins": 1,
+  "analytics_mins": 15,
+  "time_sync_secs": 10
+}
+```
+
+### Endpoints
+* `GET /api/v1/profile/intervals`: Retrieves the configured polling intervals for the active profile (falling back to system defaults if unconfigured).
+* `POST /api/v1/profile/intervals`: Updates interval settings, resets the scheduler countdown timers for that profile, and immediately triggers an **Instant Fetch & MQTT Push** to all paired ESP32 screens.
+
+### Service Update Policies
+* **Spotify:** Polled at a fixed 5-second interval for real-time now-playing tracking.
+* **Google Tasks & Calendar:** Configurable from 1 min to 60 mins (Default: 15 mins).
+* **Stocks & Crypto:** Configurable from 1 min to 60 mins (Default: 5 mins).
+* **Antigravity AI:** Configurable from 1 min to 60 mins (Default: 1 min).
+* **Cloud Analytics:** Configurable from 1 min to 60 mins (Default: 15 mins).
+* **Hardware RTC Time Sync:** Broadcasts Thailand GMT+7 time every 10 seconds.

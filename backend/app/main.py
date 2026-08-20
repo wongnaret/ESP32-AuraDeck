@@ -22,7 +22,9 @@ from app.services.google_auth import (
     exchange_google_code_for_login,
     exchange_spotify_code,
     load_profile_settings,
-    save_profile_settings
+    save_profile_settings,
+    get_profile_polling_intervals,
+    DEFAULT_POLLING_INTERVALS
 )
 from app.services.spotify import get_spotify_currently_playing
 from app.services.google_api import get_google_calendar_and_tasks, get_google_task_lists
@@ -110,6 +112,14 @@ class ProfileConfigRequest(BaseModel):
     google_redirect_uri: Optional[str] = None
     active_task_lists: Optional[List[str]] = None
 
+class ProfileIntervalsUpdateRequest(BaseModel):
+    profile_id: Optional[str] = None
+    tasks_calendar_mins: Optional[int] = None
+    stocks_mins: Optional[int] = None
+    antigravity_mins: Optional[int] = None
+    analytics_mins: Optional[int] = None
+    time_sync_secs: Optional[int] = None
+
 class DevicePairRequest(BaseModel):
     pin: str
     profile_id: str
@@ -121,6 +131,10 @@ class StockAddRequest(BaseModel):
 
 # --- Startup & Shutdown Events ---
 
+# Tracking dictionary for per-profile last background poll timestamps
+LAST_POLL_TIMESTAMPS: Dict[str, Dict[str, float]] = {}
+
+
 @app.on_event("startup")
 def on_startup():
     logger.info("Starting up AuraDeck Control Center...")
@@ -129,7 +143,7 @@ def on_startup():
     # Ensure default profile is created on start
     list_all_profiles()
     
-    # Setup background polling scheduler (Runs over all configured profiles)
+    # Setup background polling scheduler (Ticks frequently to evaluate per-profile interval timers)
     scheduler.add_job(
         id="spotify_polling_job",
         func=trigger_spotify_polling,
@@ -141,28 +155,28 @@ def on_startup():
         id="calendar_polling_job",
         func=trigger_calendar_polling,
         trigger="interval",
-        minutes=15,
+        seconds=15,
         max_instances=1
     )
     scheduler.add_job(
         id="stocks_polling_job",
         func=trigger_stocks_polling,
         trigger="interval",
-        minutes=5,
+        seconds=15,
         max_instances=1
     )
     scheduler.add_job(
         id="analytics_polling_job",
         func=trigger_analytics_polling,
         trigger="interval",
-        minutes=15,
+        seconds=30,
         max_instances=1
     )
     scheduler.add_job(
         id="antigravity_polling_job",
         func=trigger_antigravity_polling,
         trigger="interval",
-        minutes=1,
+        seconds=15,
         max_instances=1
     )
     scheduler.add_job(
@@ -182,12 +196,12 @@ def on_startup():
         logger.info("Waiting for MQTT broker connection before initial data poll...")
         mqtt_service.wait_for_connect(timeout_secs=10.0)
         logger.info("Triggering initial data poll for all services on startup...")
-        trigger_time_sync()
+        trigger_time_sync(force=True)
         trigger_spotify_polling()
-        trigger_calendar_polling()
-        trigger_stocks_polling()
-        trigger_analytics_polling()
-        trigger_antigravity_polling()
+        trigger_calendar_polling(force=True)
+        trigger_stocks_polling(force=True)
+        trigger_analytics_polling(force=True)
+        trigger_antigravity_polling(force=True)
     except Exception as e:
         logger.error(f"Error running initial data poll on startup: {e}")
 
@@ -200,7 +214,7 @@ def on_shutdown():
     scheduler.shutdown()
 
 
-# --- Background Polling Triggers (Multi-Profile Aware) ---
+# --- Background Polling Triggers (Multi-Profile & Interval Aware) ---
 
 def run_async_safe(coro):
     """Safely runs an async coroutine whether or not an event loop is currently running."""
@@ -239,99 +253,138 @@ def trigger_spotify_polling():
     except Exception as e:
         logger.error(f"Error in background Spotify poller: {e}")
 
-def trigger_calendar_polling():
-    """Polls Google Calendar & Tasks for all profiles and publishes to paired devices."""
+def trigger_calendar_polling(target_profile_id: Optional[str] = None, force: bool = False):
+    """Polls Google Calendar & Tasks for profiles based on their configured interval."""
+    now = time.time()
     try:
         profiles = list_all_profiles()
         mappings = load_device_mappings()
         for p in profiles:
             pid = p["id"]
-            mgr = ProfileTokenManager(pid, "Google")
-            if mgr.has_credentials():
-                data = run_async_safe(get_google_calendar_and_tasks(pid))
-                
-                # Publish to all devices paired to this profile
-                for mac, m_data in mappings.items():
-                    if m_data.get("profile_id") == pid:
-                        mqtt_service.publish(f"auradeck/device/{mac}/calendar", data.get("calendar", {}))
-                        mqtt_service.publish(f"auradeck/device/{mac}/todos", data.get("todos", []))
-                
-                if pid == "default":
-                    mqtt_service.publish("auradeck/calendar", data.get("calendar", {}))
-                    mqtt_service.publish("auradeck/todos", data.get("todos", []))
+            if target_profile_id and pid != target_profile_id:
+                continue
+
+            intervals = get_profile_polling_intervals(pid)
+            interval_secs = intervals.get("tasks_calendar_mins", 15) * 60
+            last_poll = LAST_POLL_TIMESTAMPS.get(pid, {}).get("calendar", 0.0)
+
+            if force or (now - last_poll >= interval_secs):
+                LAST_POLL_TIMESTAMPS.setdefault(pid, {})["calendar"] = now
+                mgr = ProfileTokenManager(pid, "Google")
+                if mgr.has_credentials():
+                    data = run_async_safe(get_google_calendar_and_tasks(pid))
+                    
+                    # Publish to all devices paired to this profile
+                    for mac, m_data in mappings.items():
+                        if m_data.get("profile_id") == pid:
+                            mqtt_service.publish(f"auradeck/device/{mac}/calendar", data.get("calendar", {}))
+                            mqtt_service.publish(f"auradeck/device/{mac}/todos", data.get("todos", []))
+                    
+                    if pid == "default":
+                        mqtt_service.publish("auradeck/calendar", data.get("calendar", {}))
+                        mqtt_service.publish("auradeck/todos", data.get("todos", []))
+                    logger.info(f"📅 [Calendar/Tasks] Polled profile '{pid}' (interval: {intervals.get('tasks_calendar_mins')}m)")
     except Exception as e:
         logger.error(f"Error in background Calendar/Tasks poller: {e}")
 
-def trigger_stocks_polling():
-    """Polls stock indexes and gold/crypto indices for all profiles."""
+def trigger_stocks_polling(target_profile_id: Optional[str] = None, force: bool = False):
+    """Polls stock indexes and gold/crypto indices for profiles based on their configured interval."""
+    now = time.time()
     try:
         profiles = list_all_profiles()
         mappings = load_device_mappings()
         
-        logger.info(f"📈 [Stocks] Polling {len(profiles)} profile(s), {len(mappings)} paired device(s)")
-        
-        # Publish default/global stocks
-        default_prices = run_async_safe(get_multi_asset_prices())
-        mqtt_service.publish("auradeck/stocks", default_prices)
-        logger.info(f"  → Published default {len(default_prices)} items to auradeck/stocks")
+        # Check if default/global stocks need update
+        global_last_poll = LAST_POLL_TIMESTAMPS.get("default", {}).get("stocks", 0.0)
+        default_interval_secs = get_profile_polling_intervals("default").get("stocks_mins", 5) * 60
+        if force or (now - global_last_poll >= default_interval_secs):
+            LAST_POLL_TIMESTAMPS.setdefault("default", {})["stocks"] = now
+            default_prices = run_async_safe(get_multi_asset_prices())
+            mqtt_service.publish("auradeck/stocks", default_prices)
+        else:
+            default_prices = None
         
         for p in profiles:
             pid = p["id"]
-            prof_settings = load_profile_settings(pid)
-            watchlist_items = prof_settings.get("stock_watchlist")
-            
-            if watchlist_items:
-                logger.info(f"  [Profile '{pid}'] Custom watchlist: {[i.get('symbol') for i in watchlist_items]}")
-                p_prices = run_async_safe(get_multi_asset_prices(watchlist_items=watchlist_items))
-                mqtt_service.publish(f"auradeck/profile/{pid}/stocks", p_prices)
-                logger.info(f"    → Published {len(p_prices)} items to profile topic")
+            if target_profile_id and pid != target_profile_id:
+                continue
+
+            intervals = get_profile_polling_intervals(pid)
+            interval_secs = intervals.get("stocks_mins", 5) * 60
+            last_poll = LAST_POLL_TIMESTAMPS.get(pid, {}).get("stocks", 0.0)
+
+            if force or (now - last_poll >= interval_secs):
+                LAST_POLL_TIMESTAMPS.setdefault(pid, {})["stocks"] = now
+                prof_settings = load_profile_settings(pid)
+                watchlist_items = prof_settings.get("stock_watchlist")
                 
-                # Mirror to paired devices for this profile
-                for mac, m_data in mappings.items():
-                    if m_data.get("profile_id") == pid:
-                        mqtt_service.publish(f"auradeck/device/{mac}/stocks", p_prices)
-                        logger.info(f"    → Mirrored to device {mac}")
-            else:
-                logger.info(f"  [Profile '{pid}'] No custom watchlist — using default prices")
-                for mac, m_data in mappings.items():
-                    if m_data.get("profile_id") == pid:
-                        mqtt_service.publish(f"auradeck/device/{mac}/stocks", default_prices)
-                        logger.info(f"    → Sent default prices to device {mac}")
+                if watchlist_items:
+                    p_prices = run_async_safe(get_multi_asset_prices(watchlist_items=watchlist_items))
+                    mqtt_service.publish(f"auradeck/profile/{pid}/stocks", p_prices)
+                    
+                    # Mirror to paired devices for this profile
+                    for mac, m_data in mappings.items():
+                        if m_data.get("profile_id") == pid:
+                            mqtt_service.publish(f"auradeck/device/{mac}/stocks", p_prices)
+                else:
+                    if default_prices is None:
+                        default_prices = run_async_safe(get_multi_asset_prices())
+                    for mac, m_data in mappings.items():
+                        if m_data.get("profile_id") == pid:
+                            mqtt_service.publish(f"auradeck/device/{mac}/stocks", default_prices)
+                logger.info(f"📈 [Stocks] Polled profile '{pid}' (interval: {intervals.get('stocks_mins')}m)")
     except Exception as e:
         logger.error(f"Error in background Stocks poller: {e}", exc_info=True)
 
 
-def trigger_analytics_polling():
-    """Polls GA4 and GCP Billing for all profiles and publishes to paired devices."""
+def trigger_analytics_polling(target_profile_id: Optional[str] = None, force: bool = False):
+    """Polls GA4 and GCP Billing for profiles based on configured interval."""
+    now = time.time()
     try:
         profiles = list_all_profiles()
         mappings = load_device_mappings()
         for p in profiles:
             pid = p["id"]
-            # Profiles with service accounts
-            data = asyncio.run(get_combined_analytics(pid))
-            for mac, m_data in mappings.items():
-                if m_data.get("profile_id") == pid:
-                    mqtt_service.publish(f"auradeck/device/{mac}/analytics", data)
-            
-            if pid == "default":
-                mqtt_service.publish("auradeck/analytics", data)
+            if target_profile_id and pid != target_profile_id:
+                continue
+
+            intervals = get_profile_polling_intervals(pid)
+            interval_secs = intervals.get("analytics_mins", 15) * 60
+            last_poll = LAST_POLL_TIMESTAMPS.get(pid, {}).get("analytics", 0.0)
+
+            if force or (now - last_poll >= interval_secs):
+                LAST_POLL_TIMESTAMPS.setdefault(pid, {})["analytics"] = now
+                data = asyncio.run(get_combined_analytics(pid))
+                for mac, m_data in mappings.items():
+                    if m_data.get("profile_id") == pid:
+                        mqtt_service.publish(f"auradeck/device/{mac}/analytics", data)
+                
+                if pid == "default":
+                    mqtt_service.publish("auradeck/analytics", data)
+                logger.info(f"📊 [Analytics] Polled profile '{pid}' (interval: {intervals.get('analytics_mins')}m)")
     except Exception as e:
         logger.error(f"Error in background Analytics poller: {e}")
 
-def trigger_antigravity_polling():
-    """Polls Google Antigravity developer credits."""
+def trigger_antigravity_polling(force: bool = False):
+    """Polls Google Antigravity developer credits based on interval."""
+    now = time.time()
     try:
-        data = asyncio.run(get_antigravity_credits())
-        mqtt_service.publish("auradeck/antigravity", data)
-        
-        mappings = load_device_mappings()
-        for mac in mappings:
-            mqtt_service.publish(f"auradeck/device/{mac}/antigravity", data)
+        intervals = get_profile_polling_intervals("default")
+        interval_secs = intervals.get("antigravity_mins", 1) * 60
+        last_poll = LAST_POLL_TIMESTAMPS.get("global", {}).get("antigravity", 0.0)
+
+        if force or (now - last_poll >= interval_secs):
+            LAST_POLL_TIMESTAMPS.setdefault("global", {})["antigravity"] = now
+            data = asyncio.run(get_antigravity_credits())
+            mqtt_service.publish("auradeck/antigravity", data)
+            
+            mappings = load_device_mappings()
+            for mac in mappings:
+                mqtt_service.publish(f"auradeck/device/{mac}/antigravity", data)
     except Exception as e:
         logger.error(f"Error in background Antigravity poller: {e}")
 
-def trigger_time_sync():
+def trigger_time_sync(force: bool = False):
     """Publishes current server datetime in Thailand (GMT+7) for hardware RTC synchronization on paired screens."""
     try:
         from datetime import datetime, timezone, timedelta
@@ -534,7 +587,60 @@ def api_get_profile_config(profile_id: str, active_profile_id: Optional[str] = C
         "google_client_secret_configured": bool(settings_data.get("google_client_secret")),
         "google_redirect_uri": settings_data.get("google_redirect_uri", ""),
         "active_task_lists": settings_data.get("active_task_lists", ["@default"]),
-        "google_sa_configured": google_sa_configured
+        "google_sa_configured": google_sa_configured,
+        "polling_intervals": get_profile_polling_intervals(profile_id)
+    }
+
+
+@app.get("/api/v1/profile/intervals")
+def api_get_profile_intervals(profile_id: Optional[str] = Query(None), active_profile_id: Optional[str] = Cookie(None)):
+    """Retrieves current polling intervals for a profile with default fallbacks."""
+    pid = profile_id or active_profile_id or "default"
+    return {
+        "profile_id": pid,
+        "intervals": get_profile_polling_intervals(pid)
+    }
+
+
+@app.post("/api/v1/profile/intervals")
+def api_update_profile_intervals(req: ProfileIntervalsUpdateRequest, active_profile_id: Optional[str] = Cookie(None)):
+    """Updates background polling intervals for a profile and immediately triggers an instant sync to screens."""
+    pid = req.profile_id or active_profile_id or "default"
+    prof_settings = load_profile_settings(pid)
+    current_intervals = prof_settings.get("polling_intervals", DEFAULT_POLLING_INTERVALS.copy())
+    if not isinstance(current_intervals, dict):
+        current_intervals = DEFAULT_POLLING_INTERVALS.copy()
+        
+    if req.tasks_calendar_mins is not None:
+        current_intervals["tasks_calendar_mins"] = max(1, req.tasks_calendar_mins)
+    if req.stocks_mins is not None:
+        current_intervals["stocks_mins"] = max(1, req.stocks_mins)
+    if req.antigravity_mins is not None:
+        current_intervals["antigravity_mins"] = max(1, req.antigravity_mins)
+    if req.analytics_mins is not None:
+        current_intervals["analytics_mins"] = max(1, req.analytics_mins)
+    if req.time_sync_secs is not None:
+        current_intervals["time_sync_secs"] = max(5, req.time_sync_secs)
+        
+    prof_settings["polling_intervals"] = current_intervals
+    save_profile_settings(pid, prof_settings)
+    
+    # Immediately trigger data fetch and MQTT publish for this profile so screen updates instantly
+    try:
+        logger.info(f"⚡ Instant Sync triggered for profile '{pid}' after polling intervals update...")
+        trigger_calendar_polling(target_profile_id=pid, force=True)
+        trigger_stocks_polling(target_profile_id=pid, force=True)
+        trigger_analytics_polling(target_profile_id=pid, force=True)
+        trigger_antigravity_polling(force=True)
+        trigger_time_sync(force=True)
+    except Exception as e:
+        logger.error(f"Error triggering instant sync after updating intervals: {e}")
+        
+    return {
+        "status": "success",
+        "message": "Polling intervals updated and instant screen sync triggered!",
+        "profile_id": pid,
+        "intervals": current_intervals
     }
 
 

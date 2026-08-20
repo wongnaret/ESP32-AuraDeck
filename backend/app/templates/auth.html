@@ -750,6 +750,86 @@
                         </button>
                     </div>
 
+                    <!-- Background Polling Intervals Configuration Card -->
+                    <div class="card" id="polling-intervals-card">
+                        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 class="card-title">⏱️ Background Sync Intervals (ความถี่ในการอัปเดตข้อมูล)</h3>
+                            <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;">Live Poller</span>
+                        </div>
+                        <p class="card-desc" style="margin-bottom: 16px;">
+                            กำหนดความถี่ที่ระบบจะดึงข้อมูลจาก Cloud APIs มาอัปเดตหน้าจอ ESP32 เบื้องหลัง และกดบันทึกเพื่อซิงก์ข้อมูลทันที
+                        </p>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                            <div class="form-group" style="margin: 0;">
+                                <label for="interval-tasks-calendar" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
+                                    📅 Tasks & Calendar
+                                </label>
+                                <select id="interval-tasks-calendar" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                    <option value="1">ทุก 1 นาที (1 min)</option>
+                                    <option value="2">ทุก 2 นาที (2 mins)</option>
+                                    <option value="5">ทุก 5 นาที (5 mins)</option>
+                                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                                    <option value="15" selected>ทุก 15 นาที (15 mins - ค่าเริ่มต้น)</option>
+                                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin: 0;">
+                                <label for="interval-stocks" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
+                                    📈 Stocks & Market
+                                </label>
+                                <select id="interval-stocks" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                    <option value="1">ทุก 1 นาที (1 min)</option>
+                                    <option value="2">ทุก 2 นาที (2 mins)</option>
+                                    <option value="5" selected>ทุก 5 นาที (5 mins - ค่าเริ่มต้น)</option>
+                                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin: 0;">
+                                <label for="interval-antigravity" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
+                                    🤖 Antigravity AI
+                                </label>
+                                <select id="interval-antigravity" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                    <option value="1" selected>ทุก 1 นาที (1 min - ค่าเริ่มต้น)</option>
+                                    <option value="2">ทุก 2 นาที (2 mins)</option>
+                                    <option value="5">ทุก 5 นาที (5 mins)</option>
+                                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin: 0;">
+                                <label for="interval-analytics" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
+                                    📊 Cloud Analytics
+                                </label>
+                                <select id="interval-analytics" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                    <option value="1">ทุก 1 นาที (1 min)</option>
+                                    <option value="2">ทุก 2 นาที (2 mins)</option>
+                                    <option value="5">ทุก 5 นาที (5 mins)</option>
+                                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                                    <option value="15" selected>ทุก 15 นาที (15 mins - ค่าเริ่มต้น)</option>
+                                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">🎵 Spotify ทำงานแบบ Real-time (5s) อัตโนมัติ</span>
+                            <button class="btn btn-primary" onclick="savePollingIntervals()" style="width: auto; padding: 10px 24px;">
+                                💾 Save & Sync to Screens
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- GCP Multi-Project Service Account Key Manager -->
                     <div class="card">
                         <h3 class="card-title" style="margin-bottom: 12px;">📁 GCP Multi-Project Manager</h3>
@@ -1082,8 +1162,58 @@
                 } else {
                     document.getElementById('task-lists-card').style.display = 'none';
                 }
+                // Populate Polling Intervals dropdowns if present
+                if (data.polling_intervals) {
+                    const pi = data.polling_intervals;
+                    if (document.getElementById('interval-tasks-calendar') && pi.tasks_calendar_mins) {
+                        document.getElementById('interval-tasks-calendar').value = pi.tasks_calendar_mins;
+                    }
+                    if (document.getElementById('interval-stocks') && pi.stocks_mins) {
+                        document.getElementById('interval-stocks').value = pi.stocks_mins;
+                    }
+                    if (document.getElementById('interval-antigravity') && pi.antigravity_mins) {
+                        document.getElementById('interval-antigravity').value = pi.antigravity_mins;
+                    }
+                    if (document.getElementById('interval-analytics') && pi.analytics_mins) {
+                        document.getElementById('interval-analytics').value = pi.analytics_mins;
+                    }
+                }
             } catch (err) {
                 console.error("Failed to load profile configuration: ", err);
+            }
+        }
+
+        async function savePollingIntervals() {
+            const tasks_calendar_mins = parseInt(document.getElementById('interval-tasks-calendar').value, 10);
+            const stocks_mins = parseInt(document.getElementById('interval-stocks').value, 10);
+            const antigravity_mins = parseInt(document.getElementById('interval-antigravity').value, 10);
+            const analytics_mins = parseInt(document.getElementById('interval-analytics').value, 10);
+
+            const payload = {
+                profile_id: profileId,
+                tasks_calendar_mins,
+                stocks_mins,
+                antigravity_mins,
+                analytics_mins
+            };
+
+            showToast("Saving intervals & triggering screen sync...");
+
+            try {
+                const response = await fetch('/api/v1/profile/intervals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(data.message || "Sync intervals updated successfully!");
+                } else {
+                    showToast(data.detail || "Failed to update intervals.", false);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Network error updating intervals.", false);
             }
         }
 

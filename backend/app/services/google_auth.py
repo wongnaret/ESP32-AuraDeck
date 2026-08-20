@@ -7,18 +7,47 @@ from app.config import settings
 
 logger = logging.getLogger("auth_service")
 
+DEFAULT_POLLING_INTERVALS: Dict[str, int] = {
+    "tasks_calendar_mins": 15,
+    "stocks_mins": 5,
+    "antigravity_mins": 1,
+    "analytics_mins": 15,
+    "time_sync_secs": 10
+}
+
 def load_profile_settings(profile_id: str) -> Dict[str, Any]:
-    """Loads settings.json for a specific profile."""
+    """Loads settings.json for a specific profile, ensuring defaults exist."""
     profile_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
     settings_path = os.path.join(profile_dir, "settings.json")
     if not os.path.exists(settings_path):
-        return {}
+        return {"polling_intervals": DEFAULT_POLLING_INTERVALS.copy()}
     try:
         with open(settings_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            if not isinstance(data, dict):
+                data = {}
+            if "polling_intervals" not in data or not isinstance(data["polling_intervals"], dict):
+                data["polling_intervals"] = DEFAULT_POLLING_INTERVALS.copy()
+            else:
+                # Merge missing keys
+                for k, v in DEFAULT_POLLING_INTERVALS.items():
+                    if k not in data["polling_intervals"]:
+                        data["polling_intervals"][k] = v
+            return data
     except Exception as e:
         logger.error(f"Failed to load settings for profile {profile_id}: {e}")
-        return {}
+        return {"polling_intervals": DEFAULT_POLLING_INTERVALS.copy()}
+
+def get_profile_polling_intervals(profile_id: str) -> Dict[str, int]:
+    """Returns polling intervals for a specific profile with fallback to defaults."""
+    settings_data = load_profile_settings(profile_id)
+    intervals = settings_data.get("polling_intervals", {})
+    merged = DEFAULT_POLLING_INTERVALS.copy()
+    if isinstance(intervals, dict):
+        for k, v in intervals.items():
+            if k in merged and isinstance(v, (int, float)) and v > 0:
+                merged[k] = int(v)
+    return merged
 
 def save_profile_settings(profile_id: str, data: Dict[str, Any]):
     """Saves settings.json for a specific profile."""

@@ -377,6 +377,7 @@ tailscale status
 ## 🌀 Architectural Features in AuraDeck 2.0
 
 *   **Multi-Profile Session Sandboxing**: Users can register independent environments, Service Account keys, and custom Google/Spotify credentials.
+*   **Configurable Background Polling Intervals**: Customize update frequencies for Tasks/Calendar, Stocks, Antigravity, and Analytics per profile with instant screen sync.
 *   **Multi-List Google Tasks Aggregation**: Automatically merges and prefixes tasks from multiple user-checked lists in parallel.
 *   **TV-Style PIN Screen Pairing**: Registers physical screen MAC addresses wirelessly with standard 6-digit verification codes.
 *   **D-Bus Container Access Point Toggles**: FastAPI containers interact with host NetworkManager services securely without root privilege elevations.
