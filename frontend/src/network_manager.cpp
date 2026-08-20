@@ -143,6 +143,7 @@ void AuraNetworkManager::connectMqtt() {
             m_mqttClient.subscribe("auradeck/stocks");
             m_mqttClient.subscribe("auradeck/analytics");
             m_mqttClient.subscribe("auradeck/antigravity");
+            m_mqttClient.subscribe("auradeck/weather");
             m_mqttClient.subscribe("auradeck/time_sync");
             Serial.println("📬 Subscribed to generic AuraDeck topics (dev mode).");
 
@@ -182,7 +183,7 @@ void AuraNetworkManager::subscribeDeviceTopics(const char* mac) {
     }
 
     // Subscribe to per-device MAC-addressed production topics as per API.md
-    const char* services[] = { "spotify", "calendar", "todos", "stocks", "analytics", "antigravity", "time_sync" };
+    const char* services[] = { "spotify", "calendar", "todos", "stocks", "analytics", "antigravity", "weather", "time_sync" };
     for (const char* svc : services) {
         char topic[64];
         snprintf(topic, sizeof(topic), "auradeck/device/%s/%s", mac, svc);

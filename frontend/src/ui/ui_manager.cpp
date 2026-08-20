@@ -284,17 +284,17 @@ int UIManager::serviceTopicToIndex(const char* topic) {
     if (strcmp(topic, "auradeck/stocks") == 0)         return 3;
     if (strcmp(topic, "auradeck/analytics") == 0)      return 4;
     if (strcmp(topic, "auradeck/antigravity") == 0)    return 5;
-    if (strcmp(topic, "auradeck/home_telemetry") == 0) return 6;
+    if (strcmp(topic, "auradeck/home_telemetry") == 0 || strcmp(topic, "auradeck/weather") == 0) return 6;
     return -1; // Unknown service
 }
 
 void UIManager::replayCachedData(int pageIndex) {
     // Map page index → cache index and replay if data exists
     // Page indexes: 0=home, 1=antigravity, 2=stocks, 3=todos, 4=calendar, 5=spotify, 6=analytics
-    // Cache indexes: 0=spotify, 1=calendar, 2=todos, 3=stocks, 4=analytics, 5=antigravity, 6=home_telemetry
+    // Cache indexes: 0=spotify, 1=calendar, 2=todos, 3=stocks, 4=analytics, 5=antigravity, 6=home_telemetry/weather
     int cacheIdx = -1;
     switch (pageIndex) {
-        case 0: cacheIdx = 6; break; // home → home_telemetry
+        case 0: cacheIdx = 6; break; // home → home_telemetry / weather
         case 1: cacheIdx = 5; break; // antigravity
         case 2: cacheIdx = 3; break; // stocks
         case 3: cacheIdx = 2; break; // todos
@@ -336,7 +336,7 @@ void UIManager::dispatchData(const char* topic, JsonVariantConst data) {
     //    (only effective if the page's widgets currently exist in memory)
     if (strcmp(topic, "auradeck/spotify") == 0) {
         update_page_spotify(data);
-    } else if (strcmp(topic, "auradeck/home_telemetry") == 0) {
+    } else if (strcmp(topic, "auradeck/home_telemetry") == 0 || strcmp(topic, "auradeck/weather") == 0) {
         update_page_home(data);
     } else if (strcmp(topic, "auradeck/calendar") == 0) {
         update_page_calendar(data);

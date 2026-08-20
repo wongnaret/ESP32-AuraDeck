@@ -10,6 +10,7 @@ logger = logging.getLogger("auth_service")
 DEFAULT_POLLING_INTERVALS: Dict[str, int] = {
     "tasks_calendar_mins": 15,
     "stocks_mins": 5,
+    "weather_mins": 30,
     "antigravity_mins": 1,
     "analytics_mins": 15,
     "time_sync_secs": 10

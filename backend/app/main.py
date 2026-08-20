@@ -111,11 +111,14 @@ class ProfileConfigRequest(BaseModel):
     google_client_secret: Optional[str] = None
     google_redirect_uri: Optional[str] = None
     active_task_lists: Optional[List[str]] = None
+    weather_lat: Optional[float] = None
+    weather_lon: Optional[float] = None
 
 class ProfileIntervalsUpdateRequest(BaseModel):
     profile_id: Optional[str] = None
     tasks_calendar_mins: Optional[int] = None
     stocks_mins: Optional[int] = None
+    weather_mins: Optional[int] = None
     antigravity_mins: Optional[int] = None
     analytics_mins: Optional[int] = None
     time_sync_secs: Optional[int] = None
@@ -173,6 +176,13 @@ def on_startup():
         max_instances=1
     )
     scheduler.add_job(
+        id="weather_polling_job",
+        func=trigger_weather_polling,
+        trigger="interval",
+        seconds=30,
+        max_instances=1
+    )
+    scheduler.add_job(
         id="antigravity_polling_job",
         func=trigger_antigravity_polling,
         trigger="interval",
@@ -200,6 +210,7 @@ def on_startup():
         trigger_spotify_polling()
         trigger_calendar_polling(force=True)
         trigger_stocks_polling(force=True)
+        trigger_weather_polling(force=True)
         trigger_analytics_polling(force=True)
         trigger_antigravity_polling(force=True)
     except Exception as e:
@@ -364,6 +375,42 @@ def trigger_analytics_polling(target_profile_id: Optional[str] = None, force: bo
                 logger.info(f"📊 [Analytics] Polled profile '{pid}' (interval: {intervals.get('analytics_mins')}m)")
     except Exception as e:
         logger.error(f"Error in background Analytics poller: {e}")
+
+def trigger_weather_polling(target_profile_id: Optional[str] = None, force: bool = False):
+    """Polls Open-Meteo weather and hourly rain forecast for profiles based on configured interval."""
+    now = time.time()
+    try:
+        from app.services.weather import get_hourly_weather_forecast
+        profiles = list_all_profiles()
+        mappings = load_device_mappings()
+        for p in profiles:
+            pid = p["id"]
+            if target_profile_id and pid != target_profile_id:
+                continue
+
+            intervals = get_profile_polling_intervals(pid)
+            interval_secs = intervals.get("weather_mins", 30) * 60
+            last_poll = LAST_POLL_TIMESTAMPS.get(pid, {}).get("weather", 0.0)
+
+            if force or (now - last_poll >= interval_secs):
+                LAST_POLL_TIMESTAMPS.setdefault(pid, {})["weather"] = now
+                
+                # Read custom coordinates if configured
+                prof_settings = load_profile_settings(pid)
+                lat = float(prof_settings.get("weather_lat", 13.7563))
+                lon = float(prof_settings.get("weather_lon", 100.5018))
+                
+                data = asyncio.run(get_hourly_weather_forecast(latitude=lat, longitude=lon))
+                
+                for mac, m_data in mappings.items():
+                    if m_data.get("profile_id") == pid:
+                        mqtt_service.publish(f"auradeck/device/{mac}/weather", data)
+                
+                if pid == "default":
+                    mqtt_service.publish("auradeck/weather", data)
+                logger.info(f"🌦️ [Weather] Polled profile '{pid}' (lat={lat}, lon={lon}, interval: {intervals.get('weather_mins', 30)}m)")
+    except Exception as e:
+        logger.error(f"Error in background Weather poller: {e}")
 
 def trigger_antigravity_polling(force: bool = False):
     """Polls Google Antigravity developer credits based on interval."""
@@ -588,6 +635,8 @@ def api_get_profile_config(profile_id: str, active_profile_id: Optional[str] = C
         "google_redirect_uri": settings_data.get("google_redirect_uri", ""),
         "active_task_lists": settings_data.get("active_task_lists", ["@default"]),
         "google_sa_configured": google_sa_configured,
+        "weather_lat": settings_data.get("weather_lat", 13.7563),
+        "weather_lon": settings_data.get("weather_lon", 100.5018),
         "polling_intervals": get_profile_polling_intervals(profile_id)
     }
 
@@ -615,6 +664,8 @@ def api_update_profile_intervals(req: ProfileIntervalsUpdateRequest, active_prof
         current_intervals["tasks_calendar_mins"] = max(1, req.tasks_calendar_mins)
     if req.stocks_mins is not None:
         current_intervals["stocks_mins"] = max(1, req.stocks_mins)
+    if req.weather_mins is not None:
+        current_intervals["weather_mins"] = max(1, req.weather_mins)
     if req.antigravity_mins is not None:
         current_intervals["antigravity_mins"] = max(1, req.antigravity_mins)
     if req.analytics_mins is not None:
@@ -630,6 +681,7 @@ def api_update_profile_intervals(req: ProfileIntervalsUpdateRequest, active_prof
         logger.info(f"⚡ Instant Sync triggered for profile '{pid}' after polling intervals update...")
         trigger_calendar_polling(target_profile_id=pid, force=True)
         trigger_stocks_polling(target_profile_id=pid, force=True)
+        trigger_weather_polling(target_profile_id=pid, force=True)
         trigger_analytics_polling(target_profile_id=pid, force=True)
         trigger_antigravity_polling(force=True)
         trigger_time_sync(force=True)
@@ -1044,6 +1096,13 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
         watchlist_items = prof_settings.get("stock_watchlist")
         data = await get_multi_asset_prices(watchlist_items=watchlist_items)
         trigger_stocks_polling()
+    elif service == "weather":
+        from app.services.weather import get_hourly_weather_forecast
+        prof_settings = load_profile_settings(pid)
+        lat = float(prof_settings.get("weather_lat", 13.7563))
+        lon = float(prof_settings.get("weather_lon", 100.5018))
+        data = await get_hourly_weather_forecast(latitude=lat, longitude=lon)
+        topic = "auradeck/weather"
     elif service == "antigravity":
         data = await get_antigravity_credits()
         topic = "auradeck/antigravity"

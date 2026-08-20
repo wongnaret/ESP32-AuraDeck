@@ -83,13 +83,18 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 0: Home (Minimalist Summary Dashboard)
-* **Purpose:** Single-glance overview combining the most critical metrics from all pages.
-* **Layout Elements:**
-  * **Digital Clock:** Large central bold digital time display (~48px font size).
-  * **Calendar Date:** Prominent center-aligned date string (e.g., `Wednesday, July 22`).
-  * **SHTC3 Live Readout:** Prominent center-bottom sensor card showing ambient temp & humidity.
-  * **System Status:** Footer label indicating gateway connectivity state.
+### Page 0: Home (Minimalist Summary Dashboard & Rain Forecast)
+* **Purpose:** Single-glance overview combining digital clock, dual-language dates, indoor environmental telemetry, outdoor weather, and 6-hour rain forecast.
+* **Layout Structure (3-Tier Layout):**
+  * **Tier 1 (Top):**
+    * **Digital Clock:** Large bold digital time (`12:00`, `lv_font_montserrat_32`) aligned top-left.
+    * **English Date:** `dayofweek, day month year` (`Thursday, 20 August 2026`, `lv_font_montserrat_16`).
+    * **Thai Date:** `วัน...ที่ ... ... พ.ศ. ....` (`วันพฤหัสบดีที่ 20 สิงหาคม 2569`, `lv_font_prompt_16` with `ThaiReshaper`).
+  * **Tier 2 (Middle):**
+    * **Indoor SHTC3 Card:** Displays live onboard ambient temperature and humidity (`26.5 °C | 55 %`).
+    * **Outdoor Weather Card:** Displays live outdoor temperature and sky condition (`28.5 °C • มีเมฆมาก`).
+  * **Tier 3 (Bottom):**
+    * **6-Hour Hourly Rain Forecast Grid (370x144):** 6 horizontal columns displaying time (`18:00`), weather condition (`Rain`/`Cloud`), rain probability percentage (`80%`), and expected temperature (`28°`).
 
 ---
 
@@ -263,6 +268,26 @@ Published as a **root JSON array** of asset objects. The `type` field drives dis
 }
 ```
 > **ESP32 Handling:** `page_analytics.cpp` reads `ga4_active_users` (not `active_users`) and sums all `cost_mtd` values from the `gcp_billing` array to display a single total MTD figure.
+
+### Topic: `auradeck/weather`
+```json
+{
+  "date_en": "Thursday, 20 August 2026",
+  "date_th": "วันพฤหัสบดีที่ 20 สิงหาคม 2569",
+  "current_temp": 28.5,
+  "current_condition": "มีเมฆมาก",
+  "current_icon": "CLOUD",
+  "hourly": [
+    { "time": "18:00", "condition": "Drizzle", "icon": "DRIZZLE", "rain_prob": 80, "temp": 28.0 },
+    { "time": "19:00", "condition": "Rain", "icon": "RAIN", "rain_prob": 85, "temp": 27.5 },
+    { "time": "20:00", "condition": "Drizzle", "icon": "DRIZZLE", "rain_prob": 70, "temp": 27.0 },
+    { "time": "21:00", "condition": "Cloudy", "icon": "CLOUD", "rain_prob": 30, "temp": 26.8 },
+    { "time": "22:00", "condition": "Cloudy", "icon": "CLOUD", "rain_prob": 20, "temp": 26.5 },
+    { "time": "23:00", "condition": "Clear", "icon": "SUN", "rain_prob": 10, "temp": 26.2 }
+  ]
+}
+```
+> **ESP32 Handling:** `page_home.cpp` updates the dual-language dates, outdoor temperature/condition, and the 6-slot horizontal hourly rain probability forecast strip.
 
 ---
 

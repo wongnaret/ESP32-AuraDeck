@@ -745,6 +745,17 @@
                             <input type="text" id="ga-property-id" placeholder="e.g. 453120000">
                         </div>
 
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                            <div class="form-group" style="margin: 0;">
+                                <label for="weather-lat">🌦️ Weather Latitude (ละติจูด)</label>
+                                <input type="number" step="0.0001" id="weather-lat" placeholder="13.7563 (Bangkok)">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label for="weather-lon">🌦️ Weather Longitude (ลองจิจูด)</label>
+                                <input type="number" step="0.0001" id="weather-lon" placeholder="100.5018 (Bangkok)">
+                            </div>
+                        </div>
+
                         <button class="btn btn-primary" onclick="saveProfileConfig()" style="margin-top: 10px;">
                             💾 Save Profile Settings
                         </button>
@@ -760,7 +771,7 @@
                             กำหนดความถี่ที่ระบบจะดึงข้อมูลจาก Cloud APIs มาอัปเดตหน้าจอ ESP32 เบื้องหลัง และกดบันทึกเพื่อซิงก์ข้อมูลทันที
                         </p>
                         
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
                             <div class="form-group" style="margin: 0;">
                                 <label for="interval-tasks-calendar" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
                                     📅 Tasks & Calendar
@@ -772,6 +783,19 @@
                                     <option value="10">ทุก 10 นาที (10 mins)</option>
                                     <option value="15" selected>ทุก 15 นาที (15 mins - ค่าเริ่มต้น)</option>
                                     <option value="30">ทุก 30 นาที (30 mins)</option>
+                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin: 0;">
+                                <label for="interval-weather" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
+                                    🌦️ Rain & Weather
+                                </label>
+                                <select id="interval-weather" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                    <option value="5">ทุก 5 นาที (5 mins)</option>
+                                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                                    <option value="30" selected>ทุก 30 นาที (30 mins - ค่าเริ่มต้น)</option>
                                     <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
                                 </select>
                             </div>
@@ -1044,6 +1068,10 @@
                                 <div class="sync-icon">📈</div>
                                 <h4>Stocks</h4>
                             </div>
+                            <div class="sync-card" onclick="triggerSync('weather')">
+                                <div class="sync-icon">🌦️</div>
+                                <h4>Weather</h4>
+                            </div>
                             <div class="sync-card" onclick="triggerSync('antigravity')">
                                 <div class="sync-icon">🤖</div>
                                 <h4>Antigravity</h4>
@@ -1062,6 +1090,7 @@
                         <div class="form-group" style="margin-bottom: 16px;">
                             <label for="mqtt-topic">Target MQTT Topic</label>
                             <select id="mqtt-topic" onchange="loadMockTemplate()">
+                                <option value="auradeck/weather">auradeck/weather (Home Screen)</option>
                                 <option value="auradeck/spotify">auradeck/spotify</option>
                                 <option value="auradeck/calendar">auradeck/calendar</option>
                                 <option value="auradeck/todos">auradeck/todos</option>
@@ -1148,6 +1177,12 @@
                 
                 document.getElementById('sidebar-profile-name').textContent = data.profile_name;
                 document.getElementById('ga-property-id').value = data.ga_property_id || '';
+                if (document.getElementById('weather-lat')) {
+                    document.getElementById('weather-lat').value = data.weather_lat !== undefined ? data.weather_lat : 13.7563;
+                }
+                if (document.getElementById('weather-lon')) {
+                    document.getElementById('weather-lon').value = data.weather_lon !== undefined ? data.weather_lon : 100.5018;
+                }
                 
                 // Fetch dynamic active credential state
                 const stateResponse = await fetch('/api/status');
@@ -1168,6 +1203,9 @@
                     if (document.getElementById('interval-tasks-calendar') && pi.tasks_calendar_mins) {
                         document.getElementById('interval-tasks-calendar').value = pi.tasks_calendar_mins;
                     }
+                    if (document.getElementById('interval-weather') && pi.weather_mins) {
+                        document.getElementById('interval-weather').value = pi.weather_mins;
+                    }
                     if (document.getElementById('interval-stocks') && pi.stocks_mins) {
                         document.getElementById('interval-stocks').value = pi.stocks_mins;
                     }
@@ -1185,6 +1223,7 @@
 
         async function savePollingIntervals() {
             const tasks_calendar_mins = parseInt(document.getElementById('interval-tasks-calendar').value, 10);
+            const weather_mins = parseInt(document.getElementById('interval-weather').value, 10);
             const stocks_mins = parseInt(document.getElementById('interval-stocks').value, 10);
             const antigravity_mins = parseInt(document.getElementById('interval-antigravity').value, 10);
             const analytics_mins = parseInt(document.getElementById('interval-analytics').value, 10);
@@ -1192,6 +1231,7 @@
             const payload = {
                 profile_id: profileId,
                 tasks_calendar_mins,
+                weather_mins,
                 stocks_mins,
                 antigravity_mins,
                 analytics_mins
@@ -1219,9 +1259,13 @@
 
         async function saveProfileConfig() {
             const ga_property_id = document.getElementById('ga-property-id').value.trim();
+            const weather_lat_val = document.getElementById('weather-lat') ? parseFloat(document.getElementById('weather-lat').value) : 13.7563;
+            const weather_lon_val = document.getElementById('weather-lon') ? parseFloat(document.getElementById('weather-lon').value) : 100.5018;
 
             const payload = {
-                ga_property_id
+                ga_property_id,
+                weather_lat: isNaN(weather_lat_val) ? 13.7563 : weather_lat_val,
+                weather_lon: isNaN(weather_lon_val) ? 100.5018 : weather_lon_val
             };
 
             try {
@@ -1603,6 +1647,21 @@
                 "gcp_billing": [
                     { "project_name": "AuraDeck Dev", "cost_mtd": 12.50, "currency": "USD" },
                     { "project_name": "Client Prod", "cost_mtd": 148.20, "currency": "USD" }
+                ]
+            },
+            "auradeck/weather": {
+                "date_en": "Thursday, 20 August 2026",
+                "date_th": "วันพฤหัสบดีที่ 20 สิงหาคม 2569",
+                "current_temp": 28.5,
+                "current_condition": "มีเมฆมาก",
+                "current_icon": "CLOUD",
+                "hourly": [
+                    { "time": "18:00", "condition": "Drizzle", "icon": "DRIZZLE", "rain_prob": 80, "temp": 28.0 },
+                    { "time": "19:00", "condition": "Rain", "icon": "RAIN", "rain_prob": 85, "temp": 27.5 },
+                    { "time": "20:00", "condition": "Drizzle", "icon": "DRIZZLE", "rain_prob": 70, "temp": 27.0 },
+                    { "time": "21:00", "condition": "Cloudy", "icon": "CLOUD", "rain_prob": 30, "temp": 26.8 },
+                    { "time": "22:00", "condition": "Cloudy", "icon": "CLOUD", "rain_prob": 20, "temp": 26.5 },
+                    { "time": "23:00", "condition": "Clear", "icon": "SUN", "rain_prob": 10, "temp": 26.2 }
                 ]
             }
         };
