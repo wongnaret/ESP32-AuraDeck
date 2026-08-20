@@ -4,11 +4,12 @@
  * Features 3-tier layout:
  * 1. Big Digital Clock + Dual-language Date (English & Thai BE +543)
  * 2. Indoor Environmental Sensor (SHTC3) vs Outdoor Weather Condition Summary
- * 3. 6-Hour Horizontal Hourly Rain Forecast Strip with Rain Probability (%)
+ * 3. 6-Hour Horizontal Hourly Rain Forecast Strip with Graphical Weather Icons & Rain Probability (%)
  */
 
 #include "page_home.h"
 #include "ui/thai_reshaper.h"
+#include "ui/weather_icons.h"
 #include "ui/fonts/lv_font_prompt.h"
 #include <Arduino.h>
 
@@ -28,7 +29,7 @@ static lv_obj_t* s_forecastBox = nullptr;
 static lv_obj_t* s_forecastTitleLabel = nullptr;
 
 static lv_obj_t* s_hourlyTimeLabels[6] = { nullptr };
-static lv_obj_t* s_hourlyIconLabels[6] = { nullptr };
+static lv_obj_t* s_hourlyIconImgs[6]   = { nullptr };
 static lv_obj_t* s_hourlyProbLabels[6] = { nullptr };
 static lv_obj_t* s_hourlyTempLabels[6] = { nullptr };
 
@@ -45,7 +46,7 @@ void create_page_home(lv_obj_t* parent) {
     s_forecastTitleLabel   = nullptr;
     for (int i = 0; i < 6; i++) {
         s_hourlyTimeLabels[i] = nullptr;
-        s_hourlyIconLabels[i] = nullptr;
+        s_hourlyIconImgs[i]   = nullptr;
         s_hourlyProbLabels[i] = nullptr;
         s_hourlyTempLabels[i] = nullptr;
     }
@@ -100,7 +101,7 @@ void create_page_home(lv_obj_t* parent) {
     lv_obj_set_style_text_font(s_indoorSensorLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(s_indoorSensorLabel, lv_color_black(), 0);
     lv_obj_align(s_indoorSensorLabel, LV_ALIGN_BOTTOM_LEFT, 4, -2);
-    lv_label_set_text(s_indoorSensorLabel, "26.5 °C | 55 %");
+    lv_label_set_text(s_indoorSensorLabel, "26.5 C | 55 %");
 
     // Right Box: Outdoor Weather Condition
     s_outdoorBox = lv_obj_create(parent);
@@ -124,7 +125,7 @@ void create_page_home(lv_obj_t* parent) {
     lv_obj_set_width(s_outdoorWeatherLabel, 172);
     lv_label_set_long_mode(s_outdoorWeatherLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_outdoorWeatherLabel, LV_ALIGN_BOTTOM_LEFT, 4, -2);
-    lv_label_set_text(s_outdoorWeatherLabel, ThaiReshaper::reshape("28.5 °C • มีเมฆมาก").c_str());
+    lv_label_set_text(s_outdoorWeatherLabel, ThaiReshaper::reshape("28.5 C | มีเมฆมาก").c_str());
 
     // ==========================================
     // Tier 3: 6-Hour Rain Forecast Strip
@@ -142,7 +143,7 @@ void create_page_home(lv_obj_t* parent) {
     s_forecastTitleLabel = lv_label_create(s_forecastBox);
     lv_obj_set_style_text_font(s_forecastTitleLabel, &lv_font_prompt_12, 0);
     lv_obj_align(s_forecastTitleLabel, LV_ALIGN_TOP_LEFT, 4, 2);
-    lv_label_set_text(s_forecastTitleLabel, ThaiReshaper::reshape("🌧️ Hourly Rain Forecast (พยากรณ์ฝน 6 ชม.)").c_str());
+    lv_label_set_text(s_forecastTitleLabel, ThaiReshaper::reshape("Hourly Rain Forecast (พยากรณ์ฝน 6 ชม.)").c_str());
 
     // 6-Column Grid
     for (int i = 0; i < 6; i++) {
@@ -159,27 +160,26 @@ void create_page_home(lv_obj_t* parent) {
         // Hour Label (e.g. 18:00)
         s_hourlyTimeLabels[i] = lv_label_create(colBox);
         lv_obj_set_style_text_font(s_hourlyTimeLabels[i], &lv_font_montserrat_12, 0);
-        lv_obj_align(s_hourlyTimeLabels[i], LV_ALIGN_TOP_MID, 0, 2);
+        lv_obj_align(s_hourlyTimeLabels[i], LV_ALIGN_TOP_MID, 0, 1);
         lv_label_set_text_fmt(s_hourlyTimeLabels[i], "%02d:00", (18 + i) % 24);
 
-        // Condition Text/Icon (e.g. Rain, Cloud, Clear)
-        s_hourlyIconLabels[i] = lv_label_create(colBox);
-        lv_obj_set_style_text_font(s_hourlyIconLabels[i], &lv_font_montserrat_12, 0);
-        lv_obj_align(s_hourlyIconLabels[i], LV_ALIGN_TOP_MID, 0, 26);
-        lv_label_set_text(s_hourlyIconLabels[i], (i < 3) ? "Rain" : "Cloud");
+        // Weather Icon (24x24 pixel-perfect graphical icon)
+        s_hourlyIconImgs[i] = lv_img_create(colBox);
+        lv_obj_align(s_hourlyIconImgs[i], LV_ALIGN_TOP_MID, 0, 16);
+        lv_img_set_src(s_hourlyIconImgs[i], get_weather_icon_dsc((i < 3) ? "RAIN" : "CLOUD"));
 
         // Rain Probability (e.g. 80%)
         s_hourlyProbLabels[i] = lv_label_create(colBox);
         lv_obj_set_style_text_font(s_hourlyProbLabels[i], &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(s_hourlyProbLabels[i], lv_color_black(), 0);
-        lv_obj_align(s_hourlyProbLabels[i], LV_ALIGN_TOP_MID, 0, 52);
+        lv_obj_align(s_hourlyProbLabels[i], LV_ALIGN_TOP_MID, 0, 44);
         lv_label_set_text_fmt(s_hourlyProbLabels[i], "%d%%", max(0, 80 - i * 15));
 
-        // Temperature (e.g. 28°C)
+        // Temperature (e.g. 28 C)
         s_hourlyTempLabels[i] = lv_label_create(colBox);
         lv_obj_set_style_text_font(s_hourlyTempLabels[i], &lv_font_montserrat_12, 0);
-        lv_obj_align(s_hourlyTempLabels[i], LV_ALIGN_BOTTOM_MID, 0, -2);
-        lv_label_set_text_fmt(s_hourlyTempLabels[i], "%d \xC2\xB0", 28 - (i / 2));
+        lv_obj_align(s_hourlyTempLabels[i], LV_ALIGN_BOTTOM_MID, 0, -1);
+        lv_label_set_text_fmt(s_hourlyTempLabels[i], "%d C", 28 - (i / 2));
     }
 }
 
@@ -207,7 +207,7 @@ void update_page_home(JsonVariantConst data) {
     float hum  = data["humidity"] | -999.0f;
     if (temp > -999.0f && hum > -999.0f) {
         char buf[48];
-        snprintf(buf, sizeof(buf), "%.1f \xC2\xB0" "C | %.0f %%", temp, hum);
+        snprintf(buf, sizeof(buf), "%.1f C | %.0f %%", temp, hum);
         if (s_indoorSensorLabel) {
             lv_label_set_text(s_indoorSensorLabel, buf);
         }
@@ -219,11 +219,11 @@ void update_page_home(JsonVariantConst data) {
     if (s_outdoorWeatherLabel && (curOutTemp > -999.0f || curCondition != nullptr)) {
         char outBuf[64];
         if (curOutTemp > -999.0f && curCondition != nullptr) {
-            snprintf(outBuf, sizeof(outBuf), "%.1f \xC2\xB0" "C • %s", curOutTemp, curCondition);
+            snprintf(outBuf, sizeof(outBuf), "%.1f C | %s", curOutTemp, curCondition);
         } else if (curCondition != nullptr) {
             snprintf(outBuf, sizeof(outBuf), "%s", curCondition);
         } else {
-            snprintf(outBuf, sizeof(outBuf), "%.1f \xC2\xB0" "C", curOutTemp);
+            snprintf(outBuf, sizeof(outBuf), "%.1f C", curOutTemp);
         }
         String reshaped = ThaiReshaper::reshape(outBuf);
         lv_label_set_text(s_outdoorWeatherLabel, reshaped.c_str());
@@ -236,15 +236,15 @@ void update_page_home(JsonVariantConst data) {
         for (int i = 0; i < count; i++) {
             JsonObjectConst slot = hourly[i];
             const char* hTime = slot["time"] | "";
-            const char* hCond = slot["condition"] | "";
+            const char* hIcon = slot["icon"] | slot["condition"] | "CLOUD";
             int hProb = slot["rain_prob"] | 0;
             float hTemp = slot["temp"] | -999.0f;
 
             if (s_hourlyTimeLabels[i]) {
                 lv_label_set_text(s_hourlyTimeLabels[i], hTime);
             }
-            if (s_hourlyIconLabels[i]) {
-                lv_label_set_text(s_hourlyIconLabels[i], hCond);
+            if (s_hourlyIconImgs[i]) {
+                lv_img_set_src(s_hourlyIconImgs[i], get_weather_icon_dsc(hIcon));
             }
             if (s_hourlyProbLabels[i]) {
                 char pBuf[16];
@@ -253,7 +253,7 @@ void update_page_home(JsonVariantConst data) {
             }
             if (s_hourlyTempLabels[i] && hTemp > -999.0f) {
                 char tBuf[16];
-                snprintf(tBuf, sizeof(tBuf), "%.0f \xC2\xB0", hTemp);
+                snprintf(tBuf, sizeof(tBuf), "%.0f C", hTemp);
                 lv_label_set_text(s_hourlyTempLabels[i], tBuf);
             }
         }
@@ -272,7 +272,7 @@ void destroy_page_home() {
     s_forecastTitleLabel   = nullptr;
     for (int i = 0; i < 6; i++) {
         s_hourlyTimeLabels[i] = nullptr;
-        s_hourlyIconLabels[i] = nullptr;
+        s_hourlyIconImgs[i]   = nullptr;
         s_hourlyProbLabels[i] = nullptr;
         s_hourlyTempLabels[i] = nullptr;
     }
