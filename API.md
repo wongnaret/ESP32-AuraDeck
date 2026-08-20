@@ -331,6 +331,84 @@ Diagnostic endpoint — fetches fresh prices from all data sources and reports M
     ```
 *   **Asset type values:** `GOLD` (Thai gold bar), `TH_STOCK` (SET-listed equity), `CRYPTO` (cryptocurrency), `COMMODITY` (futures like GC=F), `GLOBAL` (other international equities)
 
+### 6. Google Analytics 4 (GA4) & GCP Billing Endpoints
+
+#### `GET /api/v1/ga4?profile_id={profile_id}`
+Fetches real-time 30-minute visitor counts, 28-day active/new users, average engagement duration, total events, and top cities from GA4 Data API.
+*   **Query Parameters:** `profile_id` (default `"default"`)
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "active_users_30m": 34,
+      "active_28d_users": "14.2K",
+      "new_users": "1.8K",
+      "avg_engagement_time": "2m 15s",
+      "event_count": "92.4K",
+      "top_cities": [
+        { "city": "Bangkok", "active_users": 18 },
+        { "city": "Chiang Mai", "active_users": 6 },
+        { "city": "Nonthaburi", "active_users": 4 },
+        { "city": "Phuket", "active_users": 3 },
+        { "city": "Chon Buri", "active_users": 2 }
+      ]
+    }
+    ```
+
+#### `POST /api/v1/ga4/test`
+Validates credentials and queries the GA4 Data API in real-time to confirm property access.
+*   **Request Body (`application/json`):**
+    ```json
+    {
+      "property_id": "453120000",
+      "profile_id": "default"
+    }
+    ```
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "success": true,
+      "message": "Successfully connected to GA4 Property 453120000! Realtime Active Users: 34",
+      "active_users_30m": 34
+    }
+    ```
+
+#### `GET /api/v1/gcp/billing?profile_id={profile_id}`
+Scans and aggregates multi-project GCP billing status, month-to-date costs, month-end forecasts, top 4 services breakdown, and 10-day daily spend arrays.
+*   **Query Parameters:** `profile_id` (default `"default"`)
+*   **Response (`200 OK`):**
+    ```json
+    {
+      "total_projects": 2,
+      "projects": [
+        {
+          "project_id": "auradeck-prod",
+          "project_name": "AuraDeck Prod",
+          "currency": "THB",
+          "cost_mtd": 14250.0,
+          "forecast_end_of_month": 18500.0,
+          "service_breakdown": [
+            { "service": "Compute Engine", "cost": 6412.5, "pct": 45 },
+            { "service": "BigQuery & AI", "cost": 3562.5, "pct": 25 },
+            { "service": "Cloud Run / GKE", "cost": 2850.0, "pct": 20 },
+            { "service": "Cloud Storage", "cost": 1425.0, "pct": 10 }
+          ],
+          "daily_costs": [
+            { "date": "11/08", "cost": 420.0 },
+            { "date": "12/08", "cost": 450.0 },
+            { "date": "13/08", "cost": 480.0 },
+            { "date": "14/08", "cost": 510.0 },
+            { "date": "15/08", "cost": 490.0 },
+            { "date": "16/08", "cost": 460.0 },
+            { "date": "17/08", "cost": 530.0 },
+            { "date": "18/08", "cost": 550.0 },
+            { "date": "19/08", "cost": 520.0 },
+            { "date": "20/08", "cost": 540.0 }
+          ]
+        }
+      ]
+    }
+    ```
+
 ---
 
 ## 📡 MQTT Topic Payload Schemas
@@ -342,8 +420,10 @@ auradeck/device/{mac}/spotify
 auradeck/device/{mac}/calendar
 auradeck/device/{mac}/todos
 auradeck/device/{mac}/stocks
+auradeck/device/{mac}/ga4
+auradeck/device/{mac}/gcp
 auradeck/device/{mac}/antigravity
-auradeck/device/{mac}/analytics
+auradeck/device/{mac}/weather
 ```
 
 All payloads published to local topics are formatted as high-density, flat JSON objects, optimized for minimal parsing overhead on the ESP32-S3 microcontroller.

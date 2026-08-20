@@ -28,13 +28,14 @@ PairingManager     g_pairing; ///< TV-style pairing manager
 
 // In-Memory UI State Variables
 int g_currentPageIndex = 0;
-const int TOTAL_PAGES = 7; // Home, Antigravity, Stocks, Todos, Calendar, Spotify, Analytics
+const int TOTAL_PAGES = 8; // 0=Home, 1=Antigravity, 2=Stocks, 3=Todos, 4=Calendar, 5=Spotify, 6=GA4, 7=GCP
 volatile bool g_pageChanged    = false; // Set in ISR, handled safely in main loop
 bool g_isPairingMode           = false; ///< true while showing pairing PIN screen
 bool g_pairingCheckDone        = false; ///< pairing check runs once after first WiFi connect
 
 uint32_t g_lastHeaderUpdateTime = 0;
 uint32_t g_lastTimePrintTime    = 0;
+uint32_t g_lastGcpCycleTime     = 0;
 
 // Button ISR callback (Rotates active screen pages)
 void onPageCycleButtonPress() {
@@ -314,7 +315,13 @@ void loop() {
         g_ui.dispatchData("auradeck/home_telemetry", telemetryDoc.as<JsonVariantConst>());
     }
 
-    // 6. Print physical clock telemetry to Serial Console every 10 seconds
+    // 6. Auto-cycle GCP multi-projects every 15 seconds when active on Page 7
+    if (g_currentPageIndex == 7 && (now - g_lastGcpCycleTime >= 15000)) {
+        g_lastGcpCycleTime = now;
+        g_ui.cycleGcpProject();
+    }
+
+    // 7. Print physical clock telemetry to Serial Console every 10 seconds
     if (now - g_lastTimePrintTime >= 10000) {
         g_lastTimePrintTime = now;
 

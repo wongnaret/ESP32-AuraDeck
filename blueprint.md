@@ -158,12 +158,32 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 6: DevOps, Analytics & GCP Billing
-* **Purpose:** Web traffic metrics, and Google Cloud operational cost insights.
-* **Layout Elements:**
-  * **Real-time Traffic (GA4):** Massive, eye-catching active visitor count (`00` up to `99` in ~48px font).
-  * **GCP Cloud Billing:** Dedicated Month-to-Date (MTD) accumulated spend aggregation in US Dollars.
-  * **Dividing Rail:** Neat high-contrast vertical dividing line parting the dashboard columns.
+### Page 6: Google Analytics 4 (GA4 Dedicated Real-Time & 28D Analytics)
+* **Purpose:** Granular web traffic telemetry, real-time visitors, engagement duration, and regional breakdown.
+* **Layout Structure (Dual-Zone):**
+  * **Left Zone (230px):**
+    * **Real-time Counter (30m):** Eye-catching active visitor counter (`34` in bold `48px` Montserrat font) with subtitle `Real-time users now`.
+    * **2x2 Metrics Grid:**
+      * `28D Active Users` (e.g. `14.2K`)
+      * `New Users` (e.g. `1.8K`)
+      * `Avg Engagement Time` (e.g. `2m 15s`)
+      * `Event Count` (e.g. `92.4K`)
+  * **Right Zone (138px):**
+    * **Top Cities Panel:** List of top 5 active visitor cities with counts (e.g. `1. Bangkok (18)`, `2. Chiang Mai (6)`, etc.) supporting ThaiReshaper.
+
+---
+
+### Page 7: GCP Multi-Project Cloud Billing & Daily Forecast
+* **Purpose:** Multi-tenant Google Cloud spend tracker, month-end forecast, top service cost breakdown, and daily spend bar chart.
+* **Navigation:** Supports multiple configured GCP projects with auto-cycling every 15s or manual switching.
+* **Layout Structure (Dual-Zone):**
+  * **Top Status Header:** Project Title and pagination index (`GCP [1/2]: AuraDeck Prod`) with click-to-switch indicator.
+  * **Left Zone (180px):**
+    * **Month-to-Date Spend:** Prominent MTD amount with native project currency (`฿14,250 MTD` or `$12.50 MTD`).
+    * **Month-End Forecast:** Estimated total spend by end of month (`Est. End: ฿18,500`).
+    * **Top 4 Services Breakdown:** Percentage and cost per service (e.g. `1. Compute Engine: 45%`, `2. BigQuery & AI: 25%`, etc.).
+  * **Right Zone (188px):**
+    * **10-Day Daily Spend Bar Chart:** High-contrast 10-bar chart with daily date labels (`11` to `20`) and dynamic Max scaling marker.
 
 ---
 
@@ -173,6 +193,60 @@ The Raspberry Pi publishes structured, single-responsibility telemetry objects o
 > **Topic Normalization:** The ESP32 `network_manager.cpp` normalizes both generic topics (`auradeck/{service}`) and device-specific topics (`auradeck/device/{mac}/{service}`) into the same generic form before dispatching to UI pages. This means UI page modules always receive payloads via the generic topic format regardless of pairing state.
 
 > **Data Cache Layer:** `ui_manager.cpp` maintains a per-service `DynamicJsonDocument` cache (`m_dataCache[]`). Every incoming MQTT payload is deep-copied into the cache before being forwarded to page `update_*()` functions. When the user navigates to a page via `showPage()`, the cached data is immediately replayed via `replayCachedData()` — ensuring pages always display the most recent backend data, even if it arrived while the user was viewing a different page.
+
+### Topic: `auradeck/ga4`
+```json
+{
+  "active_users_30m": 34,
+  "active_28d_users": "14.2K",
+  "new_users": "1.8K",
+  "avg_engagement_time": "2m 15s",
+  "event_count": "92.4K",
+  "top_cities": [
+    { "city": "Bangkok", "active_users": 18 },
+    { "city": "Chiang Mai", "active_users": 6 },
+    { "city": "Nonthaburi", "active_users": 4 },
+    { "city": "Phuket", "active_users": 3 },
+    { "city": "Chon Buri", "active_users": 2 }
+  ]
+}
+```
+> **ESP32 Handling:** `page_ga4.cpp` populates the 48px counter, 2x2 grid, and the right-hand active cities list with ThaiReshaper support.
+
+### Topic: `auradeck/gcp`
+```json
+{
+  "total_projects": 2,
+  "projects": [
+    {
+      "project_id": "auradeck-prod",
+      "project_name": "AuraDeck Prod",
+      "currency": "THB",
+      "cost_mtd": 14250.0,
+      "forecast_end_of_month": 18500.0,
+      "service_breakdown": [
+        { "service": "Compute Engine", "cost": 6412.5, "pct": 45 },
+        { "service": "BigQuery & AI", "cost": 3562.5, "pct": 25 },
+        { "service": "Cloud Run / GKE", "cost": 2850.0, "pct": 20 },
+        { "service": "Cloud Storage", "cost": 1425.0, "pct": 10 }
+      ],
+      "daily_costs": [
+        { "date": "11/08", "cost": 420.0 },
+        { "date": "12/08", "cost": 450.0 },
+        { "date": "13/08", "cost": 480.0 },
+        { "date": "14/08", "cost": 510.0 },
+        { "date": "15/08", "cost": 490.0 },
+        { "date": "16/08", "cost": 460.0 },
+        { "date": "17/08", "cost": 530.0 },
+        { "date": "18/08", "cost": 550.0 },
+        { "date": "19/08", "cost": 520.0 },
+        { "date": "20/08", "cost": 540.0 }
+      ]
+    }
+  ]
+}
+```
+> **ESP32 Handling:** `page_gcp.cpp` renders the active project data, renders the 10-bar daily spend chart, and supports project switching via `cycle_gcp_project()`.
 
 ### Topic: `auradeck/spotify`
 ```json

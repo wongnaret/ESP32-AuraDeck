@@ -742,7 +742,13 @@
                         
                         <div class="form-group">
                             <label for="ga-property-id">Google Analytics 4 Property ID</label>
-                            <input type="text" id="ga-property-id" placeholder="e.g. 453120000">
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="ga-property-id" placeholder="e.g. 453120000" style="flex: 1;">
+                                <button type="button" class="btn" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: #93c5fd; padding: 0 16px; font-size: 0.85rem; white-space: nowrap;" onclick="testGa4Connection()">
+                                    🔍 Test Connection
+                                </button>
+                            </div>
+                            <div id="ga4-test-result" style="font-size: 0.8rem; margin-top: 6px; display: none;"></div>
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
@@ -831,16 +837,29 @@
                             </div>
 
                             <div class="form-group" style="margin: 0;">
-                                <label for="interval-analytics" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
-                                    📊 Cloud Analytics
+                                <label for="interval-ga4" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
+                                    📊 Google Analytics 4
                                 </label>
-                                <select id="interval-analytics" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                <select id="interval-ga4" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
                                     <option value="1">ทุก 1 นาที (1 min)</option>
                                     <option value="2">ทุก 2 นาที (2 mins)</option>
+                                    <option value="5" selected>ทุก 5 นาที (5 mins - ค่าเริ่มต้น)</option>
+                                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin: 0;">
+                                <label for="interval-gcp" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
+                                    ☁️ GCP Cloud Billing
+                                </label>
+                                <select id="interval-gcp" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
                                     <option value="5">ทุก 5 นาที (5 mins)</option>
                                     <option value="10">ทุก 10 นาที (10 mins)</option>
-                                    <option value="15" selected>ทุก 15 นาที (15 mins - ค่าเริ่มต้น)</option>
-                                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                                    <option value="30" selected>ทุก 30 นาที (30 mins - ค่าเริ่มต้น)</option>
                                     <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
                                 </select>
                             </div>
@@ -1076,9 +1095,13 @@
                                 <div class="sync-icon">🤖</div>
                                 <h4>Antigravity</h4>
                             </div>
-                            <div class="sync-card" onclick="triggerSync('analytics')">
+                            <div class="sync-card" onclick="triggerSync('ga4')">
                                 <div class="sync-icon">📊</div>
-                                <h4>Analytics</h4>
+                                <h4>GA4</h4>
+                            </div>
+                            <div class="sync-card" onclick="triggerSync('gcp')">
+                                <div class="sync-icon">☁️</div>
+                                <h4>GCP</h4>
                             </div>
                         </div>
                     </div>
@@ -1090,13 +1113,14 @@
                         <div class="form-group" style="margin-bottom: 16px;">
                             <label for="mqtt-topic">Target MQTT Topic</label>
                             <select id="mqtt-topic" onchange="loadMockTemplate()">
-                                <option value="auradeck/weather">auradeck/weather (Home Screen)</option>
+                                <option value="auradeck/ga4">auradeck/ga4 (Page 6 - GA4)</option>
+                                <option value="auradeck/gcp">auradeck/gcp (Page 7 - GCP)</option>
+                                <option value="auradeck/weather">auradeck/weather (Page 0 - Home)</option>
                                 <option value="auradeck/spotify">auradeck/spotify</option>
                                 <option value="auradeck/calendar">auradeck/calendar</option>
                                 <option value="auradeck/todos">auradeck/todos</option>
                                 <option value="auradeck/stocks">auradeck/stocks</option>
                                 <option value="auradeck/antigravity">auradeck/antigravity</option>
-                                <option value="auradeck/analytics">auradeck/analytics</option>
                             </select>
                         </div>
 
@@ -1212,12 +1236,49 @@
                     if (document.getElementById('interval-antigravity') && pi.antigravity_mins) {
                         document.getElementById('interval-antigravity').value = pi.antigravity_mins;
                     }
-                    if (document.getElementById('interval-analytics') && pi.analytics_mins) {
-                        document.getElementById('interval-analytics').value = pi.analytics_mins;
+                    if (document.getElementById('interval-ga4') && pi.ga4_mins) {
+                        document.getElementById('interval-ga4').value = pi.ga4_mins;
+                    }
+                    if (document.getElementById('interval-gcp') && pi.gcp_mins) {
+                        document.getElementById('interval-gcp').value = pi.gcp_mins;
                     }
                 }
             } catch (err) {
                 console.error("Failed to load profile configuration: ", err);
+            }
+        }
+
+        async function testGa4Connection() {
+            const propId = document.getElementById('ga-property-id').value.trim();
+            const resultDiv = document.getElementById('ga4-test-result');
+            if (!propId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.color = '#ef4444';
+                resultDiv.textContent = '❌ Please enter a GA4 Property ID first.';
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.style.color = '#60a5fa';
+            resultDiv.textContent = '🔄 Testing connection to GA4 Property...';
+
+            try {
+                const response = await fetch('/api/v1/ga4/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ property_id: propId, profile_id: profileId })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    resultDiv.style.color = '#10b981';
+                    resultDiv.textContent = `✅ ${res.message}`;
+                } else {
+                    resultDiv.style.color = '#ef4444';
+                    resultDiv.textContent = `❌ ${res.error}`;
+                }
+            } catch (e) {
+                resultDiv.style.color = '#ef4444';
+                resultDiv.textContent = `❌ Test request failed: ${e}`;
             }
         }
 
@@ -1226,7 +1287,8 @@
             const weather_mins = parseInt(document.getElementById('interval-weather').value, 10);
             const stocks_mins = parseInt(document.getElementById('interval-stocks').value, 10);
             const antigravity_mins = parseInt(document.getElementById('interval-antigravity').value, 10);
-            const analytics_mins = parseInt(document.getElementById('interval-analytics').value, 10);
+            const ga4_mins = parseInt(document.getElementById('interval-ga4').value, 10);
+            const gcp_mins = parseInt(document.getElementById('interval-gcp').value, 10);
 
             const payload = {
                 profile_id: profileId,
@@ -1234,7 +1296,8 @@
                 weather_mins,
                 stocks_mins,
                 antigravity_mins,
-                analytics_mins
+                ga4_mins,
+                gcp_mins
             };
 
             showToast("Saving intervals & triggering screen sync...");
@@ -1639,14 +1702,48 @@
                 "limit_weekly": { "used": 140.0, "total": 500.0, "percentage": 28.0 },
                 "next_reset": "02h 15m"
             },
-            "auradeck/analytics": {
-                "gcp_status": "OK",
-                "ga4_active_users": 34,
-                "gsc_clicks": 1420,
-                "gsc_impressions": 28500,
-                "gcp_billing": [
-                    { "project_name": "AuraDeck Dev", "cost_mtd": 12.50, "currency": "USD" },
-                    { "project_name": "Client Prod", "cost_mtd": 148.20, "currency": "USD" }
+            "auradeck/ga4": {
+                "active_users_30m": 42,
+                "active_28d_users": "18.5K",
+                "new_users": "2.4K",
+                "avg_engagement_time": "2m 35s",
+                "event_count": "112.8K",
+                "top_cities": [
+                    { "city": "Bangkok", "active_users": 22 },
+                    { "city": "Chiang Mai", "active_users": 8 },
+                    { "city": "Nonthaburi", "active_users": 5 },
+                    { "city": "Phuket", "active_users": 4 },
+                    { "city": "Chon Buri", "active_users": 3 }
+                ]
+            },
+            "auradeck/gcp": {
+                "total_projects": 2,
+                "projects": [
+                    {
+                        "project_id": "auradeck-prod",
+                        "project_name": "AuraDeck Prod",
+                        "currency": "THB",
+                        "cost_mtd": 14250.00,
+                        "forecast_end_of_month": 18500.00,
+                        "service_breakdown": [
+                            { "service": "Compute Engine", "cost": 6412.50, "pct": 45 },
+                            { "service": "BigQuery & AI", "cost": 3562.50, "pct": 25 },
+                            { "service": "Cloud Run / GKE", "cost": 2850.00, "pct": 20 },
+                            { "service": "Cloud Storage", "cost": 1425.00, "pct": 10 }
+                        ],
+                        "daily_costs": [
+                            { "date": "11/08", "cost": 420.0 },
+                            { "date": "12/08", "cost": 450.0 },
+                            { "date": "13/08", "cost": 480.0 },
+                            { "date": "14/08", "cost": 510.0 },
+                            { "date": "15/08", "cost": 490.0 },
+                            { "date": "16/08", "cost": 460.0 },
+                            { "date": "17/08", "cost": 530.0 },
+                            { "date": "18/08", "cost": 550.0 },
+                            { "date": "19/08", "cost": 520.0 },
+                            { "date": "20/08", "cost": 540.0 }
+                        ]
+                    }
                 ]
             },
             "auradeck/weather": {

@@ -30,6 +30,8 @@ from app.services.spotify import get_spotify_currently_playing
 from app.services.google_api import get_google_calendar_and_tasks, get_google_task_lists
 from app.services.stocks import get_multi_asset_prices, search_stocks_yahoo
 from app.services.analytics import get_combined_analytics
+from app.services.ga4 import get_ga4_analytics, test_ga4_connection
+from app.services.gcp_billing import get_gcp_multi_project_billing
 from app.services.antigravity import get_antigravity_credits
 
 # Setup logging
@@ -120,8 +122,14 @@ class ProfileIntervalsUpdateRequest(BaseModel):
     stocks_mins: Optional[int] = None
     weather_mins: Optional[int] = None
     antigravity_mins: Optional[int] = None
+    ga4_mins: Optional[int] = None
+    gcp_mins: Optional[int] = None
     analytics_mins: Optional[int] = None
     time_sync_secs: Optional[int] = None
+
+class Ga4TestRequest(BaseModel):
+    property_id: str
+    profile_id: Optional[str] = None
 
 class DevicePairRequest(BaseModel):
     pin: str
@@ -176,6 +184,20 @@ def on_startup():
         max_instances=1
     )
     scheduler.add_job(
+        id="ga4_polling_job",
+        func=trigger_ga4_polling,
+        trigger="interval",
+        seconds=30,
+        max_instances=1
+    )
+    scheduler.add_job(
+        id="gcp_polling_job",
+        func=trigger_gcp_billing_polling,
+        trigger="interval",
+        seconds=30,
+        max_instances=1
+    )
+    scheduler.add_job(
         id="weather_polling_job",
         func=trigger_weather_polling,
         trigger="interval",
@@ -211,6 +233,8 @@ def on_startup():
         trigger_calendar_polling(force=True)
         trigger_stocks_polling(force=True)
         trigger_weather_polling(force=True)
+        trigger_ga4_polling(force=True)
+        trigger_gcp_billing_polling(force=True)
         trigger_analytics_polling(force=True)
         trigger_antigravity_polling(force=True)
     except Exception as e:
@@ -375,6 +399,62 @@ def trigger_analytics_polling(target_profile_id: Optional[str] = None, force: bo
                 logger.info(f"📊 [Analytics] Polled profile '{pid}' (interval: {intervals.get('analytics_mins')}m)")
     except Exception as e:
         logger.error(f"Error in background Analytics poller: {e}")
+
+def trigger_ga4_polling(target_profile_id: Optional[str] = None, force: bool = False):
+    """Polls Google Analytics 4 (GA4) detailed metrics for profiles based on configured interval."""
+    now = time.time()
+    try:
+        profiles = list_all_profiles()
+        mappings = load_device_mappings()
+        for p in profiles:
+            pid = p["id"]
+            if target_profile_id and pid != target_profile_id:
+                continue
+
+            intervals = get_profile_polling_intervals(pid)
+            interval_secs = intervals.get("ga4_mins", 5) * 60
+            last_poll = LAST_POLL_TIMESTAMPS.get(pid, {}).get("ga4", 0.0)
+
+            if force or (now - last_poll >= interval_secs):
+                LAST_POLL_TIMESTAMPS.setdefault(pid, {})["ga4"] = now
+                data = asyncio.run(get_ga4_analytics(pid))
+                for mac, m_data in mappings.items():
+                    if m_data.get("profile_id") == pid:
+                        mqtt_service.publish(f"auradeck/device/{mac}/ga4", data)
+                
+                if pid == "default":
+                    mqtt_service.publish("auradeck/ga4", data)
+                logger.info(f"📈 [GA4 Analytics] Polled profile '{pid}' (interval: {intervals.get('ga4_mins', 5)}m)")
+    except Exception as e:
+        logger.error(f"Error in background GA4 poller: {e}")
+
+def trigger_gcp_billing_polling(target_profile_id: Optional[str] = None, force: bool = False):
+    """Polls GCP Cloud Billing and multi-project telemetry for profiles based on configured interval."""
+    now = time.time()
+    try:
+        profiles = list_all_profiles()
+        mappings = load_device_mappings()
+        for p in profiles:
+            pid = p["id"]
+            if target_profile_id and pid != target_profile_id:
+                continue
+
+            intervals = get_profile_polling_intervals(pid)
+            interval_secs = intervals.get("gcp_mins", 30) * 60
+            last_poll = LAST_POLL_TIMESTAMPS.get(pid, {}).get("gcp_billing", 0.0)
+
+            if force or (now - last_poll >= interval_secs):
+                LAST_POLL_TIMESTAMPS.setdefault(pid, {})["gcp_billing"] = now
+                data = asyncio.run(get_gcp_multi_project_billing(pid))
+                for mac, m_data in mappings.items():
+                    if m_data.get("profile_id") == pid:
+                        mqtt_service.publish(f"auradeck/device/{mac}/gcp", data)
+                
+                if pid == "default":
+                    mqtt_service.publish("auradeck/gcp", data)
+                logger.info(f"☁️ [GCP Billing] Polled profile '{pid}' (interval: {intervals.get('gcp_mins', 30)}m)")
+    except Exception as e:
+        logger.error(f"Error in background GCP Billing poller: {e}")
 
 def trigger_weather_polling(target_profile_id: Optional[str] = None, force: bool = False):
     """Polls Open-Meteo weather and hourly rain forecast for profiles based on configured interval."""
@@ -668,6 +748,10 @@ def api_update_profile_intervals(req: ProfileIntervalsUpdateRequest, active_prof
         current_intervals["weather_mins"] = max(1, req.weather_mins)
     if req.antigravity_mins is not None:
         current_intervals["antigravity_mins"] = max(1, req.antigravity_mins)
+    if req.ga4_mins is not None:
+        current_intervals["ga4_mins"] = max(1, req.ga4_mins)
+    if req.gcp_mins is not None:
+        current_intervals["gcp_mins"] = max(1, req.gcp_mins)
     if req.analytics_mins is not None:
         current_intervals["analytics_mins"] = max(1, req.analytics_mins)
     if req.time_sync_secs is not None:
@@ -682,6 +766,8 @@ def api_update_profile_intervals(req: ProfileIntervalsUpdateRequest, active_prof
         trigger_calendar_polling(target_profile_id=pid, force=True)
         trigger_stocks_polling(target_profile_id=pid, force=True)
         trigger_weather_polling(target_profile_id=pid, force=True)
+        trigger_ga4_polling(target_profile_id=pid, force=True)
+        trigger_gcp_billing_polling(target_profile_id=pid, force=True)
         trigger_analytics_polling(target_profile_id=pid, force=True)
         trigger_antigravity_polling(force=True)
         trigger_time_sync(force=True)
@@ -1103,6 +1189,12 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
         lon = float(prof_settings.get("weather_lon", 100.5018))
         data = await get_hourly_weather_forecast(latitude=lat, longitude=lon)
         topic = "auradeck/weather"
+    elif service == "ga4":
+        data = await get_ga4_analytics(pid)
+        topic = f"auradeck/profile/{pid}/ga4"
+    elif service == "gcp":
+        data = await get_gcp_multi_project_billing(pid)
+        topic = f"auradeck/profile/{pid}/gcp"
     elif service == "antigravity":
         data = await get_antigravity_credits()
         topic = "auradeck/antigravity"
@@ -1113,6 +1205,8 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
         
     # Trigger MQTT push with current sync data
     mqtt_service.publish(topic, data)
+    if service in ["ga4", "gcp", "weather"] and pid == "default":
+        mqtt_service.publish(f"auradeck/{service}", data)
     
     # Also push to any mapped devices for live feedback
     mappings = load_device_mappings()
@@ -1125,6 +1219,32 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
             else:
                 mqtt_service.publish(f"auradeck/device/{mac}/{service}", data)
                 
+    return data
+
+
+@app.get("/api/v1/ga4")
+async def api_get_ga4(profile_id: Optional[str] = Query(None), active_profile_id: Optional[str] = Cookie(None)):
+    """Retrieves detailed Google Analytics 4 (GA4) metrics including real-time active users and city list."""
+    pid = profile_id or active_profile_id or "default"
+    data = await get_ga4_analytics(pid)
+    mqtt_service.publish("auradeck/ga4", data)
+    return data
+
+
+@app.post("/api/v1/ga4/test")
+async def api_test_ga4(req: Ga4TestRequest, active_profile_id: Optional[str] = Cookie(None)):
+    """Tests GA4 connection and permissions for the specified Property ID."""
+    pid = req.profile_id or active_profile_id or "default"
+    res = await test_ga4_connection(pid, req.property_id)
+    return res
+
+
+@app.get("/api/v1/gcp/billing")
+async def api_get_gcp_billing(profile_id: Optional[str] = Query(None), active_profile_id: Optional[str] = Cookie(None)):
+    """Retrieves GCP Cloud Billing and multi-project telemetry with MTD cost, forecast, and daily chart array."""
+    pid = profile_id or active_profile_id or "default"
+    data = await get_gcp_multi_project_billing(pid)
+    mqtt_service.publish("auradeck/gcp", data)
     return data
 
 

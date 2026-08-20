@@ -10,7 +10,7 @@
 #include "drivers/display_st7305.h"
 
 // Number of MQTT services that cache data for page replay
-#define AURADECK_SERVICE_COUNT 7
+#define AURADECK_SERVICE_COUNT 8
 
 class UIManager {
 public:
@@ -44,9 +44,14 @@ public:
     /**
      * @brief Displays the screen corresponding to the given page index.
      * Automatically cleans up the previous screen to maintain free heap space.
-     * @param pageIndex 0 (Home) to 6 (Analytics).
+     * @param pageIndex 0 (Home) to 7 (GCP Billing).
      */
     void showPage(int pageIndex);
+
+    /**
+     * @brief Cycles to the next GCP project when viewing Page 7.
+     */
+    void cycleGcpProject();
 
     /**
      * @brief Dispatches telemetry JSON payloads to the respective page view modules.

@@ -10,7 +10,8 @@
 #include "ui/pages/page_todos.h"
 #include "ui/pages/page_calendar.h"
 #include "ui/pages/page_spotify.h"
-#include "ui/pages/page_analytics.h"
+#include "ui/pages/page_ga4.h"
+#include "ui/pages/page_gcp.h"
 #include "ui/pages/page_pairing.h"
 
 UIManager::UIManager() {}
@@ -240,7 +241,8 @@ void UIManager::showPage(int pageIndex) {
         case 3: destroy_page_todos();       break;
         case 4: destroy_page_calendar();    break;
         case 5: destroy_page_spotify();     break;
-        case 6: destroy_page_analytics();   break;
+        case 6: destroy_page_ga4();         break;
+        case 7: destroy_page_gcp();         break;
         default: break;
     }
 
@@ -262,7 +264,8 @@ void UIManager::showPage(int pageIndex) {
         case 3: create_page_todos(m_activePageContainer);       break;
         case 4: create_page_calendar(m_activePageContainer);    break;
         case 5: create_page_spotify(m_activePageContainer);     break;
-        case 6: create_page_analytics(m_activePageContainer);   break;
+        case 6: create_page_ga4(m_activePageContainer);         break;
+        case 7: create_page_gcp(m_activePageContainer);         break;
         default: break;
     }
 
@@ -274,6 +277,13 @@ void UIManager::showPage(int pageIndex) {
     replayCachedData(pageIndex);
 }
 
+void UIManager::cycleGcpProject() {
+    if (m_currentPageIndex == 7) {
+        cycle_gcp_project();
+        lv_refr_now(nullptr);
+    }
+}
+
 // --- MQTT Data Cache Helpers ---
 
 int UIManager::serviceTopicToIndex(const char* topic) {
@@ -282,16 +292,17 @@ int UIManager::serviceTopicToIndex(const char* topic) {
     if (strcmp(topic, "auradeck/calendar") == 0)      return 1;
     if (strcmp(topic, "auradeck/todos") == 0)          return 2;
     if (strcmp(topic, "auradeck/stocks") == 0)         return 3;
-    if (strcmp(topic, "auradeck/analytics") == 0)      return 4;
+    if (strcmp(topic, "auradeck/ga4") == 0 || strcmp(topic, "auradeck/analytics") == 0) return 4;
     if (strcmp(topic, "auradeck/antigravity") == 0)    return 5;
     if (strcmp(topic, "auradeck/home_telemetry") == 0 || strcmp(topic, "auradeck/weather") == 0) return 6;
+    if (strcmp(topic, "auradeck/gcp") == 0)            return 7;
     return -1; // Unknown service
 }
 
 void UIManager::replayCachedData(int pageIndex) {
     // Map page index → cache index and replay if data exists
-    // Page indexes: 0=home, 1=antigravity, 2=stocks, 3=todos, 4=calendar, 5=spotify, 6=analytics
-    // Cache indexes: 0=spotify, 1=calendar, 2=todos, 3=stocks, 4=analytics, 5=antigravity, 6=home_telemetry/weather
+    // Page indexes: 0=home, 1=antigravity, 2=stocks, 3=todos, 4=calendar, 5=spotify, 6=ga4, 7=gcp
+    // Cache indexes: 0=spotify, 1=calendar, 2=todos, 3=stocks, 4=ga4, 5=antigravity, 6=home_telemetry/weather, 7=gcp
     int cacheIdx = -1;
     switch (pageIndex) {
         case 0: cacheIdx = 6; break; // home → home_telemetry / weather
@@ -300,7 +311,8 @@ void UIManager::replayCachedData(int pageIndex) {
         case 3: cacheIdx = 2; break; // todos
         case 4: cacheIdx = 1; break; // calendar
         case 5: cacheIdx = 0; break; // spotify
-        case 6: cacheIdx = 4; break; // analytics
+        case 6: cacheIdx = 4; break; // ga4
+        case 7: cacheIdx = 7; break; // gcp
         default: return;
     }
 
@@ -313,7 +325,8 @@ void UIManager::replayCachedData(int pageIndex) {
             case 3: update_page_todos(m_dataCache[cacheIdx]->as<JsonVariantConst>());       break;
             case 4: update_page_calendar(m_dataCache[cacheIdx]->as<JsonVariantConst>());    break;
             case 5: update_page_spotify(m_dataCache[cacheIdx]->as<JsonVariantConst>());     break;
-            case 6: update_page_analytics(m_dataCache[cacheIdx]->as<JsonVariantConst>());   break;
+            case 6: update_page_ga4(m_dataCache[cacheIdx]->as<JsonVariantConst>());         break;
+            case 7: update_page_gcp(m_dataCache[cacheIdx]->as<JsonVariantConst>());         break;
             default: break;
         }
     }
@@ -328,7 +341,7 @@ void UIManager::dispatchData(const char* topic, JsonVariantConst data) {
             delete m_dataCache[cacheIdx];
         }
         // Allocate a new document and deep-copy the incoming data
-        m_dataCache[cacheIdx] = new DynamicJsonDocument(4096);
+        m_dataCache[cacheIdx] = new DynamicJsonDocument(8192);
         m_dataCache[cacheIdx]->set(data);
     }
 
@@ -344,8 +357,10 @@ void UIManager::dispatchData(const char* topic, JsonVariantConst data) {
         update_page_todos(data);
     } else if (strcmp(topic, "auradeck/stocks") == 0) {
         update_page_stocks(data);
-    } else if (strcmp(topic, "auradeck/analytics") == 0) {
-        update_page_analytics(data);
+    } else if (strcmp(topic, "auradeck/ga4") == 0 || strcmp(topic, "auradeck/analytics") == 0) {
+        update_page_ga4(data);
+    } else if (strcmp(topic, "auradeck/gcp") == 0) {
+        update_page_gcp(data);
     } else if (strcmp(topic, "auradeck/antigravity") == 0) {
         update_page_antigravity(data);
     }
@@ -387,7 +402,8 @@ const char* UIManager::getPageName(int pageIndex) {
         case 3: return "Task Checklist";
         case 4: return "Google Calendar";
         case 5: return "Spotify Music";
-        case 6: return "Cloud Analytics";
+        case 6: return "GA4 Analytics";
+        case 7: return "GCP Cloud Billing";
         default: return "Dashboard";
     }
 }
@@ -401,7 +417,8 @@ void UIManager::showPairingPage(const char* pin, const char* gatewayIp) {
         case 3: destroy_page_todos();       break;
         case 4: destroy_page_calendar();    break;
         case 5: destroy_page_spotify();     break;
-        case 6: destroy_page_analytics();   break;
+        case 6: destroy_page_ga4();         break;
+        case 7: destroy_page_gcp();         break;
         default: break;
     }
 

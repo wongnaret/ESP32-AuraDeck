@@ -12,6 +12,8 @@ DEFAULT_POLLING_INTERVALS: Dict[str, int] = {
     "stocks_mins": 5,
     "weather_mins": 30,
     "antigravity_mins": 1,
+    "ga4_mins": 5,
+    "gcp_mins": 30,
     "analytics_mins": 15,
     "time_sync_secs": 10
 }
@@ -119,7 +121,8 @@ def get_google_auth_url(profile_id: str) -> str:
             "https://www.googleapis.com/auth/userinfo.email",
             "https://www.googleapis.com/auth/userinfo.profile",
             "https://www.googleapis.com/auth/calendar.readonly",
-            "https://www.googleapis.com/auth/tasks.readonly"
+            "https://www.googleapis.com/auth/tasks.readonly",
+            "https://www.googleapis.com/auth/analytics.readonly"
         ]
     else:
         # Load from profile settings if available, fallback to global
@@ -128,7 +131,8 @@ def get_google_auth_url(profile_id: str) -> str:
         redirect_uri = prof_settings.get("google_redirect_uri") or settings.GOOGLE_REDIRECT_URI
         scopes = [
             "https://www.googleapis.com/auth/calendar.readonly",
-            "https://www.googleapis.com/auth/tasks.readonly"
+            "https://www.googleapis.com/auth/tasks.readonly",
+            "https://www.googleapis.com/auth/analytics.readonly"
         ]
         
     params = {
