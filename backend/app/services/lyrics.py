@@ -15,6 +15,46 @@ LYRICS_CACHE: Dict[str, Dict[str, Any]] = {}
 LRC_REGEX = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\](.*)$")
 
 
+def sanitize_lyrics_text(text: str) -> str:
+    """
+    Cleans up lyrics text so all characters map to ASCII (0x20-0x7E) or Thai (0x0E01-0x0E5B)
+    to prevent missing-glyph square boxes (□) in custom LVGL bitmap fonts.
+    """
+    if not text:
+        return ""
+    
+    # Replace common unicode quotes, dashes, and musical notes
+    text = text.replace("’", "'").replace("‘", "'")
+    text = text.replace("“", '"').replace("”", '"')
+    text = text.replace("…", "...").replace("–", "-").replace("—", "-")
+    text = text.replace("♪", "").replace("♫", "").replace("♩", "")
+    text = text.replace("«", '"').replace("»", '"')
+    text = text.replace("`", "'").replace("´", "'")
+
+    # Keep Thai characters intact, normalize latin accents to ASCII
+    import unicodedata
+    result = []
+    for ch in text:
+        code = ord(ch)
+        # Thai range: 0x0E00 to 0x0E7F
+        if 0x0E00 <= code <= 0x0E7F:
+            result.append(ch)
+        elif 0x20 <= code <= 0x7E:
+            result.append(ch)
+        else:
+            # Try to decompose accented letters like é -> e, à -> a
+            decomposed = unicodedata.normalize('NFKD', ch)
+            ascii_equiv = "".join([c for c in decomposed if 0x20 <= ord(c) <= 0x7E])
+            if ascii_equiv:
+                result.append(ascii_equiv)
+            else:
+                result.append(" ")
+                
+    cleaned = "".join(result)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
 def parse_lrc_lines(synced_lyrics: str) -> List[Dict[str, Any]]:
     """
     Parses an LRC format string into a sorted list of timestamped lines:
@@ -31,9 +71,10 @@ def parse_lrc_lines(synced_lyrics: str) -> List[Dict[str, Any]]:
             try:
                 minutes = int(match.group(1))
                 seconds = float(match.group(2))
-                text = match.group(3).strip()
+                raw_text = match.group(3).strip()
+                clean_text = sanitize_lyrics_text(raw_text)
                 time_ms = int((minutes * 60 + seconds) * 1000)
-                parsed.append({"time_ms": time_ms, "text": text})
+                parsed.append({"time_ms": time_ms, "text": clean_text})
             except Exception:
                 continue
 
@@ -151,7 +192,7 @@ async def get_active_lyrics_lines(
     if is_instrumental:
         return {
             "has_lyrics": False,
-            "current_lyric": "♪ Instrumental Track ♪",
+            "current_lyric": "Instrumental Track",
             "next_lyric": f"Album: {album_name}" if album_name else ""
         }
 
@@ -159,7 +200,7 @@ async def get_active_lyrics_lines(
     if not lines:
         return {
             "has_lyrics": False,
-            "current_lyric": f"Album: {album_name}" if album_name else "♪ Enjoy the music ♪",
+            "current_lyric": f"Album: {album_name}" if album_name else "Enjoy the music",
             "next_lyric": f"Artist: {artist_name}" if artist_name else ""
         }
 
@@ -173,13 +214,13 @@ async def get_active_lyrics_lines(
 
     if current_idx == -1:
         # Song hasn't reached first lyric line yet (intro music)
-        current_text = "♪ ♪ ♪"
+        current_text = "... ... ..."
         next_text = lines[0]["text"] if len(lines) > 0 else ""
     else:
         current_text = lines[current_idx]["text"]
         # Skip empty lines if present
         if not current_text and current_idx > 0:
-            current_text = "♪ ♪ ♪"
+            current_text = "... ... ..."
             
         if current_idx + 1 < len(lines):
             next_text = lines[current_idx + 1]["text"]
@@ -188,6 +229,6 @@ async def get_active_lyrics_lines(
 
     return {
         "has_lyrics": True,
-        "current_lyric": current_text,
-        "next_lyric": next_text
+        "current_lyric": sanitize_lyrics_text(current_text),
+        "next_lyric": sanitize_lyrics_text(next_text)
     }

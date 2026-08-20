@@ -137,7 +137,7 @@ void create_page_spotify(lv_obj_t* parent) {
     lv_obj_set_width(s_lyricCurrentLabel, 352);
     lv_label_set_long_mode(s_lyricCurrentLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_lyricCurrentLabel, LV_ALIGN_TOP_MID, 0, 4);
-    lv_label_set_text(s_lyricCurrentLabel, "♪ ♪ ♪");
+    lv_label_set_text(s_lyricCurrentLabel, "... ... ...");
 
     // 8.2 Upcoming Next Lyrics Line (Secondary Line, Centered)
     s_lyricNextLabel = lv_label_create(s_lyricsBox);
