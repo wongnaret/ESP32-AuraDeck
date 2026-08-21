@@ -8,6 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
         :root {
             --bg-base: #0a0b10;
@@ -669,6 +672,110 @@
             transform: translateY(0);
             opacity: 1;
         }
+
+        /* Weather Map Selector & POI/ROI Autocomplete Styling */
+        #weather-map {
+            width: 100%;
+            height: 330px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            z-index: 10;
+            margin-top: 10px;
+            margin-bottom: 12px;
+            background: #141724;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+        .map-search-wrapper {
+            position: relative;
+            margin-bottom: 8px;
+        }
+        .map-search-input-group {
+            display: flex;
+            gap: 8px;
+        }
+        .map-search-input {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius-sm);
+            color: var(--text-main);
+            font-size: 0.9rem;
+            outline: none;
+            transition: var(--transition);
+        }
+        .map-search-input:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 10px var(--secondary-glow);
+        }
+        .map-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            font-size: 0.9rem;
+        }
+        .map-autocomplete-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #181b29;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: var(--radius-sm);
+            max-height: 240px;
+            overflow-y: auto;
+            z-index: 9999;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+            display: none;
+        }
+        .map-autocomplete-item {
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            color: var(--text-main);
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .map-autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .map-autocomplete-item:hover {
+            background: rgba(139, 92, 246, 0.25);
+            color: #ddd6fe;
+        }
+        .map-location-hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-sm);
+            padding: 9px 14px;
+            font-size: 0.84rem;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+        }
+        .map-coords-badge {
+            font-family: var(--font-mono);
+            background: rgba(6, 182, 212, 0.12);
+            color: #67e8f9;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            font-weight: 500;
+        }
+        .custom-weather-pin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -751,15 +858,46 @@
                             <div id="ga4-test-result" style="font-size: 0.8rem; margin-top: 6px; display: none;"></div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                            <div class="form-group" style="margin: 0;">
-                                <label for="weather-lat">🌦️ Weather Latitude (ละติจูด)</label>
-                                <input type="number" step="0.0001" id="weather-lat" placeholder="13.7563 (Bangkok)">
+                        <!-- Interactive Weather Map Location Selector (POI/ROI search + Drop Pin) -->
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <label style="font-weight: 600; display: flex; align-items: center; gap: 6px; font-size: 0.9rem;">
+                                    🌦️ Weather Location (เลือกตำแหน่งสภาพอากาศบนแผนที่)
+                                </label>
+                                <span style="font-size: 0.76rem; color: var(--text-muted);">คลิกบนแผนที่หรือลากหมุดเพื่อระบุพิกัด</span>
                             </div>
-                            <div class="form-group" style="margin: 0;">
-                                <label for="weather-lon">🌦️ Weather Longitude (ลองจิจูด)</label>
-                                <input type="number" step="0.0001" id="weather-lon" placeholder="100.5018 (Bangkok)">
+
+                            <!-- POI / ROI Search Input Group -->
+                            <div class="map-search-wrapper">
+                                <div class="map-search-input-group">
+                                    <div style="position: relative; flex: 1;">
+                                        <span class="map-search-icon">🔍</span>
+                                        <input type="text" id="map-search-input" class="map-search-input" placeholder="ค้นหาสถานที่, อำเภอ, จังหวัด หรือ POI/ROI (เช่น Siam Paragon, สยาม, เชียงใหม่, หาดป่าตอง)..." autocomplete="off" oninput="onMapSearchInput(this.value)" onkeydown="onMapSearchKeydown(event)">
+                                        <div id="map-autocomplete-list" class="map-autocomplete-dropdown"></div>
+                                    </div>
+                                    <button type="button" class="btn" style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); color: #67e8f9; padding: 0 14px; font-size: 0.85rem; white-space: nowrap; display: flex; align-items: center; gap: 6px;" onclick="locateUserCurrentPosition()">
+                                        📍 ตำแหน่งปัจจุบัน
+                                    </button>
+                                </div>
                             </div>
+
+                            <!-- Interactive Leaflet Map Container -->
+                            <div id="weather-map"></div>
+
+                            <!-- Live Selected Location HUD & Readout -->
+                            <div class="map-location-hud">
+                                <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
+                                    <span style="color: #a78bfa; font-weight: 600;">📍</span>
+                                    <span id="map-location-name" style="color: var(--text-main); font-weight: 500;">กรุงเทพมหานคร (Bangkok)</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="map-coords-badge" id="map-coords-display">13.7563, 100.5018</span>
+                                </div>
+                            </div>
+
+                            <!-- Hidden Lat/Lon Form Inputs for seamless API saving -->
+                            <input type="hidden" id="weather-lat" value="13.7563">
+                            <input type="hidden" id="weather-lon" value="100.5018">
                         </div>
 
                         <button class="btn btn-primary" onclick="saveProfileConfig()" style="margin-top: 10px;">
@@ -1191,6 +1329,233 @@
             window.location.href = `/${service}/login?profile_id=${profileId}`;
         }
 
+        // =========================================================================
+        // Interactive Weather Map Location Selector (Leaflet + POI/ROI Geocoding)
+        // =========================================================================
+        let g_weatherMap = null;
+        let g_weatherMarker = null;
+        let g_mapSearchDebounceTimer = null;
+
+        function initWeatherMap(lat = 13.7563, lon = 100.5018) {
+            const latNum = parseFloat(lat) || 13.7563;
+            const lonNum = parseFloat(lon) || 100.5018;
+
+            if (!g_weatherMap) {
+                const mapContainer = document.getElementById('weather-map');
+                if (!mapContainer || typeof L === 'undefined') return;
+
+                g_weatherMap = L.map('weather-map', {
+                    center: [latNum, lonNum],
+                    zoom: 12,
+                    zoomControl: true
+                });
+
+                // Clean Modern CartoDB Voyager Tile Layer
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 19
+                }).addTo(g_weatherMap);
+
+                // Custom Glowing Aura Pin
+                const pinIcon = L.divIcon({
+                    className: 'custom-weather-pin',
+                    html: '<div style="background: linear-gradient(135deg, #8b5cf6, #06b6d4); width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #ffffff; box-shadow: 0 0 14px rgba(139, 92, 246, 0.85); display: flex; align-items: center; justify-content: center; cursor: grab;"><span style="transform: rotate(45deg); font-size: 15px;">🌦️</span></div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 30],
+                    popupAnchor: [0, -30]
+                });
+
+                g_weatherMarker = L.marker([latNum, lonNum], {
+                    draggable: true,
+                    icon: pinIcon
+                }).addTo(g_weatherMap);
+
+                // Marker drag events
+                g_weatherMarker.on('dragend', function(e) {
+                    const pos = e.target.getLatLng();
+                    setWeatherCoordinates(pos.lat, pos.lng, true);
+                });
+
+                // Map click anywhere to place marker
+                g_weatherMap.on('click', function(e) {
+                    setWeatherCoordinates(e.latlng.lat, e.latlng.lng, true);
+                });
+
+                // Ensure proper render on load
+                setTimeout(() => {
+                    if (g_weatherMap) g_weatherMap.invalidateSize();
+                }, 350);
+            } else {
+                g_weatherMap.setView([latNum, lonNum], g_weatherMap.getZoom() || 12);
+                if (g_weatherMarker) {
+                    g_weatherMarker.setLatLng([latNum, lonNum]);
+                }
+            }
+
+            setWeatherCoordinates(latNum, lonNum, true);
+        }
+
+        function setWeatherCoordinates(lat, lon, fetchReverse = true) {
+            const latNum = parseFloat(lat);
+            const lonNum = parseFloat(lon);
+            const latFixed = latNum.toFixed(4);
+            const lonFixed = lonNum.toFixed(4);
+
+            const latInput = document.getElementById('weather-lat');
+            const lonInput = document.getElementById('weather-lon');
+            const coordsDisplay = document.getElementById('map-coords-display');
+
+            if (latInput) latInput.value = latFixed;
+            if (lonInput) lonInput.value = lonFixed;
+            if (coordsDisplay) coordsDisplay.textContent = `${latFixed}, ${lonFixed}`;
+
+            if (g_weatherMarker) {
+                g_weatherMarker.setLatLng([latNum, lonNum]);
+            }
+
+            if (fetchReverse) {
+                reverseGeocodeLocation(latNum, lonNum);
+            }
+        }
+
+        async function reverseGeocodeLocation(lat, lon) {
+            const nameLabel = document.getElementById('map-location-name');
+            if (nameLabel) nameLabel.textContent = '🔄 กำลังระบุชื่อสถานที่...';
+
+            try {
+                const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`;
+                const res = await fetch(url, { headers: { 'Accept-Language': 'th,en' } });
+                if (res.ok) {
+                    const data = await res.json();
+                    const addr = data.address || {};
+                    const poi = data.name || addr.suburb || addr.neighbourhood || addr.amenity || addr.building || '';
+                    const district = addr.district || addr.subdistrict || addr.county || addr.city_district || '';
+                    const city = addr.city || addr.town || addr.province || addr.state || '';
+                    const country = addr.country || '';
+
+                    let displayName = [poi, district, city, country].filter(Boolean).join(', ');
+                    if (!displayName) displayName = data.display_name || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+                    if (nameLabel) nameLabel.textContent = displayName;
+                } else {
+                    if (nameLabel) nameLabel.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                }
+            } catch (e) {
+                console.warn('Reverse geocode error:', e);
+                if (nameLabel) nameLabel.textContent = `${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)}`;
+            }
+        }
+
+        function onMapSearchInput(query) {
+            clearTimeout(g_mapSearchDebounceTimer);
+            const dropdown = document.getElementById('map-autocomplete-list');
+            const q = query.trim();
+
+            if (q.length < 2) {
+                if (dropdown) dropdown.style.display = 'none';
+                return;
+            }
+
+            g_mapSearchDebounceTimer = setTimeout(() => {
+                searchPoiRoiLocation(q);
+            }, 350);
+        }
+
+        async function searchPoiRoiLocation(query) {
+            const dropdown = document.getElementById('map-autocomplete-list');
+            if (!dropdown) return;
+
+            dropdown.innerHTML = '<div class="map-autocomplete-item" style="color: var(--text-muted);">🔄 กำลังค้นหาสถานที่ POI/ROI...</div>';
+            dropdown.style.display = 'block';
+
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=6`;
+                const res = await fetch(url, { headers: { 'Accept-Language': 'th,en' } });
+                if (!res.ok) throw new Error('Search failed');
+
+                const results = await res.json();
+                if (results.length === 0) {
+                    dropdown.innerHTML = '<div class="map-autocomplete-item" style="color: var(--text-muted);">❌ ไม่พบสถานที่ กรุณาลองค้นหาด้วยคำอื่น</div>';
+                    return;
+                }
+
+                dropdown.innerHTML = '';
+                results.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'map-autocomplete-item';
+                    const icon = (item.type === 'city' || item.type === 'administrative') ? '🏙️' : '📍';
+                    div.innerHTML = `<span>${icon}</span> <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>${item.name || item.display_name.split(',')[0]}</strong> <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">${item.display_name}</span></div>`;
+                    div.onclick = () => {
+                        selectSearchResult(item);
+                    };
+                    dropdown.appendChild(div);
+                });
+            } catch (err) {
+                console.error('POI search error:', err);
+                dropdown.innerHTML = '<div class="map-autocomplete-item" style="color: var(--danger);">เกิดข้อผิดพลาดในการค้นหา</div>';
+            }
+        }
+
+        function selectSearchResult(item) {
+            const dropdown = document.getElementById('map-autocomplete-list');
+            const searchInput = document.getElementById('map-search-input');
+            const nameLabel = document.getElementById('map-location-name');
+
+            if (dropdown) dropdown.style.display = 'none';
+            if (searchInput) searchInput.value = item.name || item.display_name.split(',')[0];
+            if (nameLabel) nameLabel.textContent = item.display_name;
+
+            const lat = parseFloat(item.lat);
+            const lon = parseFloat(item.lon);
+
+            if (g_weatherMap) {
+                g_weatherMap.flyTo([lat, lon], 14, { duration: 1.2 });
+            }
+            setWeatherCoordinates(lat, lon, false);
+        }
+
+        function onMapSearchKeydown(event) {
+            const dropdown = document.getElementById('map-autocomplete-list');
+            if (event.key === 'Escape' && dropdown) {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        // Close autocomplete dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const searchWrapper = document.querySelector('.map-search-wrapper');
+            const dropdown = document.getElementById('map-autocomplete-list');
+            if (dropdown && searchWrapper && !searchWrapper.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        function locateUserCurrentPosition() {
+            if (!navigator.geolocation) {
+                showToast('เบราว์เซอร์ไม่รองรับการระบุตำแหน่ง Geolocation', false);
+                return;
+            }
+
+            showToast('กำลังค้นหาตำแหน่ง GPS ปัจจุบัน...');
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    if (g_weatherMap) {
+                        g_weatherMap.flyTo([lat, lon], 14, { duration: 1.0 });
+                    }
+                    setWeatherCoordinates(lat, lon, true);
+                    showToast('ระบุตำแหน่งปัจจุบันสำเร็จแล้ว');
+                },
+                (err) => {
+                    console.error('Geolocation error:', err);
+                    showToast('ไม่สามารถเข้าถึงตำแหน่งได้: ' + err.message, false);
+                },
+                { enableHighAccuracy: true, timeout: 8000 }
+            );
+        }
+
         // Fetch current profile configuration and statuses
         async function loadProfileConfig() {
             try {
@@ -1201,12 +1566,10 @@
                 
                 document.getElementById('sidebar-profile-name').textContent = data.profile_name;
                 document.getElementById('ga-property-id').value = data.ga_property_id || '';
-                if (document.getElementById('weather-lat')) {
-                    document.getElementById('weather-lat').value = data.weather_lat !== undefined ? data.weather_lat : 13.7563;
-                }
-                if (document.getElementById('weather-lon')) {
-                    document.getElementById('weather-lon').value = data.weather_lon !== undefined ? data.weather_lon : 100.5018;
-                }
+                
+                const wLat = data.weather_lat !== undefined ? data.weather_lat : 13.7563;
+                const wLon = data.weather_lon !== undefined ? data.weather_lon : 100.5018;
+                initWeatherMap(wLat, wLon);
                 
                 // Fetch dynamic active credential state
                 const stateResponse = await fetch('/api/status');
@@ -1339,7 +1702,8 @@
                 });
                 
                 if (response.ok) {
-                    showToast("Profile settings saved successfully.");
+                    showToast("Profile & Weather location saved! Syncing weather...");
+                    triggerSync('weather');
                 } else {
                     showToast("Failed to save profile configuration.", false);
                 }
