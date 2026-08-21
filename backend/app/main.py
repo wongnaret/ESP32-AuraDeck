@@ -630,6 +630,7 @@ def logout_user():
 
 # --- Google / Spotify OAuth Redirect Handles ---
 
+@app.get("/auth/google")
 @app.get("/google/login")
 def login_google(profile_id: Optional[str] = None, active_profile_id: Optional[str] = Cookie(None)):
     """Redirects profile auth trigger to Google OAuth screen passing state."""
@@ -637,6 +638,7 @@ def login_google(profile_id: Optional[str] = None, active_profile_id: Optional[s
     return RedirectResponse(url=get_google_auth_url(pid))
 
 
+@app.get("/callback/google")
 @app.get("/google/callback")
 async def callback_google(code: str, state: str = "default"):
     """Accepts authorized code callback, maps it back to correct profile."""
@@ -659,11 +661,14 @@ async def callback_google(code: str, state: str = "default"):
             raise HTTPException(status_code=400, detail="Google authentication failed.")
 
 
+@app.get("/auth/spotify")
 @app.get("/spotify/login")
 def login_spotify(profile_id: Optional[str] = None, active_profile_id: Optional[str] = Cookie(None)):
     """Redirects profile auth trigger to Spotify OAuth screen passing state."""
     pid = profile_id or active_profile_id or "default"
-    return RedirectResponse(url=get_spotify_auth_url(pid))
+    auth_url = get_spotify_auth_url(pid)
+    logger.info(f"Redirecting Spotify login for profile '{pid}' to: {auth_url}")
+    return RedirectResponse(url=auth_url)
 
 
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
@@ -686,6 +691,7 @@ def get_spotify_cover_bmp(profile_id: str = "default"):
         return FileResponse(bmp_path, media_type="image/x-ms-bmp")
     raise HTTPException(status_code=404, detail="Cover art BMP not available.")
 
+@app.get("/callback/spotify")
 @app.get("/spotify/callback")
 async def callback_spotify(code: str, state: str = "default"):
     """Accepts authorized code callback, maps it back to correct profile."""
