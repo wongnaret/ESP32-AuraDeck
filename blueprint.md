@@ -147,19 +147,20 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 5: Spotify Now Playing & Live Synced Lyrics
-* **Purpose:** Real-time media progress, album artwork, track status, and time-synced lyrics display.
-* **Layout Elements:**
-  * **Track Title:** Primary bold 24px label (`Prompt 24`) with smooth circular scrolling marquee.
-  * **Artist Name:** Sub-title artist metadata (`Prompt 16`) with smooth circular scrolling marquee.
-  * **Album Art Container:** 80x80 container rendering 1-bit Floyd-Steinberg dithered album cover.
-  * **Linear Progress Bar:** Full playback visualizer showing elapsed vs total duration.
-  * **Elapsed Timestamps:** Left and right text readouts (e.g. `1:23` / `3:45`).
-  * **Time-Synced Lyrics Container (364x82):** Positioned directly beneath the progress bar, displaying 2 dynamic lines:
+### Page 5: Spotify Player & Live Synced Lyrics
+* **Purpose:** Real-time media progress, playback control status, time-synced lyrics display, and hardware Play/Pause toggle via BOOT button.
+* **Layout Structure:**
+  * **Top Status Header:** Left-aligned `🎵 Spotify Player` (`lv_font_montserrat_16`) with Top-Right Status Pill Badge `[▶ PLAYING]` / `[⏸ PAUSED]`.
+  * **Playback Control Box (80x80):** High-contrast widget replacing low-res album art with prominent `▶` (Play) or `⏸` (Pause) glyph (`lv_font_montserrat_24`) and bold status subtext (`"PLAYING"` / `"PAUSED"`).
+  * **Track Title & Artist (Right of Box, 274px):** Smooth circular scrolling marquee with Prompt 24 bold font for track title and Prompt 16 for artist names.
+  * **Linear Progress Bar:** Full playback visualizer showing elapsed vs total duration with left/right digital timestamps (`0:00` / `3:45`).
+  * **Time-Synced Lyrics Container (368x72):** Positioned beneath the progress bar, displaying 2 dynamic lines:
     * **Current Lyric Line:** Bold, prominent 16px prompt font (`lv_font_prompt_16`) with ThaiReshaper support.
     * **Next Upcoming Lyric Line:** Secondary 16px prompt font (`lv_font_prompt_16`) previewing the next verse.
-    * **Fallback Metadata:** Shows album name (`Album: ...`) and artist/composer info if track has no lyrics.
-  * **Graceful Degradation:** Displays a clean "Spotify Offline / Idle" layout when inactive.
+    * **Fallback Metadata:** Shows album name (`Album: ...`) if the track has no synced lyrics.
+  * **Footer Action Hint:** Displays dynamic action prompt `🔘 Press BOOT to Pause` / `🔘 Press BOOT to Resume`.
+  * **State Retention:** Retains song metadata, artist, progress position, and duration when paused. Only transitions to "Spotify Idle" when no active session exists.
+
 
 ---
 

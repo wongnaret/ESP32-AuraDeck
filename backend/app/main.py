@@ -152,9 +152,53 @@ class StockAddRequest(BaseModel):
 LAST_POLL_TIMESTAMPS: Dict[str, Dict[str, float]] = {}
 
 
+# --- MQTT Hardware Command Dispatcher ---
+
+def handle_mqtt_command(topic: str, payload_str: str):
+    """
+    Handles incoming hardware MQTT commands from ESP32 terminals.
+    e.g.:
+      - auradeck/command/spotify/toggle
+      - auradeck/command/sync/{service}
+      - auradeck/command/sync/all
+    """
+    logger.info(f"⚡ [Hardware Command] Processing MQTT: {topic} | Payload: {payload_str}")
+    try:
+        profiles = list_all_profiles()
+        active_pid = profiles[0]["id"] if profiles else "default"
+
+        if topic == "auradeck/command/spotify/toggle" or topic.startswith("auradeck/command/spotify"):
+            from app.services.spotify import toggle_spotify_playback
+            res = run_async_safe(toggle_spotify_playback(active_pid))
+            logger.info(f"Spotify toggle execution result: {res}")
+            # Broadcast updated status immediately to all connected devices
+            trigger_spotify_polling()
+
+        elif topic.startswith("auradeck/command/sync/"):
+            svc = topic.split("/")[-1].lower()
+            logger.info(f"Triggering instant sync for service: {svc}")
+            if svc in ["weather", "all"]:
+                trigger_weather_polling(force=True)
+            if svc in ["stocks", "all"]:
+                trigger_stocks_polling(force=True)
+            if svc in ["calendar", "todos", "tasks", "all"]:
+                trigger_calendar_polling(force=True)
+            if svc in ["antigravity", "all"]:
+                trigger_antigravity_polling(force=True)
+            if svc in ["ga4", "all"]:
+                trigger_ga4_polling(force=True)
+            if svc in ["gcp", "all"]:
+                trigger_gcp_billing_polling(force=True)
+            if svc in ["spotify", "all"]:
+                trigger_spotify_polling()
+    except Exception as e:
+        logger.error(f"Failed to execute hardware MQTT command: {e}")
+
+
 @app.on_event("startup")
 def on_startup():
     logger.info("Starting up AuraDeck Control Center...")
+    mqtt_service.set_command_handler(handle_mqtt_command)
     mqtt_service.connect()
     
     # Ensure default profile is created on start

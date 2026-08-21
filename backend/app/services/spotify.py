@@ -176,11 +176,13 @@ async def toggle_spotify_playback(profile_id: str = "default") -> Dict[str, Any]
     """
     Toggles Spotify playback (Play/Pause) for the specified user profile.
     """
-    token_mgr = ProfileTokenManager(profile_id)
-    token = token_mgr.get_spotify_token()
-    if not token:
+    mgr = ProfileTokenManager(profile_id, "Spotify")
+    tokens = mgr.load_tokens()
+    if not tokens or "access_token" not in tokens:
         logger.warning(f"Cannot toggle Spotify playback: No Spotify token found for profile {profile_id}")
         return {"status": "error", "message": "Spotify not authorized"}
+
+    access_token = tokens["access_token"]
 
     # Check current state first
     cur_state = await get_spotify_currently_playing(profile_id)
@@ -188,7 +190,7 @@ async def toggle_spotify_playback(profile_id: str = "default") -> Dict[str, Any]
     target_action = "pause" if is_playing else "play"
     url = f"https://api.spotify.com/v1/me/player/{target_action}"
 
-    headers = {"Authorization": f"Bearer {token}", "Content-Length": "0"}
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Length": "0"}
 
     try:
         async with httpx.AsyncClient() as client:
@@ -196,13 +198,10 @@ async def toggle_spotify_playback(profile_id: str = "default") -> Dict[str, Any]
             
             # Handle token expired
             if resp.status_code == 401:
-                refresh_token = token_mgr.get_spotify_refresh_token()
-                if refresh_token:
-                    new_token = await refresh_spotify_token(refresh_token)
-                    if new_token:
-                        token_mgr.save_spotify_token(new_token, refresh_token)
-                        headers["Authorization"] = f"Bearer {new_token}"
-                        resp = await client.put(url, headers=headers, timeout=5.0)
+                new_token = await refresh_spotify_token(profile_id)
+                if new_token:
+                    headers["Authorization"] = f"Bearer {new_token}"
+                    resp = await client.put(url, headers=headers, timeout=5.0)
 
             if resp.status_code in [200, 204]:
                 logger.info(f"Successfully triggered Spotify {target_action} for profile {profile_id}")
@@ -213,4 +212,5 @@ async def toggle_spotify_playback(profile_id: str = "default") -> Dict[str, Any]
     except Exception as e:
         logger.error(f"Failed to toggle Spotify playback: {e}")
         return {"status": "error", "message": str(e)}
+
 
