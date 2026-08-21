@@ -305,10 +305,30 @@ void loop() {
         // Update Spotify 1-second progress bar animation tick
         update_page_spotify_tick();
 
-        // Forward local telemetry to active views (e.g. updating bold digital clock on Page 0 Home)
-        DynamicJsonDocument telemetryDoc(256);
+        // Format live dual-language dates from hardware RTC
+        DateTime dt = g_rtc.now();
+        static const char* EN_DAYS[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+        static const char* EN_MONTHS[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+        static const char* TH_DAYS[] = {"วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"};
+        static const char* TH_MONTHS[] = {"มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"};
+
+        int wDay = dt.dayOfTheWeek() % 7;
+        int mIdx = (dt.month() >= 1 && dt.month() <= 12) ? dt.month() - 1 : 0;
+        int yearCE = dt.year();
+        int yearBE = yearCE + 543;
+
+        char dateEnBuf[64];
+        snprintf(dateEnBuf, sizeof(dateEnBuf), "%s, %d %s %d", EN_DAYS[wDay], dt.day(), EN_MONTHS[mIdx], yearCE);
+
+        char dateThBuf[64];
+        snprintf(dateThBuf, sizeof(dateThBuf), "%sที่ %d %s %d", TH_DAYS[wDay], dt.day(), TH_MONTHS[mIdx], yearBE);
+
+        // Forward local telemetry to active views (e.g. updating bold digital clock & real-time dates on Page 0 Home)
+        DynamicJsonDocument telemetryDoc(512);
         telemetryDoc["time"] = currentTime.c_str();
         telemetryDoc["date"] = currentDate.c_str();
+        telemetryDoc["date_en"] = dateEnBuf;
+        telemetryDoc["date_th"] = dateThBuf;
         telemetryDoc["temp"] = temperature;
         telemetryDoc["humidity"] = humidity;
 

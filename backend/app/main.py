@@ -1222,6 +1222,26 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
     return data
 
 
+@app.get("/api/v1/weather")
+async def api_get_weather(profile_id: Optional[str] = Query(None), active_profile_id: Optional[str] = Cookie(None)):
+    """Retrieves live weather and hourly precipitation probability forecast from Open-Meteo."""
+    pid = profile_id or active_profile_id or "default"
+    from app.services.weather import get_hourly_weather_forecast
+    prof_settings = load_profile_settings(pid)
+    lat = float(prof_settings.get("weather_lat", 13.7563))
+    lon = float(prof_settings.get("weather_lon", 100.5018))
+    data = await get_hourly_weather_forecast(latitude=lat, longitude=lon)
+    
+    # Broadcast to MQTT
+    mqtt_service.publish("auradeck/weather", data)
+    mappings = load_device_mappings()
+    for mac, m_data in mappings.items():
+        if m_data.get("profile_id") == pid:
+            mqtt_service.publish(f"auradeck/device/{mac}/weather", data)
+            
+    return data
+
+
 @app.get("/api/v1/ga4")
 async def api_get_ga4(profile_id: Optional[str] = Query(None), active_profile_id: Optional[str] = Cookie(None)):
     """Retrieves detailed Google Analytics 4 (GA4) metrics including real-time active users and city list."""
