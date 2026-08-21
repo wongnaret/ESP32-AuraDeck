@@ -430,3 +430,26 @@ AuraDeck allows users to customize background polling frequencies on a per-profi
 * **Antigravity AI:** Configurable from 1 min to 60 mins (Default: 1 min).
 * **Cloud Analytics:** Configurable from 1 min to 60 mins (Default: 15 mins).
 * **Hardware RTC Time Sync:** Broadcasts Thailand GMT+7 time every 10 seconds.
+
+---
+
+## 8. Web Control Center 3-Zone Architecture
+
+The Web Control Center (`backend/app/templates/auth.html`) is structured into 3 distinct functional zones arranged in a responsive 2-column dashboard:
+
+### Zone 1: 🔌 Connected Cloud Accounts & Analytics
+* **Google Workspace OAuth:** Connects Google Calendar agendas and Google Tasks checklists.
+* **Spotify Premium OAuth:** Connects Spotify playback metadata and 1-bit monochrome cover art pipeline.
+* **Google Analytics 4 (GA4):** Dedicated card for GA4 Property ID configuration with real-time test connection endpoint (`POST /api/v1/ga4/test`) and independent save handler.
+* **GCP Multi-Project Manager:** Drag & drop JSON upload for Service Account keys and project management for multi-tenant billing cost tracking.
+
+### Zone 2: 🎨 Widget Content & Display Customization
+* **Weather Location (แผนที่พยากรณ์อากาศ):** Interactive Leaflet Map with CartoDB Voyager tiles, custom glowing Aura pin, Nominatim POI/ROI autocomplete search, and HTML5 GPS Geolocation locator with independent save and instant screen synchronization.
+* **Stock & Asset Watchlist:** Yahoo Finance autocomplete search and watchlist management table for global/Thai stocks, crypto, and gold.
+* **Spotify Monochrome Cover Preview:** Real-time Floyd-Steinberg 1-bit dithered album cover preview.
+* **Selected Google Task Lists:** Multi-list selection filter for tasks aggregation.
+
+### Zone 3: 📺 Hardware, Network & Polling Intervals
+* **Background Sync Intervals:** 6 independent frequency dropdown selectors with live instant-sync trigger.
+* **Pair AuraDeck Screen:** 6-digit TV-style screen pairing PIN manager.
+* **AuraDeck Local Access Point:** Real-time host hotspot AP status and remote reboot control.

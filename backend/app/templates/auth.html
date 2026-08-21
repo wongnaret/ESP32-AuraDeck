@@ -776,6 +776,44 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* 3-Zone Dashboard Layout Styling */
+        .zone-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 36px 0 16px 0;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .zone-header:first-of-type {
+            margin-top: 12px;
+        }
+        .zone-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: var(--font-display);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .zone-header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .zone-grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 1150px) {
+            .zone-grid-2col {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -812,10 +850,21 @@
         <div id="integrations" class="tab-content active">
             <header>
                 <h1>Integration Console</h1>
-                <p class="subtitle">Secure Google Workspace and Spotify premium connections, select target lists, and pair smart screens.</p>
+                <p class="subtitle">Secure Google Workspace and Spotify premium connections, configure widgets, and manage smart screens.</p>
             </header>
 
-            <div class="grid-cards">
+            <!-- ======================================================== -->
+            <!-- Zone 1: 🔌 Connected Cloud Accounts & Analytics          -->
+            <!-- ======================================================== -->
+            <div class="zone-header">
+                <div>
+                    <h2>🔌 Connected Cloud Accounts & Analytics</h2>
+                    <p>เชื่อมต่อบัญชี Google, Spotify, Google Analytics 4 และ Google Cloud Projects เพื่อดึงข้อมูลขึ้นหน้าจอ</p>
+                </div>
+            </div>
+
+            <!-- Top Row: Google Workspace + Spotify Premium -->
+            <div class="zone-grid-2col">
                 <!-- Google APIs Connection Card -->
                 <div class="card">
                     <div class="card-header">
@@ -841,304 +890,344 @@
                 </div>
             </div>
 
-            <div class="split-layout">
-                <!-- Left: Profile Integration Configurations -->
-                <div class="layout-column">
-                    <div class="card">
-                        <h3 class="card-title" style="margin-bottom: 20px;">⚙️ Profile & Custom APIs Setup</h3>
-                        
-                        <div class="form-group">
-                            <label for="ga-property-id">Google Analytics 4 Property ID</label>
-                            <div style="display: flex; gap: 8px;">
-                                <input type="text" id="ga-property-id" placeholder="e.g. 453120000" style="flex: 1;">
-                                <button type="button" class="btn" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: #93c5fd; padding: 0 16px; font-size: 0.85rem; white-space: nowrap;" onclick="testGa4Connection()">
-                                    🔍 Test Connection
-                                </button>
-                            </div>
-                            <div id="ga4-test-result" style="font-size: 0.8rem; margin-top: 6px; display: none;"></div>
+            <!-- Second Row: GA4 Analytics Card + GCP Multi-Project Manager Card -->
+            <div class="zone-grid-2col">
+                <!-- Dedicated GA4 Analytics Configuration Card -->
+                <div class="card">
+                    <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="card-title">📊 Google Analytics 4 (GA4)</h3>
+                        <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;">Real-time Telemetry</span>
+                    </div>
+                    <p class="card-desc" style="margin-bottom: 16px;">
+                        ระบุ GA4 Property ID เพื่อดึงสถิติผู้ใช้งานแบบ Real-time (30 นาที), สถิติ 28 วันย้อนหลัง และ Top Cities แสดงบน Screen 6
+                    </p>
+                    
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="ga-property-id" style="font-weight: 500; font-size: 0.85rem;">GA4 Property ID (ตัวเลข 9 หลัก)</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="ga-property-id" placeholder="e.g. 453120000" style="flex: 1;">
+                            <button type="button" class="btn" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: #93c5fd; padding: 0 16px; font-size: 0.85rem; white-space: nowrap;" onclick="testGa4Connection()">
+                                🔍 Test Connection
+                            </button>
                         </div>
-
-                        <!-- Interactive Weather Map Location Selector (POI/ROI search + Drop Pin) -->
-                        <div class="form-group" style="margin-bottom: 16px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <label style="font-weight: 600; display: flex; align-items: center; gap: 6px; font-size: 0.9rem;">
-                                    🌦️ Weather Location (เลือกตำแหน่งสภาพอากาศบนแผนที่)
-                                </label>
-                                <span style="font-size: 0.76rem; color: var(--text-muted);">คลิกบนแผนที่หรือลากหมุดเพื่อระบุพิกัด</span>
-                            </div>
-
-                            <!-- POI / ROI Search Input Group -->
-                            <div class="map-search-wrapper">
-                                <div class="map-search-input-group">
-                                    <div style="position: relative; flex: 1;">
-                                        <span class="map-search-icon">🔍</span>
-                                        <input type="text" id="map-search-input" class="map-search-input" placeholder="ค้นหาสถานที่, อำเภอ, จังหวัด หรือ POI/ROI (เช่น Siam Paragon, สยาม, เชียงใหม่, หาดป่าตอง)..." autocomplete="off" oninput="onMapSearchInput(this.value)" onkeydown="onMapSearchKeydown(event)">
-                                        <div id="map-autocomplete-list" class="map-autocomplete-dropdown"></div>
-                                    </div>
-                                    <button type="button" class="btn" style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); color: #67e8f9; padding: 0 14px; font-size: 0.85rem; white-space: nowrap; display: flex; align-items: center; gap: 6px;" onclick="locateUserCurrentPosition()">
-                                        📍 ตำแหน่งปัจจุบัน
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Interactive Leaflet Map Container -->
-                            <div id="weather-map"></div>
-
-                            <!-- Live Selected Location HUD & Readout -->
-                            <div class="map-location-hud">
-                                <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
-                                    <span style="color: #a78bfa; font-weight: 600;">📍</span>
-                                    <span id="map-location-name" style="color: var(--text-main); font-weight: 500;">กรุงเทพมหานคร (Bangkok)</span>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span class="map-coords-badge" id="map-coords-display">13.7563, 100.5018</span>
-                                </div>
-                            </div>
-
-                            <!-- Hidden Lat/Lon Form Inputs for seamless API saving -->
-                            <input type="hidden" id="weather-lat" value="13.7563">
-                            <input type="hidden" id="weather-lon" value="100.5018">
-                        </div>
-
-                        <button class="btn btn-primary" onclick="saveProfileConfig()" style="margin-top: 10px;">
-                            💾 Save Profile Settings
-                        </button>
+                        <div id="ga4-test-result" style="font-size: 0.8rem; margin-top: 6px; display: none;"></div>
                     </div>
 
-                    <!-- Background Polling Intervals Configuration Card -->
-                    <div class="card" id="polling-intervals-card">
-                        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <h3 class="card-title">⏱️ Background Sync Intervals (ความถี่ในการอัปเดตข้อมูล)</h3>
-                            <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;">Live Poller</span>
-                        </div>
-                        <p class="card-desc" style="margin-bottom: 16px;">
-                            กำหนดความถี่ที่ระบบจะดึงข้อมูลจาก Cloud APIs มาอัปเดตหน้าจอ ESP32 เบื้องหลัง และกดบันทึกเพื่อซิงก์ข้อมูลทันที
-                        </p>
-                        
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px;">
-                            <div class="form-group" style="margin: 0;">
-                                <label for="interval-tasks-calendar" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
-                                    📅 Tasks & Calendar
-                                </label>
-                                <select id="interval-tasks-calendar" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
-                                    <option value="1">ทุก 1 นาที (1 min)</option>
-                                    <option value="2">ทุก 2 นาที (2 mins)</option>
-                                    <option value="5">ทุก 5 นาที (5 mins)</option>
-                                    <option value="10">ทุก 10 นาที (10 mins)</option>
-                                    <option value="15" selected>ทุก 15 นาที (15 mins - ค่าเริ่มต้น)</option>
-                                    <option value="30">ทุก 30 นาที (30 mins)</option>
-                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
-                                </select>
-                            </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+                        <button class="btn btn-primary" onclick="saveGa4Config()" style="width: auto; padding: 10px 24px;">
+                            💾 Save GA4 Settings
+                        </button>
+                    </div>
+                </div>
 
-                            <div class="form-group" style="margin: 0;">
-                                <label for="interval-weather" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
-                                    🌦️ Rain & Weather
-                                </label>
-                                <select id="interval-weather" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
-                                    <option value="5">ทุก 5 นาที (5 mins)</option>
-                                    <option value="10">ทุก 10 นาที (10 mins)</option>
-                                    <option value="15">ทุก 15 นาที (15 mins)</option>
-                                    <option value="30" selected>ทุก 30 นาที (30 mins - ค่าเริ่มต้น)</option>
-                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
-                                </select>
-                            </div>
+                <!-- GCP Multi-Project Service Account Key Manager -->
+                <div class="card">
+                    <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="card-title">📁 GCP Multi-Project Manager</h3>
+                        <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 0.8rem;">Cloud Billing</span>
+                    </div>
+                    <p class="card-desc" style="margin-bottom: 14px;">
+                        Add multiple Google Cloud projects. Upload each project's Service Account JSON key to fetch and aggregate billing costs on Screen 7.
+                    </p>
+                    
+                    <!-- Upload Section -->
+                    <div style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255, 255, 255, 0.02); margin-bottom: 14px;" 
+                         id="gcp-drop-zone"
+                         onclick="document.getElementById('gcp-file-input').click()"
+                         onmouseover="this.style.borderColor='rgba(245, 158, 11, 0.7)'; this.style.background='rgba(255, 255, 255, 0.05)'" 
+                         onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.15)'; this.style.background='rgba(255, 255, 255, 0.02)'">
+                        <span style="font-size: 1.6rem;">📥</span>
+                        <h4 style="margin: 6px 0 2px 0; font-size: 0.88rem; font-weight: 600; color: var(--text-primary);">Drag & Drop or Click to Upload</h4>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Upload Service Account JSON Key</p>
+                        <input type="file" id="gcp-file-input" style="display: none;" accept=".json" onchange="uploadGcpProjectKey(this.files[0])">
+                    </div>
 
-                            <div class="form-group" style="margin: 0;">
-                                <label for="interval-stocks" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
-                                    📈 Stocks & Market
-                                </label>
-                                <select id="interval-stocks" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
-                                    <option value="1">ทุก 1 นาที (1 min)</option>
-                                    <option value="2">ทุก 2 นาที (2 mins)</option>
-                                    <option value="5" selected>ทุก 5 นาที (5 mins - ค่าเริ่มต้น)</option>
-                                    <option value="10">ทุก 10 นาที (10 mins)</option>
-                                    <option value="15">ทุก 15 นาที (15 mins)</option>
-                                    <option value="30">ทุก 30 นาที (30 mins)</option>
-                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
-                                </select>
-                            </div>
+                    <!-- Projects List -->
+                    <div id="gcp-projects-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 6px;">No GCP Projects added yet.</div>
+                    </div>
+                </div>
+            </div>
 
-                            <div class="form-group" style="margin: 0;">
-                                <label for="interval-antigravity" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
-                                    🤖 Antigravity AI
-                                </label>
-                                <select id="interval-antigravity" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
-                                    <option value="1" selected>ทุก 1 นาที (1 min - ค่าเริ่มต้น)</option>
-                                    <option value="2">ทุก 2 นาที (2 mins)</option>
-                                    <option value="5">ทุก 5 นาที (5 mins)</option>
-                                    <option value="10">ทุก 10 นาที (10 mins)</option>
-                                    <option value="15">ทุก 15 นาที (15 mins)</option>
-                                    <option value="30">ทุก 30 นาที (30 mins)</option>
-                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
-                                </select>
-                            </div>
+            <!-- ======================================================== -->
+            <!-- Zone 2: 🎨 Widget Content & Display Customization        -->
+            <!-- ======================================================== -->
+            <div class="zone-header">
+                <div>
+                    <h2>🎨 Widget Content & Display Preferences</h2>
+                    <p>กำหนดตำแหน่งแผนที่พยากรณ์อากาศ รายการหุ้น/คริปโต และมุมมอง Widget บนหน้าจอ ESP32</p>
+                </div>
+            </div>
 
-                            <div class="form-group" style="margin: 0;">
-                                <label for="interval-ga4" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
-                                    📊 Google Analytics 4
-                                </label>
-                                <select id="interval-ga4" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
-                                    <option value="1">ทุก 1 นาที (1 min)</option>
-                                    <option value="2">ทุก 2 นาที (2 mins)</option>
-                                    <option value="5" selected>ทุก 5 นาที (5 mins - ค่าเริ่มต้น)</option>
-                                    <option value="10">ทุก 10 นาที (10 mins)</option>
-                                    <option value="15">ทุก 15 นาที (15 mins)</option>
-                                    <option value="30">ทุก 30 นาที (30 mins)</option>
-                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
-                                </select>
-                            </div>
+            <div class="zone-grid-2col">
+                <!-- Left Column: Dedicated Interactive Weather Map Location Selector -->
+                <div class="card">
+                    <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="card-title">🌦️ Weather Location (แผนที่พยากรณ์อากาศ)</h3>
+                        <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.8rem;">Open-Meteo Live</span>
+                    </div>
+                    <p class="card-desc" style="margin-bottom: 12px;">
+                        ระบุตำแหน่งสำหรับดึงข้อมูลสภาพอากาศและพยากรณ์ฝนรายชั่วโมง (6 ชม.) บน Screen 0 Home
+                    </p>
 
-                            <div class="form-group" style="margin: 0;">
-                                <label for="interval-gcp" style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-bottom: 6px;">
-                                    ☁️ GCP Cloud Billing
-                                </label>
-                                <select id="interval-gcp" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
-                                    <option value="5">ทุก 5 นาที (5 mins)</option>
-                                    <option value="10">ทุก 10 นาที (10 mins)</option>
-                                    <option value="15">ทุก 15 นาที (15 mins)</option>
-                                    <option value="30" selected>ทุก 30 นาที (30 mins - ค่าเริ่มต้น)</option>
-                                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
-                                </select>
+                    <!-- POI / ROI Search Input Group -->
+                    <div class="map-search-wrapper">
+                        <div class="map-search-input-group">
+                            <div style="position: relative; flex: 1;">
+                                <span class="map-search-icon">🔍</span>
+                                <input type="text" id="map-search-input" class="map-search-input" placeholder="ค้นหาสถานที่, อำเภอ, จังหวัด หรือ POI/ROI (เช่น Siam Paragon, สยาม, เชียงใหม่, หาดป่าตอง)..." autocomplete="off" oninput="onMapSearchInput(this.value)" onkeydown="onMapSearchKeydown(event)">
+                                <div id="map-autocomplete-list" class="map-autocomplete-dropdown"></div>
                             </div>
-                        </div>
-
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">🎵 Spotify ทำงานแบบ Real-time (5s) อัตโนมัติ</span>
-                            <button class="btn btn-primary" onclick="savePollingIntervals()" style="width: auto; padding: 10px 24px;">
-                                💾 Save & Sync to Screens
+                            <button type="button" class="btn" style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); color: #67e8f9; padding: 0 14px; font-size: 0.85rem; white-space: nowrap; display: flex; align-items: center; gap: 6px;" onclick="locateUserCurrentPosition()">
+                                📍 ตำแหน่งปัจจุบัน
                             </button>
                         </div>
                     </div>
 
-                    <!-- GCP Multi-Project Service Account Key Manager -->
-                    <div class="card">
-                        <h3 class="card-title" style="margin-bottom: 12px;">📁 GCP Multi-Project Manager</h3>
-                        <p class="card-desc" style="margin-bottom: 16px;">
-                            Add multiple Google Cloud projects owned by any Google accounts. Upload each project's Service Account JSON key to fetch and aggregate billing costs.
-                        </p>
-                        
-                        <!-- Upload Section -->
-                        <div style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255, 255, 255, 0.02); margin-bottom: 20px;" 
-                             id="gcp-drop-zone"
-                             onclick="document.getElementById('gcp-file-input').click()"
-                             onmouseover="this.style.borderColor='rgba(245, 158, 11, 0.7)'; this.style.background='rgba(255, 255, 255, 0.05)'" 
-                             onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.15)'; this.style.background='rgba(255, 255, 255, 0.02)'">
-                            <span style="font-size: 2.2rem;">📥</span>
-                            <h4 style="margin: 12px 0 6px 0; font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">Drag & Drop or Click to Upload</h4>
-                            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Upload Service Account JSON Key</p>
-                            <input type="file" id="gcp-file-input" style="display: none;" accept=".json" onchange="uploadGcpProjectKey(this.files[0])">
-                        </div>
+                    <!-- Interactive Leaflet Map Container -->
+                    <div id="weather-map"></div>
 
-                        <!-- Projects List -->
-                        <div id="gcp-projects-list" style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="font-size: 0.9rem; color: var(--text-muted); text-align: center; padding: 10px;">No GCP Projects added yet.</div>
+                    <!-- Live Selected Location HUD & Readout -->
+                    <div class="map-location-hud">
+                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
+                            <span style="color: #a78bfa; font-weight: 600;">📍</span>
+                            <span id="map-location-name" style="color: var(--text-main); font-weight: 500;">กรุงเทพมหานคร (Bangkok)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="map-coords-badge" id="map-coords-display">13.7563, 100.5018</span>
                         </div>
                     </div>
 
-                    <!-- Google Tasks Multiple List checklist card -->
-                    <div class="card" id="task-lists-card" style="display: none;">
-                        <h3 class="card-title" style="margin-bottom: 12px;">✅ Selected Google Task Lists</h3>
-                        <p class="card-desc" style="margin-bottom: 16px;">
-                            Select which task lists should be aggregated together, prefixed, and pushed as a single list onto your ESP32 display.
-                        </p>
-                        <div class="checkbox-grid" id="task-lists-container">
-                            <div style="font-size: 0.9rem; color: var(--text-muted);">Fetching lists...</div>
-                        </div>
+                    <!-- Hidden Lat/Lon Form Inputs -->
+                    <input type="hidden" id="weather-lat" value="13.7563">
+                    <input type="hidden" id="weather-lon" value="100.5018">
+
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button class="btn btn-primary" onclick="saveWeatherConfig()" style="width: auto; padding: 10px 24px;">
+                            💾 Save & Sync Weather Location
+                        </button>
                     </div>
+                </div>
 
-                    <!-- Spotify Monochrome Cover Art Viewer Card -->
-                    <div class="card" id="spotify-cover-card">
-                        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <h3 class="card-title">🎵 Spotify Album Cover Preview</h3>
-                            <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.8rem;">1-Bit Monochrome Dither</span>
-                        </div>
-                        <p class="card-desc" style="margin-bottom: 16px;">
-                            Live Floyd-Steinberg 1-bit monochrome artwork generated for your ESP32-S3 RLCD 4.2" display.
-                        </p>
-                        
-                        <div style="display: flex; align-items: center; gap: 24px; background: rgba(0, 0, 0, 0.3); padding: 16px; border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.08);">
-                            <div style="text-align: center;">
-                                <div style="width: 120px; height: 120px; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 8px; overflow: hidden; background: #ffffff; display: flex; align-items: center; justify-content: center;">
-                                    <img id="spotify-cover-mono-preview" src="/api/spotify/cover.png" alt="1-Bit Cover Preview" style="width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'80\' height=\'80\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23888\' stroke-width=\'2\'><circle cx=\'12\' cy=\'12\' r=\'10\'/><path d=\'M12 6v6l4 2\'/></svg>';">
-                                </div>
-                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; display: block;">1-Bit RLCD Preview</span>
-                            </div>
-
-                            <div style="flex: 1;">
-                                <h4 id="spotify-preview-title" style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">Live Spotify Cover Stream</h4>
-                                <p id="spotify-preview-artist" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;">Auto-synced with active playback</p>
-                                <button class="btn btn-secondary" onclick="document.getElementById('spotify-cover-mono-preview').src='/api/spotify/cover.png?t='+Date.now()" style="font-size: 0.8rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
-                                    🔄 Refresh Cover Art
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
+                <!-- Right Column: Stock Watchlist, Spotify Cover, Task Lists -->
+                <div style="display: flex; flex-direction: column; gap: 24px;">
                     <!-- Stock Watchlist Configuration Card -->
                     <div class="card" id="stock-watchlist-card">
                         <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                             <h3 class="card-title">📈 Stock & Asset Watchlist</h3>
                             <span class="status-badge" style="background: rgba(139, 92, 246, 0.15); color: var(--primary); font-size: 0.8rem;">Yahoo Finance Live</span>
                         </div>
-                        <p class="card-desc" style="margin-bottom: 16px;">
+                        <p class="card-desc" style="margin-bottom: 14px;">
                             Search and manage stocks, cryptocurrencies, and commodities displayed on your ESP32 screen.
                         </p>
                         
                         <!-- Autocomplete Search & Add Form -->
-                        <div class="stock-search-wrapper" style="position: relative; margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">
-                                Add Stock / Crypto Ticker (ค้นหาชื่อหุ้นหรือสัญลักษณ์):
-                            </label>
+                        <div class="stock-search-wrapper" style="position: relative; margin-bottom: 16px;">
                             <div style="display: flex; gap: 10px;">
                                 <div style="position: relative; flex: 1;">
                                     <input type="text" id="stock-search-input" placeholder="Type name or symbol e.g. CPALL, NVDA, BTC, GC=F..." 
                                            oninput="onStockSearchInput(this.value)" 
                                            onfocus="onStockSearchInput(this.value)" 
                                            autocomplete="off"
-                                           style="width: 100%; padding: 12px 14px; font-size: 0.95rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                           style="width: 100%; padding: 10px 14px; font-size: 0.9rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
                                     
                                     <!-- Autocomplete Dropdown Menu -->
                                     <div id="stock-autocomplete-dropdown" class="stock-autocomplete-menu" style="display: none;"></div>
                                 </div>
-                                <button class="btn btn-primary" onclick="addSelectedStock()" style="width: auto; white-space: nowrap; padding: 0 20px;">
+                                <button class="btn btn-primary" onclick="addSelectedStock()" style="width: auto; white-space: nowrap; padding: 0 18px; font-size: 0.85rem;">
                                     + Add Stock
                                 </button>
                             </div>
                         </div>
 
                         <!-- Configured Stocks Table -->
-                        <div style="overflow-x: auto;">
-                            <table class="stock-table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <div style="overflow-x: auto; max-height: 240px; overflow-y: auto;">
+                            <table class="stock-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
                                 <thead>
                                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; color: var(--text-muted);">
-                                        <th style="padding: 10px 8px;">Symbol</th>
-                                        <th style="padding: 10px 8px;">Full Company Name</th>
-                                        <th style="padding: 10px 8px;">Type</th>
-                                        <th style="padding: 10px 8px;">Price</th>
-                                        <th style="padding: 10px 8px; text-align: right;">Action</th>
+                                        <th style="padding: 8px 6px;">Symbol</th>
+                                        <th style="padding: 8px 6px;">Name</th>
+                                        <th style="padding: 8px 6px;">Type</th>
+                                        <th style="padding: 8px 6px;">Price</th>
+                                        <th style="padding: 8px 6px; text-align: right;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="stock-watchlist-table-body">
                                     <tr>
-                                        <td colspan="5" style="text-align: center; padding: 16px; color: var(--text-muted);">Loading watchlist...</td>
+                                        <td colspan="5" style="text-align: center; padding: 14px; color: var(--text-muted);">Loading watchlist...</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
+
+                    <!-- Spotify Monochrome Cover Art Viewer Card -->
+                    <div class="card" id="spotify-cover-card">
+                        <div class="card-header" style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 class="card-title">🎵 Spotify Album Cover Preview</h3>
+                            <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.8rem;">1-Bit Monochrome Dither</span>
+                        </div>
+                        <p class="card-desc" style="margin-bottom: 12px;">
+                            Live Floyd-Steinberg 1-bit monochrome artwork generated for your ESP32-S3 RLCD 4.2" display.
+                        </p>
+                        
+                        <div style="display: flex; align-items: center; gap: 16px; background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.08);">
+                            <div style="text-align: center;">
+                                <div style="width: 80px; height: 80px; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 8px; overflow: hidden; background: #ffffff; display: flex; align-items: center; justify-content: center;">
+                                    <img id="spotify-cover-mono-preview" src="/api/spotify/cover.png" alt="1-Bit Cover Preview" style="width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'80\' height=\'80\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23888\' stroke-width=\'2\'><circle cx=\'12\' cy=\'12\' r=\'10\'/><path d=\'M12 6v6l4 2\'/></svg>';">
+                                </div>
+                            </div>
+
+                            <div style="flex: 1;">
+                                <h4 id="spotify-preview-title" style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 2px;">Live Spotify Cover Stream</h4>
+                                <p id="spotify-preview-artist" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Auto-synced with active playback</p>
+                                <button class="btn btn-secondary" onclick="document.getElementById('spotify-cover-mono-preview').src='/api/spotify/cover.png?t='+Date.now()" style="font-size: 0.75rem; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px;">
+                                    🔄 Refresh Cover
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Google Tasks Multiple List checklist card -->
+                    <div class="card" id="task-lists-card" style="display: none;">
+                        <h3 class="card-title" style="margin-bottom: 10px;">✅ Selected Google Task Lists</h3>
+                        <p class="card-desc" style="margin-bottom: 12px;">
+                            Select which task lists should be aggregated and pushed to your ESP32 display.
+                        </p>
+                        <div class="checkbox-grid" id="task-lists-container">
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">Fetching lists...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- Zone 3: 📺 Hardware, Network & Polling Intervals         -->
+            <!-- ======================================================== -->
+            <div class="zone-header">
+                <div>
+                    <h2>📺 Hardware, Network & Polling Intervals</h2>
+                    <p>จัดการการเชื่อมต่อหน้าจอ ESP32-S3, ฮอตสปอต Wi-Fi AP และความถี่การซิงก์ข้อมูลอัตโนมัติ</p>
+                </div>
+            </div>
+
+            <div class="zone-grid-2col">
+                <!-- Left Column: Background Polling Intervals -->
+                <div class="card" id="polling-intervals-card">
+                    <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="card-title">⏱️ Background Sync Intervals (ความถี่ในการอัปเดตข้อมูล)</h3>
+                        <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;">Live Poller</span>
+                    </div>
+                    <p class="card-desc" style="margin-bottom: 16px;">
+                        กำหนดความถี่ที่ระบบจะดึงข้อมูลจาก Cloud APIs มาอัปเดตหน้าจอ ESP32 เบื้องหลัง และกดบันทึกเพื่อซิงก์ข้อมูลทันที
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label for="interval-tasks-calendar" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                                📅 Tasks & Calendar
+                            </label>
+                            <select id="interval-tasks-calendar" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                <option value="1">ทุก 1 นาที (1 min)</option>
+                                <option value="2">ทุก 2 นาที (2 mins)</option>
+                                <option value="5">ทุก 5 นาที (5 mins)</option>
+                                <option value="10">ทุก 10 นาที (10 mins)</option>
+                                <option value="15" selected>ทุก 15 นาที (15 mins)</option>
+                                <option value="30">ทุก 30 นาที (30 mins)</option>
+                                <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin: 0;">
+                            <label for="interval-weather" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                                🌦️ Rain & Weather
+                            </label>
+                            <select id="interval-weather" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                <option value="5">ทุก 5 นาที (5 mins)</option>
+                                <option value="10">ทุก 10 นาที (10 mins)</option>
+                                <option value="15">ทุก 15 นาที (15 mins)</option>
+                                <option value="30" selected>ทุก 30 นาที (30 mins)</option>
+                                <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin: 0;">
+                            <label for="interval-stocks" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                                📈 Stocks & Market
+                            </label>
+                            <select id="interval-stocks" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                <option value="1">ทุก 1 นาที (1 min)</option>
+                                <option value="2">ทุก 2 นาที (2 mins)</option>
+                                <option value="5" selected>ทุก 5 นาที (5 mins)</option>
+                                <option value="10">ทุก 10 นาที (10 mins)</option>
+                                <option value="15">ทุก 15 นาที (15 mins)</option>
+                                <option value="30">ทุก 30 นาที (30 mins)</option>
+                                <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin: 0;">
+                            <label for="interval-antigravity" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                                🤖 Antigravity AI
+                            </label>
+                            <select id="interval-antigravity" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                <option value="1" selected>ทุก 1 นาที (1 min)</option>
+                                <option value="2">ทุก 2 นาที (2 mins)</option>
+                                <option value="5">ทุก 5 นาที (5 mins)</option>
+                                <option value="10">ทุก 10 นาที (10 mins)</option>
+                                <option value="15">ทุก 15 นาที (15 mins)</option>
+                                <option value="30">ทุก 30 นาที (30 mins)</option>
+                                <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin: 0;">
+                            <label for="interval-ga4" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                                📊 Google Analytics 4
+                            </label>
+                            <select id="interval-ga4" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                <option value="1">ทุก 1 นาที (1 min)</option>
+                                <option value="2">ทุก 2 นาที (2 mins)</option>
+                                <option value="5" selected>ทุก 5 นาที (5 mins)</option>
+                                <option value="10">ทุก 10 นาที (10 mins)</option>
+                                <option value="15">ทุก 15 นาที (15 mins)</option>
+                                <option value="30">ทุก 30 นาที (30 mins)</option>
+                                <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin: 0;">
+                            <label for="interval-gcp" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                                ☁️ GCP Cloud Billing
+                            </label>
+                            <select id="interval-gcp" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                                <option value="5">ทุก 5 นาที (5 mins)</option>
+                                <option value="10">ทุก 10 นาที (10 mins)</option>
+                                <option value="15">ทุก 15 นาที (15 mins)</option>
+                                <option value="30" selected>ทุก 30 นาที (30 mins)</option>
+                                <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">🎵 Spotify ทำงานแบบ Real-time (5s) อัตโนมัติ</span>
+                        <button class="btn btn-primary" onclick="savePollingIntervals()" style="width: auto; padding: 10px 24px;">
+                            💾 Save & Sync to Screens
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Right: Pairing and AP Status -->
-                <div class="layout-column">
+                <!-- Right Column: Screen Pairing & Local AP Status -->
+                <div style="display: flex; flex-direction: column; gap: 24px;">
                     <!-- Screen Pairing Code Manager -->
                     <div class="card">
-                        <h3 class="card-title" style="margin-bottom: 16px;">📺 Pair AuraDeck Screen</h3>
-                        <p class="card-desc" style="margin-bottom: 16px;">
+                        <h3 class="card-title" style="margin-bottom: 12px;">📺 Pair AuraDeck Screen</h3>
+                        <p class="card-desc" style="margin-bottom: 14px;">
                             When an unconfigured ESP32 boots up, it showcases a 6-digit numeric pairing PIN. Input the PIN below to assign that screen to your profile.
                         </p>
                         
-                        <div class="form-group" style="margin-bottom: 16px;">
+                        <div class="form-group" style="margin-bottom: 14px;">
                             <label for="pair-pin">6-Digit TV Pairing PIN</label>
                             <div style="display: flex; gap: 12px;">
                                 <input type="text" id="pair-pin" placeholder="123456" maxlength="6" style="text-align: center; font-size: 1.25rem; font-weight: 700; letter-spacing: 4px; font-family: var(--font-mono);">
@@ -1149,7 +1238,7 @@
                         </div>
 
                         <div class="paired-list">
-                            <label style="display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--text-muted);">Paired Devices under this Profile:</label>
+                            <label style="display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-muted);">Paired Devices under this Profile:</label>
                             <div id="paired-devices-container">
                                 <div style="font-size: 0.85rem; color: var(--text-muted);">No screens paired yet.</div>
                             </div>
@@ -1158,28 +1247,28 @@
 
                     <!-- AuraDeck Local Access Point Status Card -->
                     <div class="card">
-                        <div class="card-header" style="margin-bottom: 16px;">
+                        <div class="card-header" style="margin-bottom: 12px;">
                             <span class="card-title">📶 AuraDeck Local Access Point</span>
                             <span id="ap-status-badge" class="status-badge active-pulse">
                                 <span class="status-dot"></span><span id="ap-status-text">Active</span>
                             </span>
                         </div>
                         
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; font-size: 0.9rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; font-size: 0.88rem;">
                             <div>
-                                <span style="color: var(--text-muted); display:block; margin-bottom: 4px;">SSID Name</span>
+                                <span style="color: var(--text-muted); display:block; margin-bottom: 2px;">SSID Name</span>
                                 <strong id="ap-ssid" style="font-family: var(--font-mono);">AuraDeck_Hotspot</strong>
                             </div>
                             <div>
-                                <span style="color: var(--text-muted); display:block; margin-bottom: 4px;">WPA2 Key</span>
+                                <span style="color: var(--text-muted); display:block; margin-bottom: 2px;">WPA2 Key</span>
                                 <strong id="ap-password" style="font-family: var(--font-mono);">AuraDeck1234</strong>
                             </div>
-                            <div style="margin-top: 10px;">
-                                <span style="color: var(--text-muted); display:block; margin-bottom: 4px;">IP Gateway</span>
+                            <div style="margin-top: 6px;">
+                                <span style="color: var(--text-muted); display:block; margin-bottom: 2px;">IP Gateway</span>
                                 <strong id="ap-gateway" style="font-family: var(--font-mono);">10.42.0.1</strong>
                             </div>
-                            <div style="margin-top: 10px;">
-                                <span style="color: var(--text-muted); display:block; margin-bottom: 4px;">Connected Clients</span>
+                            <div style="margin-top: 6px;">
+                                <span style="color: var(--text-muted); display:block; margin-bottom: 2px;">Connected Clients</span>
                                 <strong id="ap-clients">0 Devices</strong>
                             </div>
                         </div>
@@ -1337,63 +1426,59 @@
         let g_mapSearchDebounceTimer = null;
 
         function initWeatherMap(lat = 13.7563, lon = 100.5018) {
+            if (g_weatherMap) return; // Prevent overwriting user's active/dragged pin during background polling!
+
             const latNum = parseFloat(lat) || 13.7563;
             const lonNum = parseFloat(lon) || 100.5018;
 
-            if (!g_weatherMap) {
-                const mapContainer = document.getElementById('weather-map');
-                if (!mapContainer || typeof L === 'undefined') return;
+            const mapContainer = document.getElementById('weather-map');
+            if (!mapContainer || typeof L === 'undefined') return;
 
-                g_weatherMap = L.map('weather-map', {
-                    center: [latNum, lonNum],
-                    zoom: 12,
-                    zoomControl: true
-                });
+            g_weatherMap = L.map('weather-map', {
+                center: [latNum, lonNum],
+                zoom: 12,
+                zoomControl: true
+            });
 
-                // Clean Modern CartoDB Voyager Tile Layer
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-                    subdomains: 'abcd',
-                    maxZoom: 19
-                }).addTo(g_weatherMap);
+            // Clean Modern CartoDB Voyager Tile Layer
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(g_weatherMap);
 
-                // Custom Glowing Aura Pin
-                const pinIcon = L.divIcon({
-                    className: 'custom-weather-pin',
-                    html: '<div style="background: linear-gradient(135deg, #8b5cf6, #06b6d4); width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #ffffff; box-shadow: 0 0 14px rgba(139, 92, 246, 0.85); display: flex; align-items: center; justify-content: center; cursor: grab;"><span style="transform: rotate(45deg); font-size: 15px;">🌦️</span></div>',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 30],
-                    popupAnchor: [0, -30]
-                });
+            // Custom Glowing Aura Pin
+            const pinIcon = L.divIcon({
+                className: 'custom-weather-pin',
+                html: '<div style="background: linear-gradient(135deg, #8b5cf6, #06b6d4); width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #ffffff; box-shadow: 0 0 14px rgba(139, 92, 246, 0.85); display: flex; align-items: center; justify-content: center; cursor: grab;"><span style="transform: rotate(45deg); font-size: 15px;">🌦️</span></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -30]
+            });
 
-                g_weatherMarker = L.marker([latNum, lonNum], {
-                    draggable: true,
-                    icon: pinIcon
-                }).addTo(g_weatherMap);
+            g_weatherMarker = L.marker([latNum, lonNum], {
+                draggable: true,
+                icon: pinIcon
+            }).addTo(g_weatherMap);
 
-                // Marker drag events
-                g_weatherMarker.on('dragend', function(e) {
-                    const pos = e.target.getLatLng();
-                    setWeatherCoordinates(pos.lat, pos.lng, true);
-                });
+            // Marker drag events
+            g_weatherMarker.on('dragend', function(e) {
+                const pos = e.target.getLatLng();
+                setWeatherCoordinates(pos.lat, pos.lng, true);
+            });
 
-                // Map click anywhere to place marker
-                g_weatherMap.on('click', function(e) {
-                    setWeatherCoordinates(e.latlng.lat, e.latlng.lng, true);
-                });
+            // Map click anywhere to place marker
+            g_weatherMap.on('click', function(e) {
+                setWeatherCoordinates(e.latlng.lat, e.latlng.lng, true);
+            });
 
-                // Ensure proper render on load
-                setTimeout(() => {
-                    if (g_weatherMap) g_weatherMap.invalidateSize();
-                }, 350);
-            } else {
-                g_weatherMap.setView([latNum, lonNum], g_weatherMap.getZoom() || 12);
-                if (g_weatherMarker) {
-                    g_weatherMarker.setLatLng([latNum, lonNum]);
-                }
-            }
-
+            // Set initial coordinate fields & reverse-geocoded address
             setWeatherCoordinates(latNum, lonNum, true);
+
+            // Ensure proper render on load
+            setTimeout(() => {
+                if (g_weatherMap) g_weatherMap.invalidateSize();
+            }, 350);
         }
 
         function setWeatherCoordinates(lat, lon, fetchReverse = true) {
@@ -1565,8 +1650,14 @@
                 const data = await response.json();
                 
                 document.getElementById('sidebar-profile-name').textContent = data.profile_name;
-                document.getElementById('ga-property-id').value = data.ga_property_id || '';
                 
+                // Prevent wiping user input while typing
+                const gaInput = document.getElementById('ga-property-id');
+                if (gaInput && document.activeElement !== gaInput) {
+                    gaInput.value = data.ga_property_id || '';
+                }
+                
+                // Initialize map if first load
                 const wLat = data.weather_lat !== undefined ? data.weather_lat : 13.7563;
                 const wLon = data.weather_lon !== undefined ? data.weather_lon : 100.5018;
                 initWeatherMap(wLat, wLon);
@@ -1645,6 +1736,58 @@
             }
         }
 
+        async function saveGa4Config() {
+            const ga_property_id = document.getElementById('ga-property-id').value.trim();
+            const payload = {
+                ga_property_id
+            };
+
+            try {
+                const response = await fetch(`/api/profiles/${profileId}/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    showToast("GA4 Property settings saved successfully!");
+                } else {
+                    showToast("Failed to save GA4 configuration.", false);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Server error saving GA4 config.", false);
+            }
+        }
+
+        async function saveWeatherConfig() {
+            const weather_lat_val = document.getElementById('weather-lat') ? parseFloat(document.getElementById('weather-lat').value) : 13.7563;
+            const weather_lon_val = document.getElementById('weather-lon') ? parseFloat(document.getElementById('weather-lon').value) : 100.5018;
+
+            const payload = {
+                weather_lat: isNaN(weather_lat_val) ? 13.7563 : weather_lat_val,
+                weather_lon: isNaN(weather_lon_val) ? 100.5018 : weather_lon_val
+            };
+
+            try {
+                const response = await fetch(`/api/profiles/${profileId}/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    showToast("Weather location saved! Syncing weather to screen...");
+                    triggerSync('weather');
+                } else {
+                    showToast("Failed to save weather location.", false);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Server error saving weather config.", false);
+            }
+        }
+
         async function savePollingIntervals() {
             const tasks_calendar_mins = parseInt(document.getElementById('interval-tasks-calendar').value, 10);
             const weather_mins = parseInt(document.getElementById('interval-weather').value, 10);
@@ -1680,36 +1823,6 @@
             } catch (err) {
                 console.error(err);
                 showToast("Network error updating intervals.", false);
-            }
-        }
-
-        async function saveProfileConfig() {
-            const ga_property_id = document.getElementById('ga-property-id').value.trim();
-            const weather_lat_val = document.getElementById('weather-lat') ? parseFloat(document.getElementById('weather-lat').value) : 13.7563;
-            const weather_lon_val = document.getElementById('weather-lon') ? parseFloat(document.getElementById('weather-lon').value) : 100.5018;
-
-            const payload = {
-                ga_property_id,
-                weather_lat: isNaN(weather_lat_val) ? 13.7563 : weather_lat_val,
-                weather_lon: isNaN(weather_lon_val) ? 100.5018 : weather_lon_val
-            };
-
-            try {
-                const response = await fetch(`/api/profiles/${profileId}/config`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (response.ok) {
-                    showToast("Profile & Weather location saved! Syncing weather...");
-                    triggerSync('weather');
-                } else {
-                    showToast("Failed to save profile configuration.", false);
-                }
-            } catch (err) {
-                console.error(err);
-                showToast("Server error saving config.", false);
             }
         }
 
