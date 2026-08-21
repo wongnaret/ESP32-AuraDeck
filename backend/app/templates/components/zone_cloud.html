@@ -4,7 +4,7 @@
 <div class="zone-header">
     <div>
         <h2>🔌 Connected Cloud Accounts & Analytics</h2>
-        <p>เชื่อมต่อบัญชี Google, Spotify, Google Analytics 4 และ Google Cloud Projects เพื่อดึงข้อมูลขึ้นหน้าจอ</p>
+        <p>เชื่อมต่อบัญชี Google, Spotify, Google Analytics 4 (หลาย Property) และ Google Cloud Projects (หลาย Project) เพื่อดึงข้อมูลขึ้นหน้าจอ</p>
     </div>
 </div>
 
@@ -35,60 +35,90 @@
     </div>
 </div>
 
-<!-- Second Row: GA4 Analytics Card + GCP Multi-Project Manager Card -->
+<!-- Second Row: GA4 Multi-Property Manager + GCP Multi-Project Manager -->
 <div class="zone-grid-2col">
-    <!-- Dedicated GA4 Analytics Configuration Card -->
-    <div class="card">
+    <!-- GA4 Multi-Property Service Account Manager Card -->
+    <div class="card" id="ga4-multi-card">
         <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
             <h3 class="card-title">📊 Google Analytics 4 (GA4)</h3>
-            <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;">Real-time Telemetry</span>
+            <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;">Multi-Property</span>
         </div>
-        <p class="card-desc" style="margin-bottom: 16px;">
-            ระบุ GA4 Property ID เพื่อดึงสถิติผู้ใช้งานแบบ Real-time (30 นาที), สถิติ 28 วันย้อนหลัง และ Top Cities แสดงบน Screen 6
+        <p class="card-desc" style="margin-bottom: 14px;">
+            ผูกได้หลาย GA4 Property ข้ามหลาย Google Identity ด้วย Service Account JSON Key เพื่อแสดงผลและสลับดูบน Screen 6
         </p>
         
-        <div class="form-group" style="margin-bottom: 14px;">
-            <label for="ga-property-id" style="font-weight: 500; font-size: 0.85rem;">GA4 Property ID (ตัวเลข 9 หลัก)</label>
-            <div style="display: flex; gap: 8px;">
-                <input type="text" id="ga-property-id" placeholder="e.g. 453120000" style="flex: 1;">
-                <button type="button" class="btn" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: #93c5fd; padding: 0 16px; font-size: 0.85rem; white-space: nowrap; width: auto;" onclick="testGa4Connection()">
-                    🔍 Test Connection
-                </button>
+        <!-- Add Property Inputs -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+            <div class="form-group" style="margin: 0;">
+                <label for="ga4-upload-propid" style="font-size: 0.8rem; margin-bottom: 4px;">GA4 Property ID *</label>
+                <input type="text" id="ga4-upload-propid" placeholder="e.g. 453120000" style="padding: 8px 12px; font-size: 0.85rem;">
             </div>
-            <div id="ga4-test-result" style="font-size: 0.8rem; margin-top: 6px; display: none;"></div>
+            <div class="form-group" style="margin: 0;">
+                <label for="ga4-upload-propname" style="font-size: 0.8rem; margin-bottom: 4px;">Display Name</label>
+                <input type="text" id="ga4-upload-propname" placeholder="e.g. Main Web, Blog" style="padding: 8px 12px; font-size: 0.85rem;">
+            </div>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
-            <button class="btn btn-primary" onclick="saveGa4Config()" style="width: auto; padding: 10px 24px;">
-                💾 Save GA4 Settings
-            </button>
+        <!-- Upload Drop Zone -->
+        <div style="border: 2px dashed rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(59, 130, 246, 0.03); margin-bottom: 14px;" 
+             onclick="document.getElementById('ga4-file-input').click()"
+             onmouseover="this.style.borderColor='rgba(59, 130, 246, 0.8)'; this.style.background='rgba(59, 130, 246, 0.08)'" 
+             onmouseout="this.style.borderColor='rgba(59, 130, 246, 0.3)'; this.style.background='rgba(59, 130, 246, 0.03)'">
+            <span style="font-size: 1.4rem;">📥</span>
+            <h4 style="margin: 4px 0 2px 0; font-size: 0.85rem; font-weight: 600; color: #93c5fd;">Upload Service Account JSON Key</h4>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">Click or drop .json key to save & register property</p>
+            <input type="file" id="ga4-file-input" style="display: none;" accept=".json" onchange="uploadGa4PropertyKey(this.files[0])">
+        </div>
+
+        <!-- Properties List -->
+        <div id="ga4-properties-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+            <div style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 6px;">No GA4 Properties added yet.</div>
         </div>
     </div>
 
     <!-- GCP Multi-Project Service Account Key Manager -->
-    <div class="card">
+    <div class="card" id="gcp-multi-card">
         <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
             <h3 class="card-title">📁 GCP Multi-Project Manager</h3>
             <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 0.8rem;">Cloud Billing</span>
         </div>
         <p class="card-desc" style="margin-bottom: 14px;">
-            Add multiple Google Cloud projects. Upload each project's Service Account JSON key to fetch and aggregate billing costs on Screen 7.
+            ผูกได้หลาย GCP Project ข้ามหลาย Google Identity ด้วย Service Account JSON Key เพื่อติดตามค่าใช้จ่ายและ Forecast บน Screen 7
         </p>
         
-        <!-- Upload Section -->
-        <div style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255, 255, 255, 0.02); margin-bottom: 14px;" 
+        <!-- Add Project Inputs -->
+        <div style="display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 8px; margin-bottom: 10px;">
+            <div class="form-group" style="margin: 0;">
+                <label for="gcp-upload-name" style="font-size: 0.8rem; margin-bottom: 4px;">Display Name</label>
+                <input type="text" id="gcp-upload-name" placeholder="e.g. AuraDeck Prod" style="padding: 8px 12px; font-size: 0.85rem;">
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label for="gcp-upload-currency" style="font-size: 0.8rem; margin-bottom: 4px;">Currency</label>
+                <select id="gcp-upload-currency" style="padding: 8px 10px; font-size: 0.85rem;">
+                    <option value="THB" selected>฿ THB</option>
+                    <option value="USD">$ USD</option>
+                    <option value="EUR">€ EUR</option>
+                    <option value="SGD">S$ SGD</option>
+                    <option value="JPY">¥ JPY</option>
+                    <option value="GBP">£ GBP</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Upload Drop Zone -->
+        <div style="border: 2px dashed rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(245, 158, 11, 0.03); margin-bottom: 14px;" 
              id="gcp-drop-zone"
              onclick="document.getElementById('gcp-file-input').click()"
-             onmouseover="this.style.borderColor='rgba(245, 158, 11, 0.7)'; this.style.background='rgba(255, 255, 255, 0.05)'" 
-             onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.15)'; this.style.background='rgba(255, 255, 255, 0.02)'">
-            <span style="font-size: 1.6rem;">📥</span>
-            <h4 style="margin: 6px 0 2px 0; font-size: 0.88rem; font-weight: 600; color: var(--text-primary);">Drag & Drop or Click to Upload</h4>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Upload Service Account JSON Key</p>
+             onmouseover="this.style.borderColor='rgba(245, 158, 11, 0.8)'; this.style.background='rgba(245, 158, 11, 0.08)'" 
+             onmouseout="this.style.borderColor='rgba(245, 158, 11, 0.3)'; this.style.background='rgba(245, 158, 11, 0.03)'">
+            <span style="font-size: 1.4rem;">📥</span>
+            <h4 style="margin: 4px 0 2px 0; font-size: 0.85rem; font-weight: 600; color: #fbbf24;">Upload Service Account JSON Key</h4>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">Click or drop .json key to save & register project</p>
             <input type="file" id="gcp-file-input" style="display: none;" accept=".json" onchange="uploadGcpProjectKey(this.files[0])">
         </div>
 
         <!-- Projects List -->
-        <div id="gcp-projects-list" style="display: flex; flex-direction: column; gap: 8px;">
+        <div id="gcp-projects-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
             <div style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 6px;">No GCP Projects added yet.</div>
         </div>
     </div>

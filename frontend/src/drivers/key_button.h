@@ -1,6 +1,6 @@
 /**
  * @file key_button.h
- * @brief Interrupt-driven debounced side customizable button driver (GPIO18).
+ * @brief Interrupt-driven debounced button driver for KEY (GPIO18) and BOOT (GPIO0).
  */
 
 #pragma once
@@ -9,11 +9,11 @@
 
 class KeyButton {
 public:
-    KeyButton();
+    KeyButton(uint8_t pin = 18);
     ~KeyButton();
 
     /**
-     * @brief Configures GPIO18 key, registers interrupt, and binds callback.
+     * @brief Configures GPIO pin, registers interrupt, and binds click callback.
      * @param clickCallback Function pointer to invoke on valid debounced click.
      */
     void begin(void (*clickCallback)());
@@ -25,12 +25,16 @@ public:
     void tick();
 
     /**
-     * @brief Static interrupt service routine.
+     * @brief Direct ISR triggers for static pin instances.
      */
-    static void IRAM_ATTR handleInterrupt();
+    static void IRAM_ATTR isrKeyPin();
+    static void IRAM_ATTR isrBootPin();
 
 private:
-    static volatile bool s_wasPressed;
-    static volatile uint32_t s_lastInterruptTime;
+    uint8_t m_pin;
     void (*m_callback)() = nullptr;
+    uint32_t m_lastFiredTime = 0;
+
+    static volatile bool s_keyPressed;
+    static volatile bool s_bootPressed;
 };

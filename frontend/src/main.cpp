@@ -21,7 +21,8 @@
 PCF85063RTC        g_rtc;
 ST7305Display      g_display;
 SHTCSensor         g_sensor;
-KeyButton          g_button;
+KeyButton          g_keyButton(PIN_KEY_BUTTON);   // Page navigation button (GPIO18)
+KeyButton          g_bootButton(PIN_BOOT_BUTTON); // Context-aware Action button (GPIO0)
 AuraNetworkManager g_network;
 UIManager          g_ui;
 PairingManager     g_pairing; ///< TV-style pairing manager
@@ -29,18 +30,25 @@ PairingManager     g_pairing; ///< TV-style pairing manager
 // In-Memory UI State Variables
 int g_currentPageIndex = 0;
 const int TOTAL_PAGES = 8; // 0=Home, 1=Antigravity, 2=Stocks, 3=Todos, 4=Calendar, 5=Spotify, 6=GA4, 7=GCP
-volatile bool g_pageChanged    = false; // Set in ISR, handled safely in main loop
-bool g_isPairingMode           = false; ///< true while showing pairing PIN screen
-bool g_pairingCheckDone        = false; ///< pairing check runs once after first WiFi connect
+volatile bool g_pageChanged        = false; // Set in KEY ISR, handled safely in main loop
+volatile bool g_actionTriggered    = false; // Set in BOOT ISR, handled safely in main loop
+bool g_isPairingMode               = false; ///< true while showing pairing PIN screen
+bool g_pairingCheckDone            = false; ///< pairing check runs once after first WiFi connect
 
 uint32_t g_lastHeaderUpdateTime = 0;
 uint32_t g_lastTimePrintTime    = 0;
+uint32_t g_lastGa4CycleTime     = 0;
 uint32_t g_lastGcpCycleTime     = 0;
 
-// Button ISR callback (Rotates active screen pages)
+// KEY Button ISR callback (Rotates active screen pages 0 -> 7)
 void onPageCycleButtonPress() {
     g_currentPageIndex = (g_currentPageIndex + 1) % TOTAL_PAGES;
     g_pageChanged = true;
+}
+
+// BOOT Button ISR callback (Context-aware action: Project Cycle / Spotify Play-Pause / Sync)
+void onActionButtonPress() {
+    g_actionTriggered = true;
 }
 
 // C-linkage tick bridge for LVGL (resolves template linkage compiler error)
@@ -148,9 +156,10 @@ void setup() {
     g_ui.drawBootStatus("Initializing SHTC3 Sensor...", 75);
     g_sensor.begin(Wire);
 
-    // 7. Initialize Side Customizable Button & Attach Hardware Interrupt
+    // 7. Initialize Side Navigation (KEY) and Action (BOOT) Buttons
     g_ui.drawBootStatus("Configuring Interrupt Keys...", 85);
-    g_button.begin(onPageCycleButtonPress);
+    g_keyButton.begin(onPageCycleButtonPress);
+    g_bootButton.begin(onActionButtonPress);
 
     // 8. Initialize Battery ADC pin once (avoid re-init every loop iteration)
     pinMode(PIN_BAT_ADC, INPUT);
@@ -174,8 +183,9 @@ void loop() {
     // 1. Process network connections, NTP syncs, and MQTT subscriptions
     g_network.tick();
 
-    // 2. Process physical key debounce polls
-    g_button.tick();
+    // 2. Process physical key debounce polls (KEY = Page Cycle, BOOT = Action)
+    g_keyButton.tick();
+    g_bootButton.tick();
 
     // 3. Process safe thread/ISR boundary UI page rotations (only when NOT in pairing mode)
     if (g_pageChanged && !g_isPairingMode) {
@@ -186,6 +196,37 @@ void loop() {
     } else if (g_pageChanged && g_isPairingMode) {
         g_pageChanged = false; // Swallow button press during pairing
         Serial.println("⚠️ Button press ignored — device is in pairing mode.");
+    }
+
+    // 3a. Process Context-Aware Action Button (BOOT / GPIO0)
+    if (g_actionTriggered && !g_isPairingMode) {
+        g_actionTriggered = false;
+        Serial.printf("⚡ Action Button (BOOT) triggered on Page %d\n", g_currentPageIndex);
+        
+        if (g_currentPageIndex == 6) {
+            // Screen 6 (GA4): Switch to next property immediately
+            g_ui.cycleGa4Property();
+        } else if (g_currentPageIndex == 7) {
+            // Screen 7 (GCP): Switch to next project immediately
+            g_ui.cycleGcpProject();
+        } else if (g_currentPageIndex == 5) {
+            // Screen 5 (Spotify): Toggle Play/Pause playback
+            g_network.publishCommand("auradeck/command/spotify/toggle", "{}");
+        } else {
+            // Other Screens (0..4): Request instant telemetry sync from backend
+            const char* svc = "all";
+            if (g_currentPageIndex == 0) svc = "weather";
+            else if (g_currentPageIndex == 1) svc = "antigravity";
+            else if (g_currentPageIndex == 2) svc = "stocks";
+            else if (g_currentPageIndex == 3) svc = "todos";
+            else if (g_currentPageIndex == 4) svc = "calendar";
+            
+            char cmdTopic[64];
+            snprintf(cmdTopic, sizeof(cmdTopic), "auradeck/command/sync/%s", svc);
+            g_network.publishCommand(cmdTopic, "{}");
+        }
+    } else if (g_actionTriggered && g_isPairingMode) {
+        g_actionTriggered = false;
     }
 
     // 3a. DEFERRED PAIRING CHECK — runs exactly once after WiFi first connects.
@@ -335,13 +376,19 @@ void loop() {
         g_ui.dispatchData("auradeck/home_telemetry", telemetryDoc.as<JsonVariantConst>());
     }
 
-    // 6. Auto-cycle GCP multi-projects every 15 seconds when active on Page 7
+    // 6. Auto-cycle GA4 Multi-Properties every 15 seconds when active on Page 6
+    if (g_currentPageIndex == 6 && (now - g_lastGa4CycleTime >= 15000)) {
+        g_lastGa4CycleTime = now;
+        g_ui.cycleGa4Property();
+    }
+
+    // 7. Auto-cycle GCP Multi-Projects every 15 seconds when active on Page 7
     if (g_currentPageIndex == 7 && (now - g_lastGcpCycleTime >= 15000)) {
         g_lastGcpCycleTime = now;
         g_ui.cycleGcpProject();
     }
 
-    // 7. Print physical clock telemetry to Serial Console every 10 seconds
+    // 8. Print physical clock telemetry to Serial Console every 10 seconds
     if (now - g_lastTimePrintTime >= 10000) {
         g_lastTimePrintTime = now;
 

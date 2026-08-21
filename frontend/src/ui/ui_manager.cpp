@@ -277,6 +277,13 @@ void UIManager::showPage(int pageIndex) {
     replayCachedData(pageIndex);
 }
 
+void UIManager::cycleGa4Property() {
+    if (m_currentPageIndex == 6) {
+        cycle_ga4_property();
+        lv_refr_now(nullptr);
+    }
+}
+
 void UIManager::cycleGcpProject() {
     if (m_currentPageIndex == 7) {
         cycle_gcp_project();

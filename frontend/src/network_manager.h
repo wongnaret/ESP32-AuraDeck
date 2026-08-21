@@ -52,6 +52,11 @@ public:
      */
     const char* getDeviceMac() const { return m_deviceMac; }
 
+    /**
+     * @brief Publishes an MQTT command payload to the broker.
+     */
+    bool publishCommand(const char* topic, const char* payload = "{}");
+
 private:
     WiFiClient m_espClient;
     PubSubClient m_mqttClient;

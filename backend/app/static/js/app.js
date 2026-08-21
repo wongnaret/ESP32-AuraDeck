@@ -269,6 +269,7 @@ async function updateSelectedTaskLists() {
 // Initial Dashboard Loading Routine
 async function initializeDashboard() {
     await loadProfileConfig();
+    if (typeof loadGa4Properties === 'function') await loadGa4Properties();
     if (typeof loadGcpProjects === 'function') await loadGcpProjects();
     if (typeof loadPairedDevices === 'function') await loadPairedDevices();
     if (typeof fetchAPStatus === 'function') await fetchAPStatus();
@@ -284,3 +285,4 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof loadPairedDevices === 'function') setInterval(loadPairedDevices, 15000);
     if (typeof fetchAPStatus === 'function') setInterval(fetchAPStatus, 15000);
 });
+

@@ -19,6 +19,12 @@ void create_page_ga4(lv_obj_t* parent);
 void update_page_ga4(JsonVariantConst data);
 
 /**
+ * @brief Cycles through multiple configured GA4 Properties (1/N -> 2/N ...).
+ */
+void cycle_ga4_property();
+
+/**
  * @brief Resets all static widget pointers to nullptr before parent container is cleaned.
  */
 void destroy_page_ga4();
+

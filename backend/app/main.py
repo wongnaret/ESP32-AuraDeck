@@ -6,7 +6,7 @@ import random
 import time
 import platform
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, Request, HTTPException, Depends, Cookie, UploadFile, File, Query
+from fastapi import FastAPI, Request, HTTPException, Depends, Cookie, UploadFile, File, Query, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -868,11 +868,15 @@ def api_get_gcp_projects(profile_id: str, active_profile_id: Optional[str] = Coo
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         key_data = json.load(f)
-                    proj_id = key_data.get("project_id")
+                    proj_id = key_data.get("project_id") or os.path.splitext(fname)[0]
+                    proj_name = key_data.get("project_name") or proj_id
+                    currency = key_data.get("currency", "THB")
                     client_email = key_data.get("client_email")
                     if proj_id:
                         projects_list.append({
                             "project_id": proj_id,
+                            "project_name": proj_name,
+                            "currency": currency,
                             "client_email": client_email or "Unknown Service Account"
                         })
                 except Exception as e:
@@ -882,7 +886,13 @@ def api_get_gcp_projects(profile_id: str, active_profile_id: Optional[str] = Coo
 
 
 @app.post("/api/profiles/{profile_id}/gcp-projects/upload")
-async def api_upload_gcp_project(profile_id: str, file: UploadFile = File(...), active_profile_id: Optional[str] = Cookie(None)):
+async def api_upload_gcp_project(
+    profile_id: str,
+    project_name: Optional[str] = Form(""),
+    currency: Optional[str] = Form("THB"),
+    file: UploadFile = File(...),
+    active_profile_id: Optional[str] = Cookie(None)
+):
     """Uploads a GCP Service Account JSON key for a specific project under the profile."""
     if not active_profile_id or active_profile_id != profile_id:
         raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
@@ -900,6 +910,9 @@ async def api_upload_gcp_project(profile_id: str, file: UploadFile = File(...), 
     if not project_id:
         raise HTTPException(status_code=400, detail="The key file does not contain a valid Google Cloud project_id.")
         
+    parsed_json["project_name"] = project_name.strip() or project_id
+    parsed_json["currency"] = (currency.strip().upper() if currency else "THB")
+
     profile_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
     gcp_projects_dir = os.path.join(profile_dir, "gcp_projects")
     os.makedirs(gcp_projects_dir, exist_ok=True)
@@ -908,7 +921,13 @@ async def api_upload_gcp_project(profile_id: str, file: UploadFile = File(...), 
     with open(target_path, "w", encoding="utf-8") as f:
         json.dump(parsed_json, f, indent=2)
         
-    return {"status": "success", "project_id": project_id, "message": f"Successfully added GCP Project '{project_id}' with Service Account."}
+    return {
+        "status": "success",
+        "project_id": project_id,
+        "project_name": parsed_json["project_name"],
+        "currency": parsed_json["currency"],
+        "message": f"Successfully added GCP Project '{parsed_json['project_name']}' with Service Account."
+    }
 
 
 @app.delete("/api/profiles/{profile_id}/gcp-projects/{project_id}")
@@ -923,6 +942,110 @@ def api_delete_gcp_project(profile_id: str, project_id: str, active_profile_id: 
         return {"status": "success", "message": f"Successfully removed GCP Project '{project_id}'."}
     else:
         raise HTTPException(status_code=404, detail="GCP project key not found.")
+
+
+# --- GA4 Multi-Property Management Endpoints ---
+
+@app.get("/api/profiles/{profile_id}/ga4-properties")
+def api_get_ga4_properties(profile_id: str, active_profile_id: Optional[str] = Cookie(None)):
+    """Retrieves all uploaded GA4 properties with their names, IDs, and SA client emails."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+        
+    ga4_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "ga4_properties")
+    props_list = []
+    
+    if os.path.exists(ga4_dir):
+        for fname in os.listdir(ga4_dir):
+            if fname.endswith(".json"):
+                path = os.path.join(ga4_dir, fname)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        key_data = json.load(f)
+                    prop_id = str(key_data.get("property_id") or os.path.splitext(fname)[0])
+                    prop_name = key_data.get("property_name") or f"Property {prop_id}"
+                    client_email = key_data.get("client_email") or "Service Account"
+                    props_list.append({
+                        "property_id": prop_id,
+                        "property_name": prop_name,
+                        "client_email": client_email
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to parse GA4 key file {fname}: {e}")
+                    
+    return props_list
+
+
+@app.post("/api/profiles/{profile_id}/ga4-properties/upload")
+async def api_upload_ga4_property(
+    profile_id: str,
+    property_id: str = Form(...),
+    property_name: Optional[str] = Form(""),
+    file: UploadFile = File(...),
+    active_profile_id: Optional[str] = Cookie(None)
+):
+    """Uploads a Service Account JSON key for a specific GA4 property."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+        
+    prop_id = property_id.strip()
+    if not prop_id:
+        raise HTTPException(status_code=400, detail="GA4 Property ID cannot be blank.")
+
+    try:
+        content = await file.read()
+        parsed_json = json.loads(content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON formatting: {e}")
+        
+    if parsed_json.get("type") != "service_account":
+        raise HTTPException(status_code=400, detail="The file is not a valid Google Service Account JSON key.")
+        
+    parsed_json["property_id"] = prop_id
+    parsed_json["property_name"] = property_name.strip() if property_name else f"GA4 Property {prop_id}"
+    
+    profile_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id)
+    ga4_dir = os.path.join(profile_dir, "ga4_properties")
+    os.makedirs(ga4_dir, exist_ok=True)
+    
+    target_path = os.path.join(ga4_dir, f"{prop_id}.json")
+    with open(target_path, "w", encoding="utf-8") as f:
+        json.dump(parsed_json, f, indent=2)
+        
+    return {
+        "status": "success",
+        "property_id": prop_id,
+        "property_name": parsed_json["property_name"],
+        "message": f"Successfully added GA4 Property '{parsed_json['property_name']}'."
+    }
+
+
+@app.delete("/api/profiles/{profile_id}/ga4-properties/{property_id}")
+def api_delete_ga4_property(profile_id: str, property_id: str, active_profile_id: Optional[str] = Cookie(None)):
+    """Deletes a specific GA4 property service account key."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+        
+    target_path = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "ga4_properties", f"{property_id}.json")
+    if os.path.exists(target_path):
+        os.remove(target_path)
+        return {"status": "success", "message": f"Successfully removed GA4 Property '{property_id}'."}
+    else:
+        raise HTTPException(status_code=404, detail="GA4 property key not found.")
+
+
+@app.post("/api/spotify/toggle")
+async def api_toggle_spotify(profile_id: Optional[str] = Query(None), active_profile_id: Optional[str] = Cookie(None)):
+    """Toggles Spotify Play/Pause playback for the active profile."""
+    pid = profile_id or active_profile_id or "default"
+    from app.services.spotify import toggle_spotify_playback
+    result = await toggle_spotify_playback(pid)
+    # Publish updated Spotify state
+    if result.get("status") == "success":
+        cur_track = await get_spotify_currently_playing(pid)
+        mqtt_service.publish("auradeck/spotify", cur_track)
+    return result
+
 
 
 @app.get("/api/profiles/{profile_id}/google-lists")

@@ -49,6 +49,11 @@ public:
     void showPage(int pageIndex);
 
     /**
+     * @brief Cycles to the next GA4 property when viewing Page 6.
+     */
+    void cycleGa4Property();
+
+    /**
      * @brief Cycles to the next GCP project when viewing Page 7.
      */
     void cycleGcpProject();

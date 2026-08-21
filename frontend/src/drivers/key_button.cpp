@@ -1,50 +1,67 @@
 /**
  * @file key_button.cpp
- * @brief Interrupt-driven debounced side customizable button driver (GPIO18).
+ * @brief Interrupt-driven debounced button driver for KEY (GPIO18) and BOOT (GPIO0).
  */
 
 #include "key_button.h"
 #include "config.h"
 
 // Define static class members
-volatile bool KeyButton::s_wasPressed = false;
-volatile uint32_t KeyButton::s_lastInterruptTime = 0;
+volatile bool KeyButton::s_keyPressed = false;
+volatile bool KeyButton::s_bootPressed = false;
 
-KeyButton::KeyButton() {}
+KeyButton::KeyButton(uint8_t pin) : m_pin(pin) {}
 
 KeyButton::~KeyButton() {
-    detachInterrupt(digitalPinToInterrupt(PIN_KEY_BUTTON));
+    detachInterrupt(digitalPinToInterrupt(m_pin));
+}
+
+void IRAM_ATTR KeyButton::isrKeyPin() {
+    s_keyPressed = true;
+}
+
+void IRAM_ATTR KeyButton::isrBootPin() {
+    s_bootPressed = true;
 }
 
 void KeyButton::begin(void (*clickCallback)()) {
     m_callback = clickCallback;
 
     // Configure pin with input pullup as active low button
-    pinMode(PIN_KEY_BUTTON, INPUT_PULLUP);
+    pinMode(m_pin, INPUT_PULLUP);
 
     // Attach interrupt to trigger on FALLING edge (when button is pressed to GND)
-    attachInterrupt(digitalPinToInterrupt(PIN_KEY_BUTTON), handleInterrupt, FALLING);
-
-    Serial.println("✅ Custom side button (GPIO18) configured with hardware interrupt.");
-}
-
-void IRAM_ATTR KeyButton::handleInterrupt() {
-    s_wasPressed = true;
-    s_lastInterruptTime = millis();
+    if (m_pin == PIN_BOOT_BUTTON) {
+        attachInterrupt(digitalPinToInterrupt(m_pin), isrBootPin, FALLING);
+        Serial.printf("✅ Side Action Button (GPIO%d) configured with hardware interrupt.\n", m_pin);
+    } else {
+        attachInterrupt(digitalPinToInterrupt(m_pin), isrKeyPin, FALLING);
+        Serial.printf("✅ Side Navigation Button (GPIO%d) configured with hardware interrupt.\n", m_pin);
+    }
 }
 
 void KeyButton::tick() {
-    if (s_wasPressed) {
-        // Atomic reset
-        s_wasPressed = false;
+    bool pressed = false;
 
+    if (m_pin == PIN_BOOT_BUTTON) {
+        if (s_bootPressed) {
+            s_bootPressed = false;
+            pressed = true;
+        }
+    } else {
+        if (s_keyPressed) {
+            s_keyPressed = false;
+            pressed = true;
+        }
+    }
+
+    if (pressed) {
         uint32_t now = millis();
-        static uint32_t lastFiredTime = 0;
 
         // Software debounce: ignore triggers within 250ms of each other
-        if (now - lastFiredTime > 250) {
-            lastFiredTime = now;
-            Serial.printf("🔘 Button click detected (Debounced). Triggering page rotation callback.\n");
+        if (now - m_lastFiredTime > 250) {
+            m_lastFiredTime = now;
+            Serial.printf("🔘 Button click detected on GPIO%d (Debounced).\n", m_pin);
             if (m_callback) {
                 m_callback();
             }

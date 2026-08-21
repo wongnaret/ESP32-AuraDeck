@@ -419,3 +419,14 @@ void AuraNetworkManager::handleMqttMessage(const char* topic, JsonVariantConst d
     snprintf(normalizedTopic, sizeof(normalizedTopic), "auradeck/%s", service);
     g_ui.dispatchData(normalizedTopic, data);
 }
+
+bool AuraNetworkManager::publishCommand(const char* topic, const char* payload) {
+    if (!isMqttConnected()) {
+        Serial.printf("⚠️ Cannot publish command to %s — MQTT not connected.\n", topic);
+        return false;
+    }
+    bool res = m_mqttClient.publish(topic, payload);
+    Serial.printf("🚀 Published command to %s (success=%d): %s\n", topic, res, payload);
+    return res;
+}
+

@@ -42,8 +42,11 @@
 #define PIN_TP_INT     7
 #define PIN_TP_RESET   42
 
-// Key Customizable Side Button
-#define PIN_KEY_BUTTON 18
+// Key Customizable Side Button (Page Navigation: 0 -> 7)
+#define PIN_KEY_BUTTON  18
+
+// Boot Action Side Button (Context-Aware Action: Project Cycle / Spotify Play-Pause / Sync)
+#define PIN_BOOT_BUTTON 0
 
 // Battery ADC Power Sense
 #define PIN_BAT_ADC       4
