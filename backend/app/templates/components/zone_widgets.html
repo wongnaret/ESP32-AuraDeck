@@ -1,0 +1,151 @@
+<!-- ======================================================== -->
+<!-- Zone 2: 🎨 Widget Content & Display Customization        -->
+<!-- ======================================================== -->
+<div class="zone-header">
+    <div>
+        <h2>🎨 Widget Content & Display Preferences</h2>
+        <p>กำหนดตำแหน่งแผนที่พยากรณ์อากาศ รายการหุ้น/คริปโต และมุมมอง Widget บนหน้าจอ ESP32</p>
+    </div>
+</div>
+
+<div class="zone-grid-2col">
+    <!-- Left Column: Dedicated Interactive Weather Map Location Selector -->
+    <div class="card">
+        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title">🌦️ Weather Location (แผนที่พยากรณ์อากาศ)</h3>
+            <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.8rem;">Open-Meteo Live</span>
+        </div>
+        <p class="card-desc" style="margin-bottom: 12px;">
+            ระบุตำแหน่งสำหรับดึงข้อมูลสภาพอากาศและพยากรณ์ฝนรายชั่วโมง (6 ชม.) บน Screen 0 Home
+        </p>
+
+        <!-- POI / ROI Search Input Group -->
+        <div class="map-search-wrapper">
+            <div class="map-search-input-group">
+                <div style="position: relative; flex: 1;">
+                    <span class="map-search-icon">🔍</span>
+                    <input type="text" id="map-search-input" class="map-search-input" placeholder="ค้นหาสถานที่, อำเภอ, จังหวัด หรือ POI/ROI (เช่น Siam Paragon, สยาม, เชียงใหม่, หาดป่าตอง)..." autocomplete="off" oninput="onMapSearchInput(this.value)" onkeydown="onMapSearchKeydown(event)">
+                    <div id="map-autocomplete-list" class="map-autocomplete-dropdown"></div>
+                </div>
+                <button type="button" class="btn" style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); color: #67e8f9; padding: 0 14px; font-size: 0.85rem; white-space: nowrap; display: flex; align-items: center; gap: 6px; width: auto;" onclick="locateUserCurrentPosition()">
+                    📍 ตำแหน่งปัจจุบัน
+                </button>
+            </div>
+        </div>
+
+        <!-- Interactive Leaflet Map Container -->
+        <div id="weather-map"></div>
+
+        <!-- Live Selected Location HUD & Readout -->
+        <div class="map-location-hud">
+            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
+                <span style="color: #a78bfa; font-weight: 600;">📍</span>
+                <span id="map-location-name" style="color: var(--text-main); font-weight: 500;">กรุงเทพมหานคร (Bangkok)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="map-coords-badge" id="map-coords-display">13.7563, 100.5018</span>
+            </div>
+        </div>
+
+        <!-- Hidden Lat/Lon Form Inputs -->
+        <input type="hidden" id="weather-lat" value="13.7563">
+        <input type="hidden" id="weather-lon" value="100.5018">
+
+        <div style="display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary" onclick="saveWeatherConfig()" style="width: auto; padding: 10px 24px;">
+                💾 Save & Sync Weather Location
+            </button>
+        </div>
+    </div>
+
+    <!-- Right Column: Stock Watchlist, Spotify Cover, Task Lists -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Stock Watchlist Configuration Card -->
+        <div class="card" id="stock-watchlist-card">
+            <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">📈 Stock & Asset Watchlist</h3>
+                <span class="status-badge" style="background: rgba(139, 92, 246, 0.15); color: var(--primary); font-size: 0.8rem;">Yahoo Finance Live</span>
+            </div>
+            <p class="card-desc" style="margin-bottom: 14px;">
+                Search and manage stocks, cryptocurrencies, and commodities displayed on your ESP32 screen.
+            </p>
+            
+            <!-- Autocomplete Search & Add Form -->
+            <div class="stock-search-wrapper" style="position: relative; margin-bottom: 16px;">
+                <div style="display: flex; gap: 10px;">
+                    <div style="position: relative; flex: 1;">
+                        <input type="text" id="stock-search-input" placeholder="Type name or symbol e.g. CPALL, NVDA, BTC, GC=F..." 
+                               oninput="onStockSearchInput(this.value)" 
+                               onfocus="onStockSearchInput(this.value)" 
+                               autocomplete="off"
+                               style="width: 100%; padding: 10px 14px; font-size: 0.9rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                        
+                        <!-- Autocomplete Dropdown Menu -->
+                        <div id="stock-autocomplete-dropdown" class="stock-autocomplete-menu" style="display: none;"></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addSelectedStock()" style="width: auto; white-space: nowrap; padding: 0 18px; font-size: 0.85rem;">
+                        + Add Stock
+                    </button>
+                </div>
+            </div>
+
+            <!-- Configured Stocks Table -->
+            <div style="overflow-x: auto; max-height: 240px; overflow-y: auto;">
+                <table class="stock-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; color: var(--text-muted);">
+                            <th style="padding: 8px 6px;">Symbol</th>
+                            <th style="padding: 8px 6px;">Name</th>
+                            <th style="padding: 8px 6px;">Type</th>
+                            <th style="padding: 8px 6px;">Price</th>
+                            <th style="padding: 8px 6px; text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-watchlist-table-body">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 14px; color: var(--text-muted);">Loading watchlist...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Spotify Monochrome Cover Art Viewer Card -->
+        <div class="card" id="spotify-cover-card">
+            <div class="card-header" style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">🎵 Spotify Album Cover Preview</h3>
+                <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.8rem;">1-Bit Monochrome Dither</span>
+            </div>
+            <p class="card-desc" style="margin-bottom: 12px;">
+                Live Floyd-Steinberg 1-bit monochrome artwork generated for your ESP32-S3 RLCD 4.2" display.
+            </p>
+            
+            <div style="display: flex; align-items: center; gap: 16px; background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.08);">
+                <div style="text-align: center;">
+                    <div style="width: 80px; height: 80px; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 8px; overflow: hidden; background: #ffffff; display: flex; align-items: center; justify-content: center;">
+                        <img id="spotify-cover-mono-preview" src="/api/spotify/cover.png" alt="1-Bit Cover Preview" style="width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated;" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'80\' height=\'80\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23888\' stroke-width=\'2\'><circle cx=\'12\' cy=\'12\' r=\'10\'/><path d=\'M12 6v6l4 2\'/></svg>';">
+                    </div>
+                </div>
+
+                <div style="flex: 1;">
+                    <h4 id="spotify-preview-title" style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 2px;">Live Spotify Cover Stream</h4>
+                    <p id="spotify-preview-artist" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Auto-synced with active playback</p>
+                    <button class="btn btn-secondary" onclick="document.getElementById('spotify-cover-mono-preview').src='/api/spotify/cover.png?t='+Date.now()" style="font-size: 0.75rem; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px; width: auto;">
+                        🔄 Refresh Cover
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Tasks Multiple List checklist card -->
+        <div class="card" id="task-lists-card" style="display: none;">
+            <h3 class="card-title" style="margin-bottom: 10px;">✅ Selected Google Task Lists</h3>
+            <p class="card-desc" style="margin-bottom: 12px;">
+                Select which task lists should be aggregated and pushed to your ESP32 display.
+            </p>
+            <div class="checkbox-grid" id="task-lists-container">
+                <div style="font-size: 0.85rem; color: var(--text-muted);">Fetching lists...</div>
+            </div>
+        </div>
+    </div>
+</div>

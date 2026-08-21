@@ -1,0 +1,99 @@
+<!-- ======================================================== -->
+<!-- Tab 2: Developer Sandbox & Live MQTT Terminal            -->
+<!-- ======================================================== -->
+<div id="sandbox" class="tab-content">
+    <header>
+        <h1>Developer Sandbox & API Sandbox</h1>
+        <p class="subtitle">Manually trigger, inspect, and push mocked JSON payloads directly to Mosquitto to test ESP32 displays.</p>
+    </header>
+
+    <div class="sandbox-container">
+        <!-- Control Side -->
+        <div class="control-panel">
+            
+            <!-- Quick API triggers -->
+            <div class="card" style="padding: 24px;">
+                <h3 class="card-title" style="font-size: 16px; margin-bottom: 16px;">🔄 Fast API Trigger Sandbox</h3>
+                <div class="sync-bench-grid">
+                    <div class="sync-card" onclick="triggerSync('spotify')">
+                        <div class="sync-icon">🎵</div>
+                        <h4>Spotify</h4>
+                    </div>
+                    <div class="sync-card" onclick="triggerSync('calendar')">
+                        <div class="sync-icon">📅</div>
+                        <h4>Calendar</h4>
+                    </div>
+                    <div class="sync-card" onclick="triggerSync('todos')">
+                        <div class="sync-icon">✅</div>
+                        <h4>Todos</h4>
+                    </div>
+                    <div class="sync-card" onclick="triggerSync('stocks')">
+                        <div class="sync-icon">📈</div>
+                        <h4>Stocks</h4>
+                    </div>
+                    <div class="sync-card" onclick="triggerSync('weather')">
+                        <div class="sync-icon">🌦️</div>
+                        <h4>Weather</h4>
+                    </div>
+                    <div class="sync-card" onclick="triggerSync('antigravity')">
+                        <div class="sync-icon">🤖</div>
+                        <h4>Antigravity</h4>
+                    </div>
+                    <div class="sync-card" onclick="triggerSync('ga4')">
+                        <div class="sync-icon">📊</div>
+                        <h4>GA4</h4>
+                    </div>
+                    <div class="sync-card" onclick="triggerSync('gcp')">
+                        <div class="sync-icon">☁️</div>
+                        <h4>GCP Cloud</h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MQTT Publisher Form -->
+            <div class="card" style="padding: 24px;">
+                <h3 class="card-title" style="font-size: 16px; margin-bottom: 16px;">📡 Test MQTT Payload Sender</h3>
+                
+                <div class="form-group">
+                    <label for="mqtt-topic">Target MQTT Topic</label>
+                    <select id="mqtt-topic" onchange="loadMockTemplate()">
+                        <option value="auradeck/spotify">auradeck/spotify (Music State)</option>
+                        <option value="auradeck/calendar">auradeck/calendar (Google Events)</option>
+                        <option value="auradeck/todos">auradeck/todos (Tasks Checklist)</option>
+                        <option value="auradeck/stocks">auradeck/stocks (Watchlist Quotes)</option>
+                        <option value="auradeck/weather">auradeck/weather (Rain & Forecast)</option>
+                        <option value="auradeck/antigravity">auradeck/antigravity (AI Credits)</option>
+                        <option value="auradeck/ga4">auradeck/ga4 (Active Users & Cities)</option>
+                        <option value="auradeck/gcp">auradeck/gcp (Billing & Daily Spend)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="mqtt-payload">Payload Body (JSON Format)</label>
+                    <textarea id="mqtt-payload" class="json-editor"></textarea>
+                </div>
+
+                <button class="btn btn-primary" onclick="publishMqtt()">
+                    🚀 Publish Live MQTT Payload
+                </button>
+            </div>
+        </div>
+
+        <!-- Right: Live Terminal Monitor Console -->
+        <div class="terminal-panel">
+            <div class="terminal-header">
+                <div class="terminal-buttons">
+                    <div class="term-dot red"></div>
+                    <div class="term-dot yellow"></div>
+                    <div class="term-dot green"></div>
+                </div>
+                <div class="terminal-title">live_session.log</div>
+                <button class="btn btn-secondary" onclick="clearConsole()" style="width: auto; padding: 4px 10px; font-size: 11px;">Clear Log</button>
+            </div>
+            <div id="terminal-body" class="terminal-body">
+                <div class="console-line info">[SYSTEM] Live monitoring connection active.</div>
+                <div class="console-line info">[SYSTEM] Select an action or send a payload to test response logs.</div>
+            </div>
+        </div>
+    </div>
+</div>

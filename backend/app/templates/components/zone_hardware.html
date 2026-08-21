@@ -1,0 +1,178 @@
+<!-- ======================================================== -->
+<!-- Zone 3: 📺 Hardware, Network & Polling Intervals         -->
+<!-- ======================================================== -->
+<div class="zone-header">
+    <div>
+        <h2>📺 Hardware, Network & Polling Intervals</h2>
+        <p>จัดการการเชื่อมต่อหน้าจอ ESP32-S3, ฮอตสปอต Wi-Fi AP และความถี่การซิงก์ข้อมูลอัตโนมัติ</p>
+    </div>
+</div>
+
+<div class="zone-grid-2col">
+    <!-- Left Column: Background Polling Intervals -->
+    <div class="card" id="polling-intervals-card">
+        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title">⏱️ Background Sync Intervals (ความถี่ในการอัปเดตข้อมูล)</h3>
+            <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;">Live Poller</span>
+        </div>
+        <p class="card-desc" style="margin-bottom: 16px;">
+            กำหนดความถี่ที่ระบบจะดึงข้อมูลจาก Cloud APIs มาอัปเดตหน้าจอ ESP32 เบื้องหลัง และกดบันทึกเพื่อซิงก์ข้อมูลทันที
+        </p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px;">
+            <div class="form-group" style="margin: 0;">
+                <label for="interval-tasks-calendar" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                    📅 Tasks & Calendar
+                </label>
+                <select id="interval-tasks-calendar" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                    <option value="1">ทุก 1 นาที (1 min)</option>
+                    <option value="2">ทุก 2 นาที (2 mins)</option>
+                    <option value="5">ทุก 5 นาที (5 mins)</option>
+                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                    <option value="15" selected>ทุก 15 นาที (15 mins)</option>
+                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+                <label for="interval-weather" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                    🌦️ Rain & Weather
+                </label>
+                <select id="interval-weather" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                    <option value="5">ทุก 5 นาที (5 mins)</option>
+                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                    <option value="30" selected>ทุก 30 นาที (30 mins)</option>
+                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+                <label for="interval-stocks" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                    📈 Stocks & Market
+                </label>
+                <select id="interval-stocks" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                    <option value="1">ทุก 1 นาที (1 min)</option>
+                    <option value="2">ทุก 2 นาที (2 mins)</option>
+                    <option value="5" selected>ทุก 5 นาที (5 mins)</option>
+                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+                <label for="interval-antigravity" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                    🤖 Antigravity AI
+                </label>
+                <select id="interval-antigravity" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                    <option value="1" selected>ทุก 1 นาที (1 min)</option>
+                    <option value="2">ทุก 2 นาที (2 mins)</option>
+                    <option value="5">ทุก 5 นาที (5 mins)</option>
+                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+                <label for="interval-ga4" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                    📊 Google Analytics 4
+                </label>
+                <select id="interval-ga4" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                    <option value="1">ทุก 1 นาที (1 min)</option>
+                    <option value="2">ทุก 2 นาที (2 mins)</option>
+                    <option value="5" selected>ทุก 5 นาที (5 mins)</option>
+                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                    <option value="30">ทุก 30 นาที (30 mins)</option>
+                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+                <label for="interval-gcp" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 6px;">
+                    ☁️ GCP Cloud Billing
+                </label>
+                <select id="interval-gcp" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+                    <option value="5">ทุก 5 นาที (5 mins)</option>
+                    <option value="10">ทุก 10 นาที (10 mins)</option>
+                    <option value="15">ทุก 15 นาที (15 mins)</option>
+                    <option value="30" selected>ทุก 30 นาที (30 mins)</option>
+                    <option value="60">ทุก 1 ชั่วโมง (60 mins)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">🎵 Spotify ทำงานแบบ Real-time (5s) อัตโนมัติ</span>
+            <button class="btn btn-primary" onclick="savePollingIntervals()" style="width: auto; padding: 10px 24px;">
+                💾 Save & Sync to Screens
+            </button>
+        </div>
+    </div>
+
+    <!-- Right Column: Screen Pairing & Local AP Status -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Screen Pairing Code Manager -->
+        <div class="card">
+            <h3 class="card-title" style="margin-bottom: 12px;">📺 Pair AuraDeck Screen</h3>
+            <p class="card-desc" style="margin-bottom: 14px;">
+                When an unconfigured ESP32 boots up, it showcases a 6-digit numeric pairing PIN. Input the PIN below to assign that screen to your profile.
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label for="pair-pin">6-Digit TV Pairing PIN</label>
+                <div style="display: flex; gap: 12px;">
+                    <input type="text" id="pair-pin" placeholder="123456" maxlength="6" style="text-align: center; font-size: 1.25rem; font-weight: 700; letter-spacing: 4px; font-family: var(--font-mono);">
+                    <button class="btn btn-primary" onclick="pairDevice()" style="width: auto; padding-left: 30px; padding-right: 30px;">
+                        Pair
+                    </button>
+                </div>
+            </div>
+
+            <div class="paired-list">
+                <label style="display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-muted);">Paired Devices under this Profile:</label>
+                <div id="paired-devices-container">
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">No screens paired yet.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AuraDeck Local Access Point Status Card -->
+        <div class="card">
+            <div class="card-header" style="margin-bottom: 12px;">
+                <span class="card-title">📶 AuraDeck Local Access Point</span>
+                <span id="ap-status-badge" class="status-badge active-pulse">
+                    <span class="status-dot"></span><span id="ap-status-text">Active</span>
+                </span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; font-size: 0.88rem;">
+                <div>
+                    <span style="color: var(--text-muted); display:block; margin-bottom: 2px;">SSID Name</span>
+                    <strong id="ap-ssid" style="font-family: var(--font-mono);">AuraDeck_Hotspot</strong>
+                </div>
+                <div>
+                    <span style="color: var(--text-muted); display:block; margin-bottom: 2px;">WPA2 Key</span>
+                    <strong id="ap-password" style="font-family: var(--font-mono);">AuraDeck1234</strong>
+                </div>
+                <div style="margin-top: 6px;">
+                    <span style="color: var(--text-muted); display:block; margin-bottom: 2px;">IP Gateway</span>
+                    <strong id="ap-gateway" style="font-family: var(--font-mono);">10.42.0.1</strong>
+                </div>
+                <div style="margin-top: 6px;">
+                    <span style="color: var(--text-muted); display:block; margin-bottom: 2px;">Connected Clients</span>
+                    <strong id="ap-clients">0 Devices</strong>
+                </div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="restartHotspot()" id="ap-restart-btn">
+                🔄 Restart Local Hotspot AP
+            </button>
+        </div>
+    </div>
+</div>

@@ -34,6 +34,8 @@ from app.services.ga4 import get_ga4_analytics, test_ga4_connection
 from app.services.gcp_billing import get_gcp_multi_project_billing
 from app.services.antigravity import get_antigravity_credits
 
+from fastapi.staticfiles import StaticFiles
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("backend_main")
@@ -44,7 +46,11 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Setup HTML template rendering
+# Setup Static files and HTML template rendering
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=templates_dir)
 

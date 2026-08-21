@@ -453,3 +453,27 @@ The Web Control Center (`backend/app/templates/auth.html`) is structured into 3 
 * **Background Sync Intervals:** 6 independent frequency dropdown selectors with live instant-sync trigger.
 * **Pair AuraDeck Screen:** 6-digit TV-style screen pairing PIN manager.
 * **AuraDeck Local Access Point:** Real-time host hotspot AP status and remote reboot control.
+
+### Modular Frontend Directory Structure
+The Web UI is decoupled into single-responsibility templates, stylesheets, and JavaScript modules:
+```
+backend/app/
+├── static/
+│   ├── css/
+│   │   └── style.css            # Design tokens, glassmorphism, responsive grid, terminal
+│   └── js/
+│       ├── weather_map.js       # Leaflet map, POI/ROI search, GPS Geolocation
+│       ├── stocks.js            # Stock watchlist CRUD & Yahoo Finance search
+│       ├── gcp_manager.js       # GCP Service Account key uploader & project list
+│       ├── device_pairing.js    # 6-Digit PIN pairing & AP Hotspot management
+│       ├── sandbox.js           # API benchmark sync, MQTT publisher & terminal log
+│       └── app.js               # Navigation tabs, status badges, intervals & lifecycle
+└── templates/
+    ├── auth.html                # Master entry template with Jinja2 includes
+    ├── login.html               # Google Sign-in landing portal
+    └── components/
+        ├── zone_cloud.html      # Zone 1: Cloud accounts (Google, Spotify, GA4, GCP)
+        ├── zone_widgets.html    # Zone 2: Widgets (Weather Map, Stocks, Artwork, Tasks)
+        ├── zone_hardware.html   # Zone 3: Device (Intervals, Pairing PIN, Hotspot AP)
+        └── sandbox_tab.html     # Tab 2: Developer Sandbox & Live MQTT Terminal
+```

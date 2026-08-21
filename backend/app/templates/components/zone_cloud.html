@@ -1,0 +1,95 @@
+<!-- ======================================================== -->
+<!-- Zone 1: 🔌 Connected Cloud Accounts & Analytics          -->
+<!-- ======================================================== -->
+<div class="zone-header">
+    <div>
+        <h2>🔌 Connected Cloud Accounts & Analytics</h2>
+        <p>เชื่อมต่อบัญชี Google, Spotify, Google Analytics 4 และ Google Cloud Projects เพื่อดึงข้อมูลขึ้นหน้าจอ</p>
+    </div>
+</div>
+
+<!-- Top Row: Google Workspace + Spotify Premium -->
+<div class="zone-grid-2col">
+    <!-- Google APIs Connection Card -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">📅 Google Workspace</span>
+            <span id="google-status" class="status-badge disconnected">
+                <span class="status-dot"></span><span class="status-text">Disconnected</span>
+            </span>
+        </div>
+        <p class="card-desc">Grants access to Google Calendar agendas and Google Tasks checklists. Connect once and tokens are safely cached on disk.</p>
+        <button id="google-btn" class="btn btn-primary" onclick="authorizeService('google')">Authorize Google</button>
+    </div>
+
+    <!-- Spotify Connection Card -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">🎵 Spotify Premium</span>
+            <span id="spotify-status" class="status-badge disconnected">
+                <span class="status-dot"></span><span class="status-text">Disconnected</span>
+            </span>
+        </div>
+        <p class="card-desc">Tracks real-time track metadata (Title, Artist, Duration, Progress) to render interactive playback widgets on the LCD screen.</p>
+        <button id="spotify-btn" class="btn btn-primary" onclick="authorizeService('spotify')">Authorize Spotify</button>
+    </div>
+</div>
+
+<!-- Second Row: GA4 Analytics Card + GCP Multi-Project Manager Card -->
+<div class="zone-grid-2col">
+    <!-- Dedicated GA4 Analytics Configuration Card -->
+    <div class="card">
+        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title">📊 Google Analytics 4 (GA4)</h3>
+            <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;">Real-time Telemetry</span>
+        </div>
+        <p class="card-desc" style="margin-bottom: 16px;">
+            ระบุ GA4 Property ID เพื่อดึงสถิติผู้ใช้งานแบบ Real-time (30 นาที), สถิติ 28 วันย้อนหลัง และ Top Cities แสดงบน Screen 6
+        </p>
+        
+        <div class="form-group" style="margin-bottom: 14px;">
+            <label for="ga-property-id" style="font-weight: 500; font-size: 0.85rem;">GA4 Property ID (ตัวเลข 9 หลัก)</label>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="ga-property-id" placeholder="e.g. 453120000" style="flex: 1;">
+                <button type="button" class="btn" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: #93c5fd; padding: 0 16px; font-size: 0.85rem; white-space: nowrap; width: auto;" onclick="testGa4Connection()">
+                    🔍 Test Connection
+                </button>
+            </div>
+            <div id="ga4-test-result" style="font-size: 0.8rem; margin-top: 6px; display: none;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+            <button class="btn btn-primary" onclick="saveGa4Config()" style="width: auto; padding: 10px 24px;">
+                💾 Save GA4 Settings
+            </button>
+        </div>
+    </div>
+
+    <!-- GCP Multi-Project Service Account Key Manager -->
+    <div class="card">
+        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title">📁 GCP Multi-Project Manager</h3>
+            <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 0.8rem;">Cloud Billing</span>
+        </div>
+        <p class="card-desc" style="margin-bottom: 14px;">
+            Add multiple Google Cloud projects. Upload each project's Service Account JSON key to fetch and aggregate billing costs on Screen 7.
+        </p>
+        
+        <!-- Upload Section -->
+        <div style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(255, 255, 255, 0.02); margin-bottom: 14px;" 
+             id="gcp-drop-zone"
+             onclick="document.getElementById('gcp-file-input').click()"
+             onmouseover="this.style.borderColor='rgba(245, 158, 11, 0.7)'; this.style.background='rgba(255, 255, 255, 0.05)'" 
+             onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.15)'; this.style.background='rgba(255, 255, 255, 0.02)'">
+            <span style="font-size: 1.6rem;">📥</span>
+            <h4 style="margin: 6px 0 2px 0; font-size: 0.88rem; font-weight: 600; color: var(--text-primary);">Drag & Drop or Click to Upload</h4>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Upload Service Account JSON Key</p>
+            <input type="file" id="gcp-file-input" style="display: none;" accept=".json" onchange="uploadGcpProjectKey(this.files[0])">
+        </div>
+
+        <!-- Projects List -->
+        <div id="gcp-projects-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 6px;">No GCP Projects added yet.</div>
+        </div>
+    </div>
+</div>
