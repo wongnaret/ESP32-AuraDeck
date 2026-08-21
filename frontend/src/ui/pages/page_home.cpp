@@ -11,7 +11,10 @@
 #include "ui/thai_reshaper.h"
 #include "ui/weather_icons.h"
 #include "ui/fonts/lv_font_prompt.h"
+#include "drivers/rtc_pcf85063.h"
 #include <Arduino.h>
+
+extern PCF85063RTC g_rtc;
 
 // Top Tier: Clock and Dual-Language Dates
 static lv_obj_t* s_clockLabel = nullptr;
@@ -51,6 +54,27 @@ void create_page_home(lv_obj_t* parent) {
         s_hourlyTempLabels[i] = nullptr;
     }
 
+    // Read current real-time clock from hardware RTC for instant zero-lag rendering
+    DateTime dt = g_rtc.now();
+    static const char* EN_DAYS[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    static const char* EN_MONTHS[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+    static const char* TH_DAYS[] = {"วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"};
+    static const char* TH_MONTHS[] = {"มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"};
+
+    int wDay = dt.dayOfTheWeek() % 7;
+    int mIdx = (dt.month() >= 1 && dt.month() <= 12) ? dt.month() - 1 : 0;
+    int yearCE = dt.year();
+    int yearBE = yearCE + 543;
+
+    char dateEnBuf[64];
+    snprintf(dateEnBuf, sizeof(dateEnBuf), "%s, %d %s %d", EN_DAYS[wDay], dt.day(), EN_MONTHS[mIdx], yearCE);
+
+    char dateThBuf[64];
+    snprintf(dateThBuf, sizeof(dateThBuf), "%sที่ %d %s %d", TH_DAYS[wDay], dt.day(), TH_MONTHS[mIdx], yearBE);
+
+    char timeBuf[16];
+    snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", dt.hour(), dt.minute());
+
     // ==========================================
     // Tier 1: Digital Clock + Dual-Language Date
     // ==========================================
@@ -58,7 +82,7 @@ void create_page_home(lv_obj_t* parent) {
     lv_obj_set_style_text_font(s_clockLabel, &lv_font_montserrat_32, 0);
     lv_obj_set_style_text_color(s_clockLabel, lv_color_black(), 0);
     lv_obj_align(s_clockLabel, LV_ALIGN_TOP_LEFT, 15, 6);
-    lv_label_set_text(s_clockLabel, "12:00");
+    lv_label_set_text(s_clockLabel, timeBuf);
 
     // English Date (Larger, Montserrat 16)
     s_dateEnLabel = lv_label_create(parent);
@@ -67,7 +91,7 @@ void create_page_home(lv_obj_t* parent) {
     lv_obj_set_width(s_dateEnLabel, 235);
     lv_label_set_long_mode(s_dateEnLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_dateEnLabel, LV_ALIGN_TOP_LEFT, 145, 6);
-    lv_label_set_text(s_dateEnLabel, "Thursday, 20 August 2026");
+    lv_label_set_text(s_dateEnLabel, dateEnBuf);
 
     // Thai Date (Prompt 16 with ThaiReshaper)
     s_dateThLabel = lv_label_create(parent);
@@ -76,7 +100,7 @@ void create_page_home(lv_obj_t* parent) {
     lv_obj_set_width(s_dateThLabel, 235);
     lv_label_set_long_mode(s_dateThLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_dateThLabel, LV_ALIGN_TOP_LEFT, 145, 28);
-    lv_label_set_text(s_dateThLabel, ThaiReshaper::reshape("วันพฤหัสบดีที่ 20 สิงหาคม 2569").c_str());
+    lv_label_set_text(s_dateThLabel, ThaiReshaper::reshape(dateThBuf).c_str());
 
     // ==========================================
     // Tier 2: Indoor (SHTC3) vs Outdoor Weather
@@ -146,6 +170,7 @@ void create_page_home(lv_obj_t* parent) {
     lv_label_set_text(s_forecastTitleLabel, ThaiReshaper::reshape("Hourly Rain Forecast (พยากรณ์ฝน 6 ชม.)").c_str());
 
     // 6-Column Grid
+    int curHour = dt.hour();
     for (int i = 0; i < 6; i++) {
         lv_obj_t* colBox = lv_obj_create(s_forecastBox);
         lv_obj_set_size(colBox, 56, 110);
@@ -157,23 +182,23 @@ void create_page_home(lv_obj_t* parent) {
         lv_obj_set_style_pad_all(colBox, 2, 0);
         lv_obj_clear_flag(colBox, LV_OBJ_FLAG_SCROLLABLE);
 
-        // Hour Label (e.g. 18:00)
+        // Hour Label (e.g. 09:00, 10:00...)
         s_hourlyTimeLabels[i] = lv_label_create(colBox);
         lv_obj_set_style_text_font(s_hourlyTimeLabels[i], &lv_font_montserrat_12, 0);
         lv_obj_align(s_hourlyTimeLabels[i], LV_ALIGN_TOP_MID, 0, 1);
-        lv_label_set_text_fmt(s_hourlyTimeLabels[i], "%02d:00", (18 + i) % 24);
+        lv_label_set_text_fmt(s_hourlyTimeLabels[i], "%02d:00", (curHour + i) % 24);
 
         // Weather Icon (24x24 pixel-perfect graphical icon)
         s_hourlyIconImgs[i] = lv_img_create(colBox);
         lv_obj_align(s_hourlyIconImgs[i], LV_ALIGN_TOP_MID, 0, 16);
         lv_img_set_src(s_hourlyIconImgs[i], get_weather_icon_dsc((i < 3) ? "RAIN" : "CLOUD"));
 
-        // Rain Probability (e.g. 80%)
+        // Rain Probability (e.g. 50%)
         s_hourlyProbLabels[i] = lv_label_create(colBox);
         lv_obj_set_style_text_font(s_hourlyProbLabels[i], &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(s_hourlyProbLabels[i], lv_color_black(), 0);
         lv_obj_align(s_hourlyProbLabels[i], LV_ALIGN_TOP_MID, 0, 44);
-        lv_label_set_text_fmt(s_hourlyProbLabels[i], "%d%%", max(0, 80 - i * 15));
+        lv_label_set_text_fmt(s_hourlyProbLabels[i], "%d%%", max(0, 60 - i * 10));
 
         // Temperature (e.g. 28 C)
         s_hourlyTempLabels[i] = lv_label_create(colBox);

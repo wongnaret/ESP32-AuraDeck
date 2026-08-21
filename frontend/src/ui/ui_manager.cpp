@@ -294,9 +294,9 @@ int UIManager::serviceTopicToIndex(const char* topic) {
     if (strcmp(topic, "auradeck/stocks") == 0)         return 3;
     if (strcmp(topic, "auradeck/ga4") == 0 || strcmp(topic, "auradeck/analytics") == 0) return 4;
     if (strcmp(topic, "auradeck/antigravity") == 0)    return 5;
-    if (strcmp(topic, "auradeck/home_telemetry") == 0 || strcmp(topic, "auradeck/weather") == 0) return 6;
+    if (strcmp(topic, "auradeck/weather") == 0)        return 6;
     if (strcmp(topic, "auradeck/gcp") == 0)            return 7;
-    return -1; // Unknown service
+    return -1; // Unknown service or uncached local telemetry
 }
 
 void UIManager::replayCachedData(int pageIndex) {
