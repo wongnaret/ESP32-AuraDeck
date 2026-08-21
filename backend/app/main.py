@@ -169,8 +169,13 @@ def handle_mqtt_command(topic: str, payload_str: str):
 
         if topic == "auradeck/command/spotify/toggle" or topic.startswith("auradeck/command/spotify"):
             from app.services.spotify import toggle_spotify_playback
-            res = run_async_safe(toggle_spotify_playback(active_pid))
-            logger.info(f"Spotify toggle execution result: {res}")
+            profiles = list_all_profiles()
+            for p in profiles:
+                pid = p["id"]
+                mgr = ProfileTokenManager(pid, "Spotify")
+                if mgr.has_credentials():
+                    res = run_async_safe(toggle_spotify_playback(pid))
+                    logger.info(f"Spotify toggle execution for profile '{pid}': {res}")
             # Broadcast updated status immediately to all connected devices
             trigger_spotify_polling()
 

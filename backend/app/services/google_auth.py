@@ -296,7 +296,7 @@ def get_spotify_auth_url(profile_id: str) -> str:
     client_id = prof_settings.get("spotify_client_id") or settings.SPOTIFY_CLIENT_ID
     redirect_uri = prof_settings.get("spotify_redirect_uri") or settings.SPOTIFY_REDIRECT_URI
     
-    scopes = ["user-read-currently-playing", "user-read-playback-state"]
+    scopes = ["user-read-currently-playing", "user-read-playback-state", "user-modify-playback-state"]
     params = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
