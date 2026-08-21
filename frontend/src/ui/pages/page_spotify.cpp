@@ -67,12 +67,12 @@ void create_page_spotify(lv_obj_t* parent) {
     lv_obj_set_style_text_font(s_screenTitleLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(s_screenTitleLabel, lv_color_black(), 0);
     lv_obj_align(s_screenTitleLabel, LV_ALIGN_TOP_LEFT, 14, 6);
-    lv_label_set_text(s_screenTitleLabel, "Spotify Player");
+    lv_label_set_text(s_screenTitleLabel, LV_SYMBOL_AUDIO " Spotify Player");
 
     s_statusBadgeLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_statusBadgeLabel, &lv_font_montserrat_12, 0);
     lv_obj_align(s_statusBadgeLabel, LV_ALIGN_TOP_RIGHT, -14, 8);
-    lv_label_set_text(s_statusBadgeLabel, "[⏸ PAUSED]");
+    lv_label_set_text(s_statusBadgeLabel, "[" LV_SYMBOL_PAUSE " PAUSED]");
 
     // ==========================================
     // 2. Playback Control Box (80x80 Left Widget)
@@ -194,7 +194,7 @@ void update_page_spotify(JsonVariantConst data) {
     // Track absence check (Idle / No music at all)
     if (!track || strlen(track) == 0 || strcmp(track, "Not Playing") == 0) {
         s_isPlaying = false;
-        if (s_statusBadgeLabel) lv_label_set_text(s_statusBadgeLabel, "[⏸ IDLE]");
+        if (s_statusBadgeLabel) lv_label_set_text(s_statusBadgeLabel, "[" LV_SYMBOL_PAUSE " IDLE]");
         if (s_playbackIconLabel) lv_label_set_text(s_playbackIconLabel, LV_SYMBOL_AUDIO);
         if (s_playbackSubtextLabel) lv_label_set_text(s_playbackSubtextLabel, "IDLE");
         if (s_trackLabel) lv_label_set_text(s_trackLabel, "Spotify Idle");
@@ -215,12 +215,12 @@ void update_page_spotify(JsonVariantConst data) {
 
     // 1. Update Playback Status Badge & Control Box
     if (isPlaying) {
-        if (s_statusBadgeLabel) lv_label_set_text(s_statusBadgeLabel, "[▶ PLAYING]");
+        if (s_statusBadgeLabel) lv_label_set_text(s_statusBadgeLabel, "[" LV_SYMBOL_PLAY " PLAYING]");
         if (s_playbackIconLabel) lv_label_set_text(s_playbackIconLabel, LV_SYMBOL_PLAY);
         if (s_playbackSubtextLabel) lv_label_set_text(s_playbackSubtextLabel, "PLAYING");
         if (s_footerLabel) lv_label_set_text(s_footerLabel, "BOOT: Pause Playback");
     } else {
-        if (s_statusBadgeLabel) lv_label_set_text(s_statusBadgeLabel, "[⏸ PAUSED]");
+        if (s_statusBadgeLabel) lv_label_set_text(s_statusBadgeLabel, "[" LV_SYMBOL_PAUSE " PAUSED]");
         if (s_playbackIconLabel) lv_label_set_text(s_playbackIconLabel, LV_SYMBOL_PAUSE);
         if (s_playbackSubtextLabel) lv_label_set_text(s_playbackSubtextLabel, "PAUSED");
         if (s_footerLabel) lv_label_set_text(s_footerLabel, "BOOT: Resume Playback");
