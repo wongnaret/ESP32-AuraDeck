@@ -224,12 +224,20 @@ void update_page_home(JsonVariantConst data) {
     }
 
     // 2. Dual-Language Dates
-    const char* dateEn = data["date_en"] | data["date"] | nullptr;
+    const char* dateEn = nullptr;
+    if (data.containsKey("date_en")) {
+        dateEn = data["date_en"].as<const char*>();
+    } else if (data.containsKey("date")) {
+        dateEn = data["date"].as<const char*>();
+    }
     if (dateEn && s_dateEnLabel) {
         lv_label_set_text(s_dateEnLabel, dateEn);
     }
 
-    const char* dateTh = data["date_th"] | nullptr;
+    const char* dateTh = nullptr;
+    if (data.containsKey("date_th")) {
+        dateTh = data["date_th"].as<const char*>();
+    }
     if (dateTh && s_dateThLabel) {
         String reshaped = ThaiReshaper::reshape(dateTh);
         lv_label_set_text(s_dateThLabel, reshaped.c_str());
@@ -247,9 +255,26 @@ void update_page_home(JsonVariantConst data) {
     }
 
     // 4. Outdoor Weather Summary & Icon
-    float curOutTemp = data["current_temp"] | -999.0f;
-    const char* curCondition = data["current_condition"] | data["condition"] | nullptr;
-    const char* curIcon = data["current_icon"] | data["icon"] | nullptr;
+    float curOutTemp = -999.0f;
+    if (data.containsKey("current_temp")) {
+        curOutTemp = data["current_temp"].as<float>();
+    }
+
+    const char* curCondition = nullptr;
+    if (data.containsKey("current_condition")) {
+        curCondition = data["current_condition"].as<const char*>();
+    } else if (data.containsKey("condition")) {
+        curCondition = data["condition"].as<const char*>();
+    } else if (data.containsKey("name_th")) {
+        curCondition = data["name_th"].as<const char*>();
+    }
+
+    const char* curIcon = nullptr;
+    if (data.containsKey("current_icon")) {
+        curIcon = data["current_icon"].as<const char*>();
+    } else if (data.containsKey("icon")) {
+        curIcon = data["icon"].as<const char*>();
+    }
 
     if (s_outdoorIconImg) {
         if (curIcon && strlen(curIcon) > 0) {
@@ -259,13 +284,13 @@ void update_page_home(JsonVariantConst data) {
         }
     }
 
-    if (s_outdoorWeatherLabel && (curOutTemp > -999.0f || curCondition != nullptr)) {
+    if (s_outdoorWeatherLabel && (curOutTemp > -999.0f || (curCondition != nullptr && strlen(curCondition) > 0))) {
         char outBuf[128];
         if (curOutTemp > -999.0f && curCondition != nullptr && strlen(curCondition) > 0) {
             snprintf(outBuf, sizeof(outBuf), "%.1f C | %s", curOutTemp, curCondition);
         } else if (curCondition != nullptr && strlen(curCondition) > 0) {
             snprintf(outBuf, sizeof(outBuf), "%s", curCondition);
-        } else {
+        } else if (curOutTemp > -999.0f) {
             snprintf(outBuf, sizeof(outBuf), "%.1f C", curOutTemp);
         }
         String reshaped = ThaiReshaper::reshape(outBuf);
@@ -278,8 +303,17 @@ void update_page_home(JsonVariantConst data) {
         int count = min((int)hourly.size(), 6);
         for (int i = 0; i < count; i++) {
             JsonObjectConst slot = hourly[i];
-            const char* hTime = slot["time"] | "";
-            const char* hIcon = slot["icon"] | slot["condition"] | "CLOUD";
+            const char* hTime = slot["time"].as<const char*>();
+            if (!hTime) hTime = "";
+
+            const char* hIcon = nullptr;
+            if (slot.containsKey("icon")) {
+                hIcon = slot["icon"].as<const char*>();
+            } else if (slot.containsKey("condition")) {
+                hIcon = slot["condition"].as<const char*>();
+            }
+            if (!hIcon) hIcon = "CLOUD";
+
             int hProb = slot["rain_prob"] | 0;
             float hTemp = slot["temp"] | -999.0f;
 
