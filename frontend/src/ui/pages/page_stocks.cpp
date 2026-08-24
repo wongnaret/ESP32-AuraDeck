@@ -17,12 +17,13 @@
 #include "ui/fonts/lv_font_prompt.h"
 
 // ---------------------------------------------------------------------------
-// Static widget storage – 4 labels per row × 6 rows
+// Static widget storage – 4 labels per row × 9 rows (expanded capacity)
 // ---------------------------------------------------------------------------
-static lv_obj_t* s_symbolCols[6]   = { nullptr };
-static lv_obj_t* s_prevCols[6]     = { nullptr };
-static lv_obj_t* s_priceCols[6]    = { nullptr };
-static lv_obj_t* s_changeCols[6]   = { nullptr };
+static const int MAX_STOCKS = 9;
+static lv_obj_t* s_symbolCols[MAX_STOCKS] = { nullptr };
+static lv_obj_t* s_prevCols[MAX_STOCKS]   = { nullptr };
+static lv_obj_t* s_priceCols[MAX_STOCKS]  = { nullptr };
+static lv_obj_t* s_changeCols[MAX_STOCKS] = { nullptr };
 
 // Thai Baht UTF-8:  ฿ = U+0E3F = 0xE0 0xB8 0xBF
 static const char BAHT_UTF8[] = "\xE0\xB8\xBF";
@@ -30,17 +31,17 @@ static const char BAHT_UTF8[] = "\xE0\xB8\xBF";
 // ---------------------------------------------------------------------------
 void create_page_stocks(lv_obj_t* parent) {
     // Reset all static pointers (safety guard for re-entry)
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < MAX_STOCKS; i++) {
         s_symbolCols[i] = nullptr;
         s_prevCols[i]   = nullptr;
         s_priceCols[i]  = nullptr;
         s_changeCols[i] = nullptr;
     }
 
-    // Title
+    // Title (compact top alignment)
     lv_obj_t* title = lv_label_create(parent);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
     lv_label_set_text(title, "Market Watchlist");
 
     // Column headers (small font, right-aligned to match data columns)
@@ -53,16 +54,16 @@ void create_page_stocks(lv_obj_t* parent) {
         lv_obj_t* hdr = lv_label_create(parent);
         lv_obj_set_style_text_font(hdr, &lv_font_montserrat_12, 0);
         lv_obj_set_width(hdr, h.w);
-        lv_obj_align(hdr, LV_ALIGN_TOP_LEFT, h.x, 42);
+        lv_obj_align(hdr, LV_ALIGN_TOP_LEFT, h.x, 28);
         lv_obj_set_style_text_align(hdr, LV_TEXT_ALIGN_RIGHT, 0);
         lv_label_set_text(hdr, h.txt);
     }
 
-    // Row data labels
-    const int startY     = 58;
-    const int rowSpacing = 35;
+    // Row data labels (compact 24px spacing to fit 9 items)
+    const int startY     = 46;
+    const int rowSpacing = 24;
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < MAX_STOCKS; i++) {
         int y = startY + i * rowSpacing;
 
         // Col A – Symbol (left-aligned, auto-width)
@@ -114,15 +115,17 @@ void update_page_stocks(JsonVariantConst data) {
 
     int idx = 0;
     for (JsonObjectConst stock : stocks) {
-        if (idx >= 6) break;
+        if (idx >= MAX_STOCKS) break;
 
-        const char* symbol    = stock["symbol"]    | "";
-        float price           = stock["price"]     | 0.0f;
-        float prevClose       = stock["prev_close"] | 0.0f;
-        float changePct       = useChangePct
-            ? (stock["change_pct"]     | 0.0f)
-            : (stock["change_percent"] | stock["change_pct"] | 0.0f);
-        const char* assetType = stock["type"]      | "";
+        const char* symbol = stock["symbol"].as<const char*>();
+        if (!symbol) symbol = "";
+        float price = stock["price"] | 0.0f;
+        float prevClose = stock["prev_close"] | 0.0f;
+        float changePct = useChangePct
+            ? (stock["change_pct"] | 0.0f)
+            : (stock.containsKey("change_percent") ? stock["change_percent"].as<float>() : (stock["change_pct"] | 0.0f));
+        const char* assetType = stock["type"].as<const char*>();
+        if (!assetType) assetType = "";
 
         // Currency: Thai Baht for SET stocks, USD ($) for all others
         const char* curr = (strcmp(assetType, "TH_STOCK") == 0) ? BAHT_UTF8 : "$";
@@ -144,25 +147,25 @@ void update_page_stocks(JsonVariantConst data) {
         snprintf(changeBuf, sizeof(changeBuf), "%+.2f%%", changePct);
 
         if (s_symbolCols[idx]) lv_label_set_text(s_symbolCols[idx], symbol);
-        if (s_prevCols[idx])   lv_label_set_text(s_prevCols[idx],   prevBuf);
         if (s_priceCols[idx])  lv_label_set_text(s_priceCols[idx],  priceBuf);
+        if (s_prevCols[idx])   lv_label_set_text(s_prevCols[idx],   prevBuf);
         if (s_changeCols[idx]) lv_label_set_text(s_changeCols[idx], changeBuf);
 
         idx++;
     }
 
     // Clear unused slots
-    for (int i = idx; i < 6; i++) {
+    for (int i = idx; i < MAX_STOCKS; i++) {
         if (s_symbolCols[i]) lv_label_set_text(s_symbolCols[i], "");
-        if (s_prevCols[i])   lv_label_set_text(s_prevCols[i],   "");
         if (s_priceCols[i])  lv_label_set_text(s_priceCols[i],  "");
+        if (s_prevCols[i])   lv_label_set_text(s_prevCols[i],   "");
         if (s_changeCols[i]) lv_label_set_text(s_changeCols[i], "");
     }
 }
 
 // ---------------------------------------------------------------------------
 void destroy_page_stocks() {
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < MAX_STOCKS; i++) {
         s_symbolCols[i] = nullptr;
         s_prevCols[i]   = nullptr;
         s_priceCols[i]  = nullptr;
