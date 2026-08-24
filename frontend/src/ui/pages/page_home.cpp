@@ -120,13 +120,13 @@ void create_page_home(lv_obj_t* parent) {
 
     lv_obj_t* indoorHdr = lv_label_create(s_indoorBox);
     lv_obj_set_style_text_font(indoorHdr, &lv_font_montserrat_12, 0);
-    lv_obj_align(indoorHdr, LV_ALIGN_TOP_LEFT, 4, 2);
+    lv_obj_align(indoorHdr, LV_ALIGN_TOP_LEFT, 4, 3);
     lv_label_set_text(indoorHdr, "Indoor (SHTC3)");
 
     s_indoorSensorLabel = lv_label_create(s_indoorBox);
     lv_obj_set_style_text_font(s_indoorSensorLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(s_indoorSensorLabel, lv_color_black(), 0);
-    lv_obj_align(s_indoorSensorLabel, LV_ALIGN_BOTTOM_LEFT, 4, -2);
+    lv_obj_align(s_indoorSensorLabel, LV_ALIGN_BOTTOM_LEFT, 4, -4);
     lv_label_set_text(s_indoorSensorLabel, "26.5 C | 55 %");
 
     // Right Box: Outdoor Weather Condition
@@ -142,21 +142,21 @@ void create_page_home(lv_obj_t* parent) {
 
     lv_obj_t* outdoorHdr = lv_label_create(s_outdoorBox);
     lv_obj_set_style_text_font(outdoorHdr, &lv_font_montserrat_12, 0);
-    lv_obj_align(outdoorHdr, LV_ALIGN_TOP_LEFT, 4, 2);
+    lv_obj_align(outdoorHdr, LV_ALIGN_TOP_LEFT, 4, 3);
     lv_label_set_text(outdoorHdr, "Outdoor Weather");
 
-    // Weather Icon (24x24 pixel monochrome icon)
+    // Weather Icon at Top-Right (24x24 pixel monochrome icon)
     s_outdoorIconImg = lv_img_create(s_outdoorBox);
-    lv_obj_align(s_outdoorIconImg, LV_ALIGN_BOTTOM_RIGHT, -4, -2);
+    lv_obj_align(s_outdoorIconImg, LV_ALIGN_TOP_RIGHT, -4, 2);
     lv_img_set_src(s_outdoorIconImg, get_weather_icon_dsc("CLOUD"));
 
-    // Outdoor Weather Label (Temperature & Condition text)
+    // Outdoor Weather Label (Temperature & Condition text across full bottom width)
     s_outdoorWeatherLabel = lv_label_create(s_outdoorBox);
     lv_obj_set_style_text_font(s_outdoorWeatherLabel, &lv_font_prompt_16, 0);
     lv_obj_set_style_text_color(s_outdoorWeatherLabel, lv_color_black(), 0);
-    lv_obj_set_width(s_outdoorWeatherLabel, 140);
+    lv_obj_set_width(s_outdoorWeatherLabel, 172);
     lv_label_set_long_mode(s_outdoorWeatherLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_align(s_outdoorWeatherLabel, LV_ALIGN_BOTTOM_LEFT, 4, -2);
+    lv_obj_align(s_outdoorWeatherLabel, LV_ALIGN_BOTTOM_LEFT, 4, -4);
     lv_label_set_text(s_outdoorWeatherLabel, ThaiReshaper::reshape("28.5 C | มีเมฆมาก").c_str());
 
     // ==========================================
