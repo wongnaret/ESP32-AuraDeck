@@ -358,10 +358,10 @@ void loop() {
         int yearCE = dt.year();
         int yearBE = yearCE + 543;
 
-        char dateEnBuf[64];
+        char dateEnBuf[128];
         snprintf(dateEnBuf, sizeof(dateEnBuf), "%s, %d %s %d", EN_DAYS[wDay], dt.day(), EN_MONTHS[mIdx], yearCE);
 
-        char dateThBuf[64];
+        char dateThBuf[128];
         snprintf(dateThBuf, sizeof(dateThBuf), "%sที่ %d %s %d", TH_DAYS[wDay], dt.day(), TH_MONTHS[mIdx], yearBE);
 
         // Forward local telemetry to active views (e.g. updating bold digital clock & real-time dates on Page 0 Home)

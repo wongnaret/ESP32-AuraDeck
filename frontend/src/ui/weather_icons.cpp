@@ -396,5 +396,31 @@ const lv_img_dsc_t* get_weather_icon_dsc(const char* icon_code) {
         return &img_weather_cloud;
     }
 
+    // Also match Thai weather condition keywords for direct condition strings
+    if (strstr(icon_code, "แจ่มใส") || strstr(icon_code, "แดด")) {
+        return &img_weather_sun;
+    }
+    if (strstr(icon_code, "บางส่วน")) {
+        return &img_weather_p_cloud;
+    }
+    if (strstr(icon_code, "คะนอง") || strstr(icon_code, "พายุ")) {
+        return &img_weather_storm;
+    }
+    if (strstr(icon_code, "ปรอย")) {
+        return &img_weather_drizzle;
+    }
+    if (strstr(icon_code, "ฝน")) {
+        return &img_weather_rain;
+    }
+    if (strstr(icon_code, "หมอก")) {
+        return &img_weather_fog;
+    }
+    if (strstr(icon_code, "เมฆ")) {
+        return &img_weather_cloud;
+    }
+    if (strstr(icon_code, "หิมะ")) {
+        return &img_weather_snow;
+    }
+
     return &img_weather_cloud;
 }

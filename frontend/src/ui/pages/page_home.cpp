@@ -26,6 +26,7 @@ static lv_obj_t* s_indoorBox = nullptr;
 static lv_obj_t* s_indoorSensorLabel = nullptr;
 static lv_obj_t* s_outdoorBox = nullptr;
 static lv_obj_t* s_outdoorWeatherLabel = nullptr;
+static lv_obj_t* s_outdoorIconImg = nullptr;
 
 // Bottom Tier: 6-Hour Rain Forecast Grid
 static lv_obj_t* s_forecastBox = nullptr;
@@ -45,6 +46,7 @@ void create_page_home(lv_obj_t* parent) {
     s_indoorSensorLabel    = nullptr;
     s_outdoorBox           = nullptr;
     s_outdoorWeatherLabel  = nullptr;
+    s_outdoorIconImg       = nullptr;
     s_forecastBox          = nullptr;
     s_forecastTitleLabel   = nullptr;
     for (int i = 0; i < 6; i++) {
@@ -66,10 +68,10 @@ void create_page_home(lv_obj_t* parent) {
     int yearCE = dt.year();
     int yearBE = yearCE + 543;
 
-    char dateEnBuf[64];
+    char dateEnBuf[128];
     snprintf(dateEnBuf, sizeof(dateEnBuf), "%s, %d %s %d", EN_DAYS[wDay], dt.day(), EN_MONTHS[mIdx], yearCE);
 
-    char dateThBuf[64];
+    char dateThBuf[128];
     snprintf(dateThBuf, sizeof(dateThBuf), "%sที่ %d %s %d", TH_DAYS[wDay], dt.day(), TH_MONTHS[mIdx], yearBE);
 
     char timeBuf[16];
@@ -88,18 +90,18 @@ void create_page_home(lv_obj_t* parent) {
     s_dateEnLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_dateEnLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(s_dateEnLabel, lv_color_black(), 0);
-    lv_obj_set_width(s_dateEnLabel, 235);
+    lv_obj_set_width(s_dateEnLabel, 265);
     lv_label_set_long_mode(s_dateEnLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_align(s_dateEnLabel, LV_ALIGN_TOP_LEFT, 145, 6);
+    lv_obj_align(s_dateEnLabel, LV_ALIGN_TOP_LEFT, 120, 6);
     lv_label_set_text(s_dateEnLabel, dateEnBuf);
 
     // Thai Date (Prompt 16 with ThaiReshaper)
     s_dateThLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_dateThLabel, &lv_font_prompt_16, 0);
     lv_obj_set_style_text_color(s_dateThLabel, lv_color_black(), 0);
-    lv_obj_set_width(s_dateThLabel, 235);
+    lv_obj_set_width(s_dateThLabel, 265);
     lv_label_set_long_mode(s_dateThLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_align(s_dateThLabel, LV_ALIGN_TOP_LEFT, 145, 28);
+    lv_obj_align(s_dateThLabel, LV_ALIGN_TOP_LEFT, 120, 28);
     lv_label_set_text(s_dateThLabel, ThaiReshaper::reshape(dateThBuf).c_str());
 
     // ==========================================
@@ -143,10 +145,16 @@ void create_page_home(lv_obj_t* parent) {
     lv_obj_align(outdoorHdr, LV_ALIGN_TOP_LEFT, 4, 2);
     lv_label_set_text(outdoorHdr, "Outdoor Weather");
 
+    // Weather Icon (24x24 pixel monochrome icon)
+    s_outdoorIconImg = lv_img_create(s_outdoorBox);
+    lv_obj_align(s_outdoorIconImg, LV_ALIGN_BOTTOM_RIGHT, -4, -2);
+    lv_img_set_src(s_outdoorIconImg, get_weather_icon_dsc("CLOUD"));
+
+    // Outdoor Weather Label (Temperature & Condition text)
     s_outdoorWeatherLabel = lv_label_create(s_outdoorBox);
     lv_obj_set_style_text_font(s_outdoorWeatherLabel, &lv_font_prompt_16, 0);
     lv_obj_set_style_text_color(s_outdoorWeatherLabel, lv_color_black(), 0);
-    lv_obj_set_width(s_outdoorWeatherLabel, 172);
+    lv_obj_set_width(s_outdoorWeatherLabel, 140);
     lv_label_set_long_mode(s_outdoorWeatherLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_outdoorWeatherLabel, LV_ALIGN_BOTTOM_LEFT, 4, -2);
     lv_label_set_text(s_outdoorWeatherLabel, ThaiReshaper::reshape("28.5 C | มีเมฆมาก").c_str());
@@ -238,14 +246,24 @@ void update_page_home(JsonVariantConst data) {
         }
     }
 
-    // 4. Outdoor Weather Summary
+    // 4. Outdoor Weather Summary & Icon
     float curOutTemp = data["current_temp"] | -999.0f;
-    const char* curCondition = data["current_condition"] | nullptr;
+    const char* curCondition = data["current_condition"] | data["condition"] | nullptr;
+    const char* curIcon = data["current_icon"] | data["icon"] | nullptr;
+
+    if (s_outdoorIconImg) {
+        if (curIcon && strlen(curIcon) > 0) {
+            lv_img_set_src(s_outdoorIconImg, get_weather_icon_dsc(curIcon));
+        } else if (curCondition && strlen(curCondition) > 0) {
+            lv_img_set_src(s_outdoorIconImg, get_weather_icon_dsc(curCondition));
+        }
+    }
+
     if (s_outdoorWeatherLabel && (curOutTemp > -999.0f || curCondition != nullptr)) {
-        char outBuf[64];
-        if (curOutTemp > -999.0f && curCondition != nullptr) {
+        char outBuf[128];
+        if (curOutTemp > -999.0f && curCondition != nullptr && strlen(curCondition) > 0) {
             snprintf(outBuf, sizeof(outBuf), "%.1f C | %s", curOutTemp, curCondition);
-        } else if (curCondition != nullptr) {
+        } else if (curCondition != nullptr && strlen(curCondition) > 0) {
             snprintf(outBuf, sizeof(outBuf), "%s", curCondition);
         } else {
             snprintf(outBuf, sizeof(outBuf), "%.1f C", curOutTemp);
@@ -293,6 +311,7 @@ void destroy_page_home() {
     s_indoorSensorLabel    = nullptr;
     s_outdoorBox           = nullptr;
     s_outdoorWeatherLabel  = nullptr;
+    s_outdoorIconImg       = nullptr;
     s_forecastBox          = nullptr;
     s_forecastTitleLabel   = nullptr;
     for (int i = 0; i < 6; i++) {

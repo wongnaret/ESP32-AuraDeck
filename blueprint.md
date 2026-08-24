@@ -97,7 +97,7 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
     * **Thai Date:** `วัน...ที่ ... ... พ.ศ. ....` (`วันพฤหัสบดีที่ 20 สิงหาคม 2569`, `lv_font_prompt_16` with `ThaiReshaper`).
   * **Tier 2 (Middle):**
     * **Indoor SHTC3 Card:** Displays live onboard ambient temperature and humidity (`26.5 °C | 55 %`).
-    * **Outdoor Weather Card:** Displays live outdoor temperature and sky condition (`28.5 °C • มีเมฆมาก`).
+    * **Outdoor Weather Card:** Displays live outdoor temperature and sky condition (`28.5 C | มีเมฆมาก`) along with graphical weather icon (`current_icon`, 24x24 monochrome icon).
   * **Tier 3 (Bottom):**
     * **6-Hour Hourly Rain Forecast Grid (370x144):** 6 horizontal columns displaying time (`18:00`), weather condition (`Rain`/`Cloud`), rain probability percentage (`80%`), and expected temperature (`28°`).
 
