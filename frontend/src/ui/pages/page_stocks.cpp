@@ -4,8 +4,8 @@
  *
  * Layout (400px wide, content area starts at y=0 relative to page container):
  *   Col A (Symbol)    : x=20,  auto-width, LEFT-aligned
- *   Col B (Prev Close): x=110, width=90,   RIGHT-aligned, same currency prefix as price
- *   Col C (Price)     : x=200, width=100,  RIGHT-aligned, ฿ for TH_STOCK, $ for others
+ *   Col B (Price)     : x=110, width=95,   RIGHT-aligned, ฿ for TH_STOCK, $ for others
+ *   Col C (Prev Close): x=205, width=95,   RIGHT-aligned, same currency prefix as price
  *   Col D (Change%)   : x=300, width=88,   RIGHT-aligned, always signed (+/-)
  *
  * change_pct is calculated vs. chartPreviousClose (yesterday's close from Yahoo Finance).
@@ -45,8 +45,8 @@ void create_page_stocks(lv_obj_t* parent) {
 
     // Column headers (small font, right-aligned to match data columns)
     const struct { int x; int w; const char* txt; } headers[] = {
-        { 110, 90,  "Prev"  },
-        { 200, 100, "Price" },
+        { 110, 95,  "Price" },
+        { 205, 95,  "Prev"  },
         { 300, 88,  "Chg%"  },
     };
     for (auto& h : headers) {
@@ -71,21 +71,21 @@ void create_page_stocks(lv_obj_t* parent) {
         lv_obj_align(s_symbolCols[i], LV_ALIGN_TOP_LEFT, 20, y);
         lv_label_set_text(s_symbolCols[i], "");
 
-        // Col B – Prev Close (right-aligned, 90px at x=110)
-        s_prevCols[i] = lv_label_create(parent);
-        lv_obj_set_style_text_font(s_prevCols[i], &lv_font_prompt_16, 0);
-        lv_obj_set_width(s_prevCols[i], 90);
-        lv_obj_align(s_prevCols[i], LV_ALIGN_TOP_LEFT, 110, y);
-        lv_obj_set_style_text_align(s_prevCols[i], LV_TEXT_ALIGN_RIGHT, 0);
-        lv_label_set_text(s_prevCols[i], "");
-
-        // Col C – Current Price (right-aligned, 100px at x=200)
+        // Col B – Current Price (right-aligned, 95px at x=110)
         s_priceCols[i] = lv_label_create(parent);
         lv_obj_set_style_text_font(s_priceCols[i], &lv_font_prompt_16, 0);
-        lv_obj_set_width(s_priceCols[i], 100);
-        lv_obj_align(s_priceCols[i], LV_ALIGN_TOP_LEFT, 200, y);
+        lv_obj_set_width(s_priceCols[i], 95);
+        lv_obj_align(s_priceCols[i], LV_ALIGN_TOP_LEFT, 110, y);
         lv_obj_set_style_text_align(s_priceCols[i], LV_TEXT_ALIGN_RIGHT, 0);
         lv_label_set_text(s_priceCols[i], "");
+
+        // Col C – Prev Close (right-aligned, 95px at x=205)
+        s_prevCols[i] = lv_label_create(parent);
+        lv_obj_set_style_text_font(s_prevCols[i], &lv_font_prompt_16, 0);
+        lv_obj_set_width(s_prevCols[i], 95);
+        lv_obj_align(s_prevCols[i], LV_ALIGN_TOP_LEFT, 205, y);
+        lv_obj_set_style_text_align(s_prevCols[i], LV_TEXT_ALIGN_RIGHT, 0);
+        lv_label_set_text(s_prevCols[i], "");
 
         // Col D – Change% (right-aligned, 88px at x=300)
         s_changeCols[i] = lv_label_create(parent);

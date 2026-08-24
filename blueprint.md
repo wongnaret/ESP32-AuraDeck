@@ -121,7 +121,7 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
   * **GOLD:** Local Thai gold bar spot price (expressed in local Thai Baht `฿`).
   * **BTC-THB:** Real-time crypto conversion rate.
 * **Layout Elements:**
-  * Clean, non-overlapping multi-row list displaying: `Symbol`, `Price`, and `% Change`.
+  * Clean, non-overlapping multi-row list displaying: `Symbol`, `Price` (Current), `Prev` (Previous Close), and `% Change`.
   * Distinct trajectory direction glyphs (`▲ +` / `▼ -`) representing market momentum.
 
 ---
