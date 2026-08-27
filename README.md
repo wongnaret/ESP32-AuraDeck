@@ -51,6 +51,12 @@ flowchart TD
 
 To make the codebase highly modular and maintainable, setup details, firmware flashing guides, and hardware-specific graphics explanations have been organized into the following manuals within the `docs/` directory:
 
+### 📖 [AuraDeck End-User Manual (คู่มือการใช้งานสำหรับผู้ใช้ทั่วไป)](./docs/user_manual.md)
+*   **ขั้นตอนการเปิดเครื่อง & Wi-Fi Hotspot Pairing**: การจ่ายไฟ, การเชื่อมต่อ Wi-Fi และการจับคู่หน้าจอผ่าน 6-Digit PIN
+*   **การเชื่อมต่อ Cloud Services**: Google Calendar, Google Tasks (รองรับภาษาไทย) และ Spotify Premium
+*   **คู่มือการขอ JSON Key (GCP & GA4)**: ขั้นตอนการสร้าง Service Account, การ Enable APIs, การหาค่า GA4 Property ID, และการอัปโหลดไฟล์ `.json` Key เข้าสู่ระบบ
+*   **การควบคุมหน้าจอฮาร์ดแวร์**: การกดปุ่ม KEY ด้านข้างเพื่อสลับหน้าจอ Pages 0–6 และการแก้ปัญหาเบื้องต้น
+
 ### ⚡ [Backend Server Setup & Developer Guide](./docs/backend.md)
 *   **Docker Ingestion & Deployment**: Step-by-step procedures to build and start the cluster (`FastAPI` & `Mosquitto Broker`) in the background.
 *   **Raspberry Pi Local Access Point**: Restructuring the Pi into a standalone Wi-Fi hotspot, and solving supplicant or Broadcom driver handshake timeouts.

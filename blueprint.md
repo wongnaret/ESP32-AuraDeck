@@ -498,3 +498,15 @@ backend/app/
         ├── zone_hardware.html   # Zone 3: Device (Intervals, Pairing PIN, Hotspot AP)
         └── sandbox_tab.html     # Tab 2: Developer Sandbox & Live MQTT Terminal
 ```
+
+---
+
+## 9. Project Documentation Index (Rule 1 Compliance)
+
+The project documentation is organized into focused, modular manuals:
+* **[README.md](./README.md):** Project overview, hardware bill of materials, quickstart summary, and end-to-end operational flow.
+* **[docs/user_manual.md](./docs/user_manual.md):** Comprehensive End-User Manual (ภาษาไทย) covering initial device setup, Wi-Fi pairing, Google OAuth/Spotify, step-by-step GCP Service Account JSON key generation, GA4 Property ID retrieval, screen widgets configuration, and hardware navigation.
+* **[docs/backend.md](./docs/backend.md):** Backend architecture, Docker cluster setup, Raspberry Pi Access Point configuration, automatic startup on reboot, and Developer Sandbox.
+* **[docs/frontend.md](./docs/frontend.md):** ESP32-S3 firmware, PlatformIO compiler environment, ST7305 RLCD monochrome rendering, LVGL v8 optimizations, and Thai character reshaping.
+* **[API.md](./API.md):** Complete REST API endpoints, JSON payload specifications, and MQTT topic contracts.
+* **[blueprint.md](./blueprint.md):** Architecture specifications, hardware pinouts, screen layouts, and database/token schemas.
