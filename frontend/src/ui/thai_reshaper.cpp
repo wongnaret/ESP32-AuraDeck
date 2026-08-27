@@ -50,7 +50,7 @@ String ThaiReshaper::reshape(const char* input) {
         cluster[clusterSize++] = glyph;
     }
 
-    // 2. Perform Reshaping & Reordering Rules
+    // 2. Perform Reshaping & Reordering Rules (Canonical Unicode Order: Consonant -> Vowel -> Tone Mark)
     // Rule A: Swap Tone Mark + Upper Vowel -> Upper Vowel + Tone Mark
     for (int idx = 0; idx < clusterSize - 1; idx++) {
         if (cluster[idx].isToneMark && cluster[idx + 1].isUpperVowel) {
@@ -66,16 +66,6 @@ String ThaiReshaper::reshape(const char* input) {
             ThaiGlyph temp = cluster[idx];
             cluster[idx] = cluster[idx + 1];
             cluster[idx + 1] = temp;
-        }
-    }
-
-    // Rule C: Shift Tone Marks / Mai Taikhu / Karan that follow an Upper Vowel to PUA High Level (0xF709..0xF70E)
-    for (int idx = 1; idx < clusterSize; idx++) {
-        if (cluster[idx].isToneMark && cluster[idx - 1].isUpperVowel) {
-            uint32_t code = cluster[idx].code;
-            if (code >= 0x0E47 && code <= 0x0E4C) {
-                cluster[idx].code = 0xF709 + (code - 0x0E47);
-            }
         }
     }
 
