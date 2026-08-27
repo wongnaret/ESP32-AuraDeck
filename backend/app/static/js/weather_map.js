@@ -5,7 +5,7 @@ let g_weatherMap = null;
 let g_weatherMarker = null;
 let g_mapSearchDebounceTimer = null;
 
-function initWeatherMap(lat = 13.7563, lon = 100.5018) {
+function initWeatherMap(lat = 13.7563, lon = 100.5018, locationName = '') {
     if (g_weatherMap) return; // Prevent overwriting user's active pin during background polling
 
     const latNum = parseFloat(lat) || 13.7563;
@@ -13,6 +13,11 @@ function initWeatherMap(lat = 13.7563, lon = 100.5018) {
 
     const mapContainer = document.getElementById('weather-map');
     if (!mapContainer || typeof L === 'undefined') return;
+
+    if (locationName) {
+        const locInput = document.getElementById('weather-location-name');
+        if (locInput) locInput.value = locationName;
+    }
 
     g_weatherMap = L.map('weather-map', {
         center: [latNum, lonNum],
@@ -53,7 +58,7 @@ function initWeatherMap(lat = 13.7563, lon = 100.5018) {
     });
 
     // Set initial coordinate fields & reverse-geocoded address
-    setWeatherCoordinates(latNum, lonNum, true);
+    setWeatherCoordinates(latNum, lonNum, !locationName);
 
     // Ensure proper render on load
     setTimeout(() => {
@@ -86,6 +91,7 @@ function setWeatherCoordinates(lat, lon, fetchReverse = true) {
 
 async function reverseGeocodeLocation(lat, lon) {
     const nameLabel = document.getElementById('map-location-name');
+    const locInput = document.getElementById('weather-location-name');
     if (nameLabel) nameLabel.textContent = '🔄 กำลังระบุชื่อสถานที่...';
 
     try {
@@ -103,6 +109,12 @@ async function reverseGeocodeLocation(lat, lon) {
             if (!displayName) displayName = data.display_name || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
 
             if (nameLabel) nameLabel.textContent = displayName;
+            
+            // Auto populate the input if empty or focused
+            if (locInput && (!locInput.value || document.activeElement !== locInput)) {
+                let cleanLine = [poi, district, city].filter(Boolean).join(', ') || displayName;
+                locInput.value = cleanLine;
+            }
         } else {
             if (nameLabel) nameLabel.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
         }
@@ -166,6 +178,7 @@ function selectSearchResult(item) {
     const dropdown = document.getElementById('map-autocomplete-list');
     const searchInput = document.getElementById('map-search-input');
     const nameLabel = document.getElementById('map-location-name');
+    const locInput = document.getElementById('weather-location-name');
 
     if (dropdown) dropdown.style.display = 'none';
     if (searchInput) searchInput.value = item.name || item.display_name.split(',')[0];
@@ -173,6 +186,10 @@ function selectSearchResult(item) {
 
     const lat = parseFloat(item.lat);
     const lon = parseFloat(item.lon);
+
+    if (locInput) {
+        locInput.value = item.display_name;
+    }
 
     if (g_weatherMap) {
         g_weatherMap.flyTo([lat, lon], 14, { duration: 1.2 });
@@ -224,10 +241,12 @@ function locateUserCurrentPosition() {
 async function saveWeatherConfig() {
     const weather_lat_val = document.getElementById('weather-lat') ? parseFloat(document.getElementById('weather-lat').value) : 13.7563;
     const weather_lon_val = document.getElementById('weather-lon') ? parseFloat(document.getElementById('weather-lon').value) : 100.5018;
+    const locInput = document.getElementById('weather-location-name');
 
     const payload = {
         weather_lat: isNaN(weather_lat_val) ? 13.7563 : weather_lat_val,
-        weather_lon: isNaN(weather_lon_val) ? 100.5018 : weather_lon_val
+        weather_lon: isNaN(weather_lon_val) ? 100.5018 : weather_lon_val,
+        weather_location_name: locInput ? locInput.value.trim() : ""
     };
 
     try {
@@ -248,3 +267,4 @@ async function saveWeatherConfig() {
         showToast("Server error saving weather config.", false);
     }
 }
+

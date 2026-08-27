@@ -121,6 +121,7 @@ class ProfileConfigRequest(BaseModel):
     active_task_lists: Optional[List[str]] = None
     weather_lat: Optional[float] = None
     weather_lon: Optional[float] = None
+    weather_location_name: Optional[str] = None
 
 class ProfileIntervalsUpdateRequest(BaseModel):
     profile_id: Optional[str] = None
@@ -530,12 +531,13 @@ def trigger_weather_polling(target_profile_id: Optional[str] = None, force: bool
             if force or (now - last_poll >= interval_secs):
                 LAST_POLL_TIMESTAMPS.setdefault(pid, {})["weather"] = now
                 
-                # Read custom coordinates if configured
+                # Read custom coordinates and location name if configured
                 prof_settings = load_profile_settings(pid)
                 lat = float(prof_settings.get("weather_lat", 13.7563))
                 lon = float(prof_settings.get("weather_lon", 100.5018))
+                loc_name = prof_settings.get("weather_location_name")
                 
-                data = asyncio.run(get_hourly_weather_forecast(latitude=lat, longitude=lon))
+                data = asyncio.run(get_hourly_weather_forecast(latitude=lat, longitude=lon, location_name=loc_name))
                 
                 for mac, m_data in mappings.items():
                     if m_data.get("profile_id") == pid:
@@ -778,6 +780,7 @@ def api_get_profile_config(profile_id: str, active_profile_id: Optional[str] = C
         "google_sa_configured": google_sa_configured,
         "weather_lat": settings_data.get("weather_lat", 13.7563),
         "weather_lon": settings_data.get("weather_lon", 100.5018),
+        "weather_location_name": settings_data.get("weather_location_name", ""),
         "polling_intervals": get_profile_polling_intervals(profile_id)
     }
 
@@ -1371,7 +1374,8 @@ async def api_manual_sync(service: str, active_profile_id: Optional[str] = Cooki
         prof_settings = load_profile_settings(pid)
         lat = float(prof_settings.get("weather_lat", 13.7563))
         lon = float(prof_settings.get("weather_lon", 100.5018))
-        data = await get_hourly_weather_forecast(latitude=lat, longitude=lon)
+        loc_name = prof_settings.get("weather_location_name")
+        data = await get_hourly_weather_forecast(latitude=lat, longitude=lon, location_name=loc_name)
         topic = "auradeck/weather"
     elif service == "ga4":
         data = await get_ga4_analytics(pid)
@@ -1414,7 +1418,8 @@ async def api_get_weather(profile_id: Optional[str] = Query(None), active_profil
     prof_settings = load_profile_settings(pid)
     lat = float(prof_settings.get("weather_lat", 13.7563))
     lon = float(prof_settings.get("weather_lon", 100.5018))
-    data = await get_hourly_weather_forecast(latitude=lat, longitude=lon)
+    loc_name = prof_settings.get("weather_location_name")
+    data = await get_hourly_weather_forecast(latitude=lat, longitude=lon, location_name=loc_name)
     
     # Broadcast to MQTT
     mqtt_service.publish("auradeck/weather", data)

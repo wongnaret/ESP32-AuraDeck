@@ -88,13 +88,16 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 0: Home (Minimalist Summary Dashboard & Rain Forecast)
-* **Purpose:** Single-glance overview combining digital clock, dual-language dates, indoor environmental telemetry, outdoor weather, and 6-hour rain forecast.
+### Page 0: Home (Weather Location, Dual-Language Date, Sensor & Rain Forecast)
+* **Purpose:** Single-glance overview combining weather location details (POI, Suburb, District, Province), dual-language dates, indoor environmental telemetry, outdoor weather, and 6-hour rain forecast.
 * **Layout Structure (3-Tier Layout):**
   * **Tier 1 (Top):**
-    * **Digital Clock:** Large bold digital time (`12:00`, `lv_font_montserrat_32`) aligned top-left.
-    * **English Date:** `dayofweek, day month year` (`Thursday, 20 August 2026`, `lv_font_montserrat_16`).
-    * **Thai Date:** `วัน...ที่ ... ... พ.ศ. ....` (`วันพฤหัสบดีที่ 20 สิงหาคม 2569`, `lv_font_prompt_16` with `ThaiReshaper`).
+    * **Weather Location (Left Column, x=15, w=160):**
+      * **Line 1 (POI / Suburb / Landmark):** Text with `lv_font_prompt_16` and circular marquee scrolling (`LV_LABEL_LONG_SCROLL_CIRCULAR`).
+      * **Line 2 (District / Province / City):** Text with `lv_font_prompt_12` and circular marquee scrolling (`LV_LABEL_LONG_SCROLL_CIRCULAR`).
+    * **Dual-Language Dates (Right Column, x=185, w=200):**
+      * **English Date:** `dayofweek, day month year` (`Wednesday, 26 August 2026`, `lv_font_montserrat_16`).
+      * **Thai Date:** `วัน...ที่ ... ... พ.ศ. ....` (`วันพุธที่ 26 สิงหาคม 2569`, `lv_font_prompt_16` with `ThaiReshaper`).
   * **Tier 2 (Middle):**
     * **Indoor SHTC3 Card:** Displays live onboard ambient temperature and humidity (`26.5 °C | 55 %`).
     * **Outdoor Weather Card:** Displays live outdoor temperature and sky condition (`28.5 C | มีเมฆมาก`) along with graphical weather icon (`current_icon`, 24x24 monochrome icon).
@@ -361,8 +364,11 @@ Published as a **root JSON array** of asset objects. The `type` field drives dis
 ### Topic: `auradeck/weather`
 ```json
 {
-  "date_en": "Thursday, 20 August 2026",
-  "date_th": "วันพฤหัสบดีที่ 20 สิงหาคม 2569",
+  "location_name": "สยามพารากอน, ปทุมวัน, กรุงเทพมหานคร",
+  "location_line1": "สยามพารากอน",
+  "location_line2": "ปทุมวัน, กรุงเทพมหานคร",
+  "date_en": "Wednesday, 26 August 2026",
+  "date_th": "วันพุธที่ 26 สิงหาคม 2569",
   "current_temp": 28.5,
   "current_condition": "มีเมฆมาก",
   "current_icon": "CLOUD",
@@ -376,7 +382,7 @@ Published as a **root JSON array** of asset objects. The `type` field drives dis
   ]
 }
 ```
-> **ESP32 Handling:** `page_home.cpp` updates the dual-language dates, outdoor temperature/condition, and the 6-slot horizontal hourly rain probability forecast strip.
+> **ESP32 Handling:** `page_home.cpp` updates the 2-tier location labels (Line 1 POI/Suburb and Line 2 District/Province with ThaiReshaper and circular marquee), dual-language dates, outdoor temperature/condition, and the 6-slot horizontal hourly rain probability forecast strip.
 
 ---
 

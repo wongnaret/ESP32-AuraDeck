@@ -77,8 +77,9 @@ async function loadProfileConfig() {
         // Initialize weather map if first load
         const wLat = data.weather_lat !== undefined ? data.weather_lat : 13.7563;
         const wLon = data.weather_lon !== undefined ? data.weather_lon : 100.5018;
+        const wLocName = data.weather_location_name || '';
         if (typeof initWeatherMap === 'function') {
-            initWeatherMap(wLat, wLon);
+            initWeatherMap(wLat, wLon, wLocName);
         }
         
         // Fetch dynamic active credential state

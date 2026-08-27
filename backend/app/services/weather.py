@@ -72,20 +72,148 @@ def map_wmo_weather_code(code: int) -> Dict[str, str]:
         return {"name_th": "สภาพอากาศทั่วไป", "condition": "Fair", "icon": "SUN"}
 
 
+# Cache for reverse geocoding to prevent repetitive network requests
+_GEOCODE_CACHE: Dict[str, Dict[str, str]] = {}
+
+
+async def resolve_location_lines(
+    location_name: Optional[str] = None,
+    latitude: float = 13.7563,
+    longitude: float = 100.5018
+) -> Dict[str, str]:
+    """
+    Resolves location into line1 (POI/suburb/district) and line2 (province/city).
+    Supports custom user-defined location names or automatic reverse geocoding via Nominatim.
+    """
+    if location_name and location_name.strip():
+        loc_str = location_name.strip()
+        parts = [p.strip() for p in loc_str.split(",") if p.strip()]
+        if len(parts) >= 3:
+            return {
+                "location_name": loc_str,
+                "location_line1": parts[0],
+                "location_line2": ", ".join(parts[1:])
+            }
+        elif len(parts) == 2:
+            return {
+                "location_name": loc_str,
+                "location_line1": parts[0],
+                "location_line2": parts[1]
+            }
+        else:
+            return {
+                "location_name": loc_str,
+                "location_line1": loc_str,
+                "location_line2": "สภาพอากาศ"
+            }
+
+    # Reverse Geocoding with coordinate-key caching
+    cache_key = f"{latitude:.3f},{longitude:.3f}"
+    if cache_key in _GEOCODE_CACHE:
+        return _GEOCODE_CACHE[cache_key]
+
+    default_result = {
+        "location_name": "กรุงเทพมหานคร, ประเทศไทย",
+        "location_line1": "กรุงเทพมหานคร",
+        "location_line2": "ประเทศไทย"
+    }
+
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude:.4f}&lon={longitude:.4f}&zoom=14&addressdetails=1"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "ESP32-AuraDeck/2.0 (weather_service)",
+                "Accept-Language": "th,en"
+            }
+        )
+        
+        import asyncio
+        def fetch_geo():
+            try:
+                with urllib.request.urlopen(req, timeout=3.0) as resp:
+                    if resp.status == 200:
+                        return json.loads(resp.read().decode('utf-8'))
+            except Exception as ex:
+                logger.debug(f"Reverse geocode network fetch error: {ex}")
+            return None
+
+        loop = asyncio.get_event_loop()
+        geo_data = await loop.run_in_executor(None, fetch_geo)
+
+        if geo_data:
+            addr = geo_data.get("address", {})
+            poi = (
+                geo_data.get("name")
+                or addr.get("suburb")
+                or addr.get("neighbourhood")
+                or addr.get("amenity")
+                or addr.get("building")
+                or addr.get("village")
+                or ""
+            )
+            district = (
+                addr.get("district")
+                or addr.get("subdistrict")
+                or addr.get("county")
+                or addr.get("city_district")
+                or ""
+            )
+            city = (
+                addr.get("city")
+                or addr.get("town")
+                or addr.get("province")
+                or addr.get("state")
+                or ""
+            )
+
+            if poi and (district or city):
+                line1 = poi
+                line2 = ", ".join(filter(None, [district, city]))
+            elif district and city:
+                line1 = district
+                line2 = city
+            elif city:
+                line1 = city
+                line2 = "ประเทศไทย"
+            else:
+                line1 = f"{latitude:.2f}°N, {longitude:.2f}°E"
+                line2 = "สภาพอากาศ"
+
+            full_name = ", ".join(filter(None, [poi, district, city])) or f"{latitude:.4f}, {longitude:.4f}"
+            res = {
+                "location_name": full_name,
+                "location_line1": line1,
+                "location_line2": line2
+            }
+            _GEOCODE_CACHE[cache_key] = res
+            return res
+
+    except Exception as e:
+        logger.warning(f"Failed to reverse-geocode coordinates ({latitude}, {longitude}): {e}")
+
+    return default_result
+
+
 async def get_hourly_weather_forecast(
     latitude: float = 13.7563,
     longitude: float = 100.5018,
-    timezone_str: str = "Asia/Bangkok"
+    timezone_str: str = "Asia/Bangkok",
+    location_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Fetches live weather and next 6 hours precipitation probability forecast from Open-Meteo API.
-    Returns structured JSON with dual-language dates and hourly rain forecast list.
+    Returns structured JSON with location details, dual-language dates, and hourly rain forecast list.
     """
     tz_th = timezone(timedelta(hours=7))
     now = datetime.now(tz_th)
     date_info = format_dual_date(now)
+    loc_info = await resolve_location_lines(location_name=location_name, latitude=latitude, longitude=longitude)
 
     fallback_payload = {
+        "location_name": loc_info["location_name"],
+        "location_line1": loc_info["location_line1"],
+        "location_line2": loc_info["location_line2"],
         "date_en": date_info["date_en"],
         "date_th": date_info["date_th"],
         "current_temp": 29.0,
@@ -171,6 +299,9 @@ async def get_hourly_weather_forecast(
             })
 
         return {
+            "location_name": loc_info["location_name"],
+            "location_line1": loc_info["location_line1"],
+            "location_line2": loc_info["location_line2"],
             "date_en": date_info["date_en"],
             "date_th": date_info["date_th"],
             "current_temp": round(float(cur_temp), 1),
@@ -182,3 +313,4 @@ async def get_hourly_weather_forecast(
     except Exception as e:
         logger.error(f"Error fetching Open-Meteo forecast: {e}")
         return fallback_payload
+

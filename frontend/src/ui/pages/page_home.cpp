@@ -2,7 +2,7 @@
  * @file page_home.cpp
  * @brief Source for Screen 0 (Home Screen) of the AuraDeck dashboard.
  * Features 3-tier layout:
- * 1. Big Digital Clock + Dual-language Date (English & Thai BE +543)
+ * 1. Weather Location Details (POI/Suburb/District/Province) + Dual-language Date (English & Thai BE +543)
  * 2. Indoor Environmental Sensor (SHTC3) vs Outdoor Weather Condition Summary
  * 3. 6-Hour Horizontal Hourly Rain Forecast Strip with Graphical Weather Icons & Rain Probability (%)
  */
@@ -16,10 +16,11 @@
 
 extern PCF85063RTC g_rtc;
 
-// Top Tier: Clock and Dual-Language Dates
-static lv_obj_t* s_clockLabel = nullptr;
-static lv_obj_t* s_dateEnLabel = nullptr;
-static lv_obj_t* s_dateThLabel = nullptr;
+// Top Tier: Weather Location and Dual-Language Dates
+static lv_obj_t* s_locationLine1Label = nullptr;
+static lv_obj_t* s_locationLine2Label = nullptr;
+static lv_obj_t* s_dateEnLabel        = nullptr;
+static lv_obj_t* s_dateThLabel        = nullptr;
 
 // Middle Tier: Indoor SHTC3 vs Outdoor Weather
 static lv_obj_t* s_indoorBox = nullptr;
@@ -39,7 +40,8 @@ static lv_obj_t* s_hourlyTempLabels[6] = { nullptr };
 
 void create_page_home(lv_obj_t* parent) {
     // Reset static pointers first
-    s_clockLabel           = nullptr;
+    s_locationLine1Label   = nullptr;
+    s_locationLine2Label   = nullptr;
     s_dateEnLabel          = nullptr;
     s_dateThLabel          = nullptr;
     s_indoorBox            = nullptr;
@@ -74,34 +76,43 @@ void create_page_home(lv_obj_t* parent) {
     char dateThBuf[128];
     snprintf(dateThBuf, sizeof(dateThBuf), "%sที่ %d %s %d", TH_DAYS[wDay], dt.day(), TH_MONTHS[mIdx], yearBE);
 
-    char timeBuf[16];
-    snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", dt.hour(), dt.minute());
+    // ==============================================================
+    // Tier 1: Weather Location (Left) + Dual-Language Date (Right)
+    // ==============================================================
+    // Location Line 1: POI / Suburb / Landmark (Prompt 16, Circular Marquee)
+    s_locationLine1Label = lv_label_create(parent);
+    lv_obj_set_style_text_font(s_locationLine1Label, &lv_font_prompt_16, 0);
+    lv_obj_set_style_text_color(s_locationLine1Label, lv_color_black(), 0);
+    lv_obj_set_width(s_locationLine1Label, 160);
+    lv_label_set_long_mode(s_locationLine1Label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_align(s_locationLine1Label, LV_ALIGN_TOP_LEFT, 15, 6);
+    lv_label_set_text(s_locationLine1Label, ThaiReshaper::reshape("กำลังโหลดข้อมูล...").c_str());
 
-    // ==========================================
-    // Tier 1: Digital Clock + Dual-Language Date
-    // ==========================================
-    s_clockLabel = lv_label_create(parent);
-    lv_obj_set_style_text_font(s_clockLabel, &lv_font_montserrat_32, 0);
-    lv_obj_set_style_text_color(s_clockLabel, lv_color_black(), 0);
-    lv_obj_align(s_clockLabel, LV_ALIGN_TOP_LEFT, 15, 6);
-    lv_label_set_text(s_clockLabel, timeBuf);
+    // Location Line 2: District / Province / City (Prompt 12, Circular Marquee)
+    s_locationLine2Label = lv_label_create(parent);
+    lv_obj_set_style_text_font(s_locationLine2Label, &lv_font_prompt_12, 0);
+    lv_obj_set_style_text_color(s_locationLine2Label, lv_color_black(), 0);
+    lv_obj_set_width(s_locationLine2Label, 160);
+    lv_label_set_long_mode(s_locationLine2Label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_align(s_locationLine2Label, LV_ALIGN_TOP_LEFT, 15, 29);
+    lv_label_set_text(s_locationLine2Label, ThaiReshaper::reshape("สภาพอากาศ").c_str());
 
-    // English Date (Larger, Montserrat 16)
+    // English Date (Montserrat 16, Right Column)
     s_dateEnLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_dateEnLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(s_dateEnLabel, lv_color_black(), 0);
-    lv_obj_set_width(s_dateEnLabel, 265);
+    lv_obj_set_width(s_dateEnLabel, 200);
     lv_label_set_long_mode(s_dateEnLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_align(s_dateEnLabel, LV_ALIGN_TOP_LEFT, 120, 6);
+    lv_obj_align(s_dateEnLabel, LV_ALIGN_TOP_LEFT, 185, 6);
     lv_label_set_text(s_dateEnLabel, dateEnBuf);
 
-    // Thai Date (Prompt 16 with ThaiReshaper)
+    // Thai Date (Prompt 16 with ThaiReshaper, Right Column)
     s_dateThLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_dateThLabel, &lv_font_prompt_16, 0);
     lv_obj_set_style_text_color(s_dateThLabel, lv_color_black(), 0);
-    lv_obj_set_width(s_dateThLabel, 265);
+    lv_obj_set_width(s_dateThLabel, 200);
     lv_label_set_long_mode(s_dateThLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_align(s_dateThLabel, LV_ALIGN_TOP_LEFT, 120, 28);
+    lv_obj_align(s_dateThLabel, LV_ALIGN_TOP_LEFT, 185, 28);
     lv_label_set_text(s_dateThLabel, ThaiReshaper::reshape(dateThBuf).c_str());
 
     // ==========================================
@@ -217,10 +228,30 @@ void create_page_home(lv_obj_t* parent) {
 }
 
 void update_page_home(JsonVariantConst data) {
-    // 1. Digital Clock
-    const char* timeStr = data["time"] | nullptr;
-    if (timeStr && s_clockLabel) {
-        lv_label_set_text(s_clockLabel, timeStr);
+    // 1. Weather Location Details (Line 1: POI/Suburb/Custom, Line 2: District/Province)
+    const char* locLine1 = nullptr;
+    const char* locLine2 = nullptr;
+
+    if (data.containsKey("location_line1")) {
+        locLine1 = data["location_line1"].as<const char*>();
+    }
+    if (data.containsKey("location_line2")) {
+        locLine2 = data["location_line2"].as<const char*>();
+    }
+
+    if (!locLine1 && data.containsKey("location_name")) {
+        locLine1 = data["location_name"].as<const char*>();
+    } else if (!locLine1 && data.containsKey("location")) {
+        locLine1 = data["location"].as<const char*>();
+    }
+
+    if (locLine1 && s_locationLine1Label) {
+        String reshaped = ThaiReshaper::reshape(locLine1);
+        lv_label_set_text(s_locationLine1Label, reshaped.c_str());
+    }
+    if (locLine2 && s_locationLine2Label) {
+        String reshaped = ThaiReshaper::reshape(locLine2);
+        lv_label_set_text(s_locationLine2Label, reshaped.c_str());
     }
 
     // 2. Dual-Language Dates
@@ -338,7 +369,8 @@ void update_page_home(JsonVariantConst data) {
 }
 
 void destroy_page_home() {
-    s_clockLabel           = nullptr;
+    s_locationLine1Label   = nullptr;
+    s_locationLine2Label   = nullptr;
     s_dateEnLabel          = nullptr;
     s_dateThLabel          = nullptr;
     s_indoorBox            = nullptr;

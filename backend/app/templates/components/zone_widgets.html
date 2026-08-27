@@ -47,6 +47,15 @@
             </div>
         </div>
 
+        <!-- Editable Location Name Input Group -->
+        <div class="form-group" style="margin-top: 12px; margin-bottom: 14px;">
+            <label for="weather-location-name" style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; margin-bottom: 5px; color: var(--text-main);">
+                <span>📍 ชื่อสถานที่แสดงบนหน้าจอ (Screen Display Location Name):</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">(ปรับแต่งได้ หรือเว้นว่างเพื่อใช้ชื่อจากแผนที่)</span>
+            </label>
+            <input type="text" id="weather-location-name" class="form-control" placeholder="เช่น สยามพารากอน, ปทุมวัน, กรุงเทพมหานคร หรือ บ้านพักหัวหิน" style="width: 100%; padding: 8px 12px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: var(--text-main);">
+        </div>
+
         <!-- Hidden Lat/Lon Form Inputs -->
         <input type="hidden" id="weather-lat" value="13.7563">
         <input type="hidden" id="weather-lon" value="100.5018">

@@ -540,3 +540,40 @@ Monitors overall multi-project MTD spending alongside GA4 real-time indicators.
   ]
 }
 ```
+
+### 7. Weather & Rain Forecast (`auradeck/device/{mac}/weather`)
+Contains weather location hierarchy, dual-language formatted dates, live outdoor temperature and condition, and a 6-hour precipitation forecast.
+```json
+{
+  "location_name": "สยามพารากอน, ปทุมวัน, กรุงเทพมหานคร",
+  "location_line1": "สยามพารากอน",
+  "location_line2": "ปทุมวัน, กรุงเทพมหานคร",
+  "date_en": "Wednesday, 26 August 2026",
+  "date_th": "วันพุธที่ 26 สิงหาคม 2569",
+  "current_temp": 28.5,
+  "current_condition": "มีเมฆมาก",
+  "current_icon": "CLOUD",
+  "hourly": [
+    { "time": "18:00", "condition": "Drizzle", "icon": "DRIZZLE", "rain_prob": 80, "temp": 28.0 },
+    { "time": "19:00", "condition": "Rain", "icon": "RAIN", "rain_prob": 85, "temp": 27.5 },
+    { "time": "20:00", "condition": "Drizzle", "icon": "DRIZZLE", "rain_prob": 70, "temp": 27.0 },
+    { "time": "21:00", "condition": "Cloudy", "icon": "CLOUD", "rain_prob": 30, "temp": 26.8 },
+    { "time": "22:00", "condition": "Cloudy", "icon": "CLOUD", "rain_prob": 20, "temp": 26.5 },
+    { "time": "23:00", "condition": "Clear", "icon": "SUN", "rain_prob": 10, "temp": 26.2 }
+  ]
+}
+```
+| Field | Type | Description |
+|-------|------|-------------|
+| `location_name` | string | Full display name of the selected location |
+| `location_line1` | string | Line 1 location name (POI, Landmark, Suburb, or custom name) |
+| `location_line2` | string | Line 2 location name (District, Province, City) |
+| `date_en` | string | English formatted date (`Day, DD Month YYYY`) |
+| `date_th` | string | Thai formatted date with Buddhist Era year +543 |
+| `current_temp` | float | Current ambient outdoor temperature in °C |
+| `current_condition` | string | Thai weather description (e.g. `มีเมฆมาก`, `ฝนตกปรอยๆ`) |
+| `current_icon` | string | Weather icon key (`SUN`, `CLOUD`, `RAIN`, `DRIZZLE`, `STORM`, `FOG`) |
+| `hourly` | array | 6-hour forecast slots with `time`, `condition`, `icon`, `rain_prob` (%), and `temp` (°C) |
+
+> **ESP32 Handling:** `page_home.cpp` renders `location_line1` with `lv_font_prompt_16` and `location_line2` with `lv_font_prompt_12` (both using ThaiReshaper and circular marquee scrolling) on the top-left, dual-language dates on the top-right, SHTC3 indoor sensor and outdoor weather in Tier 2, and the 6-hour rain forecast strip in Tier 3.
+
