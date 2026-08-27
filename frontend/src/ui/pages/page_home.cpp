@@ -60,10 +60,10 @@ void create_page_home(lv_obj_t* parent) {
 
     // Read current real-time clock from hardware RTC for instant zero-lag rendering
     DateTime dt = g_rtc.now();
-    static const char* EN_DAYS_SHORT[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    static const char* EN_MONTHS_SHORT[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    static const char* TH_DAYS_SHORT[] = {"อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์"};
-    static const char* TH_MONTHS_SHORT[] = {"ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."};
+    static const char* EN_DAYS[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    static const char* EN_MONTHS[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+    static const char* TH_DAYS[] = {"อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์"};
+    static const char* TH_MONTHS[] = {"มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"};
 
     int wDay = dt.dayOfTheWeek() % 7;
     int mIdx = (dt.month() >= 1 && dt.month() <= 12) ? dt.month() - 1 : 0;
@@ -71,28 +71,30 @@ void create_page_home(lv_obj_t* parent) {
     int yearBE = yearCE + 543;
 
     char dateEnBuf[128];
-    snprintf(dateEnBuf, sizeof(dateEnBuf), "%s, %d %s %d", EN_DAYS_SHORT[wDay], dt.day(), EN_MONTHS_SHORT[mIdx], yearCE);
+    snprintf(dateEnBuf, sizeof(dateEnBuf), "%s, %d %s %d", EN_DAYS[wDay], dt.day(), EN_MONTHS[mIdx], yearCE);
 
     char dateThBuf[128];
-    snprintf(dateThBuf, sizeof(dateThBuf), "%s %d %s %d", TH_DAYS_SHORT[wDay], dt.day(), TH_MONTHS_SHORT[mIdx], yearBE);
+    snprintf(dateThBuf, sizeof(dateThBuf), "%s %d %s %d", TH_DAYS[wDay], dt.day(), TH_MONTHS[mIdx], yearBE);
 
     // ==============================================================
     // Tier 1: Weather Location (Left) + Dual-Language Date (Right)
     // ==============================================================
-    // Location Line 1: POI / Suburb / Landmark (Prompt 16, Circular Marquee)
+    // Location Line 1: POI / Suburb / Landmark (Prompt 16, Circular Marquee, 140px width)
     s_locationLine1Label = lv_label_create(parent);
     lv_obj_set_style_text_font(s_locationLine1Label, &lv_font_prompt_16, 0);
     lv_obj_set_style_text_color(s_locationLine1Label, lv_color_black(), 0);
-    lv_obj_set_width(s_locationLine1Label, 195);
+    lv_obj_set_width(s_locationLine1Label, 140);
+    lv_obj_set_style_pad_top(s_locationLine1Label, 2, 0);
     lv_label_set_long_mode(s_locationLine1Label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_locationLine1Label, LV_ALIGN_TOP_LEFT, 15, 6);
     lv_label_set_text(s_locationLine1Label, ThaiReshaper::reshape("กำลังโหลดข้อมูล...").c_str());
 
-    // Location Line 2: District / Province / City (Prompt 12, Circular Marquee)
+    // Location Line 2: District / Province / City (Prompt 12, Circular Marquee, 140px width)
     s_locationLine2Label = lv_label_create(parent);
     lv_obj_set_style_text_font(s_locationLine2Label, &lv_font_prompt_12, 0);
     lv_obj_set_style_text_color(s_locationLine2Label, lv_color_black(), 0);
-    lv_obj_set_width(s_locationLine2Label, 195);
+    lv_obj_set_width(s_locationLine2Label, 140);
+    lv_obj_set_style_pad_top(s_locationLine2Label, 2, 0);
     lv_label_set_long_mode(s_locationLine2Label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_align(s_locationLine2Label, LV_ALIGN_TOP_LEFT, 15, 29);
     lv_label_set_text(s_locationLine2Label, ThaiReshaper::reshape("สภาพอากาศ").c_str());
@@ -110,6 +112,7 @@ void create_page_home(lv_obj_t* parent) {
     lv_obj_set_style_text_font(s_dateThLabel, &lv_font_prompt_16, 0);
     lv_obj_set_style_text_color(s_dateThLabel, lv_color_black(), 0);
     lv_obj_set_style_text_align(s_dateThLabel, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_style_pad_top(s_dateThLabel, 2, 0);
     lv_obj_align(s_dateThLabel, LV_ALIGN_TOP_RIGHT, -15, 28);
     lv_label_set_text(s_dateThLabel, ThaiReshaper::reshape(dateThBuf).c_str());
 

@@ -69,6 +69,17 @@ String ThaiReshaper::reshape(const char* input) {
         }
     }
 
+    // Rule C: Shift Tone Marks / Mai Taikhu / Karan that follow an Upper Vowel to PUA High Level (0xF709..0xF70E)
+    // This lifts the tone mark +5px higher so it floats above Sara Ue/I/Ii/Ue/Uee instead of overlapping inside it.
+    for (int idx = 1; idx < clusterSize; idx++) {
+        if (cluster[idx].isToneMark && cluster[idx - 1].isUpperVowel) {
+            uint32_t code = cluster[idx].code;
+            if (code >= 0x0E47 && code <= 0x0E4C) {
+                cluster[idx].code = 0xF709 + (code - 0x0E47);
+            }
+        }
+    }
+
     // 3. Write reshaped and reordered UTF-8 glyphs back to output
     for (int idx = 0; idx < clusterSize; idx++) {
         output += encodeUTF8(cluster[idx].code);

@@ -8,25 +8,25 @@ import urllib.request
 
 logger = logging.getLogger("weather_service")
 
-THAI_DAYS_SHORT = ["จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์", "อาทิตย์"]
-THAI_MONTHS_SHORT = [
-    "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-    "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+THAI_DAYS = ["จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์", "อาทิตย์"]
+THAI_MONTHS = [
+    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
 ]
 
-EN_DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-EN_MONTHS_SHORT = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+EN_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+EN_MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
 ]
 
 
 def format_dual_date(now: Optional[datetime] = None) -> Dict[str, str]:
     """
-    Formats the date in abbreviated English and Thai (Buddhist Era year + 543).
+    Formats the date in English and Thai (Buddhist Era year + 543).
     Example:
-      EN: "Wed, 26 Aug 2026"
-      TH: "พุธ 26 ส.ค. 2569"
+      EN: "Thursday, 27 August 2026"
+      TH: "พฤหัส 27 สิงหาคม 2569"
     """
     if now is None:
         # Thailand timezone GMT+7
@@ -39,8 +39,8 @@ def format_dual_date(now: Optional[datetime] = None) -> Dict[str, str]:
     year_ce = now.year
     year_be = year_ce + 543
 
-    date_en = f"{EN_DAYS_SHORT[day_idx]}, {day_num} {EN_MONTHS_SHORT[month_idx]} {year_ce}"
-    date_th = f"{THAI_DAYS_SHORT[day_idx]} {day_num} {THAI_MONTHS_SHORT[month_idx]} {year_be}"
+    date_en = f"{EN_DAYS[day_idx]}, {day_num} {EN_MONTHS[month_idx]} {year_ce}"
+    date_th = f"{THAI_DAYS[day_idx]} {day_num} {THAI_MONTHS[month_idx]} {year_be}"
 
     return {
         "date_en": date_en,

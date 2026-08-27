@@ -89,15 +89,15 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 ---
 
 ### Page 0: Home (Weather Location, Dual-Language Date, Sensor & Rain Forecast)
-* **Purpose:** Single-glance overview combining weather location details (POI, Suburb, District, Province), abbreviated dual-language dates, indoor environmental telemetry, outdoor weather, and 6-hour rain forecast.
+* **Purpose:** Single-glance overview combining weather location details (POI, Suburb, District, Province), dual-language dates, indoor environmental telemetry, outdoor weather, and 6-hour rain forecast.
 * **Layout Structure (3-Tier Layout):**
   * **Tier 1 (Top):**
-    * **Weather Location (Left Column, x=15, w=195):**
+    * **Weather Location (Left Column, x=15, w=140):**
       * **Line 1 (POI / Suburb / Landmark):** Text with `lv_font_prompt_16` and circular marquee scrolling (`LV_LABEL_LONG_SCROLL_CIRCULAR`).
       * **Line 2 (District / Province / City):** Text with `lv_font_prompt_12` and circular marquee scrolling (`LV_LABEL_LONG_SCROLL_CIRCULAR`).
     * **Dual-Language Dates (Right-aligned Column, x=-15, static):**
-      * **English Date:** `dayofweek, day month year` (`Wed, 26 Aug 2026`, `lv_font_montserrat_16`, right-aligned, static).
-      * **Thai Date:** `วัน... ... พ.ศ. ....` (`พุธ 26 ส.ค. 2569`, `lv_font_prompt_16` with `ThaiReshaper`, right-aligned, static).
+      * **English Date:** `dayofweek, day month year` (`Thursday, 27 August 2026`, `lv_font_montserrat_16`, right-aligned, static).
+      * **Thai Date:** `วัน... ... พ.ศ. ....` (`พฤหัส 27 สิงหาคม 2569`, `lv_font_prompt_16` with `ThaiReshaper`, right-aligned, static).
   * **Tier 2 (Middle):**
     * **Indoor SHTC3 Card:** Displays live onboard ambient temperature and humidity (`26.5 °C | 55 %`).
     * **Outdoor Weather Card:** Displays live outdoor temperature and sky condition (`28.5 C | มีเมฆมาก`) along with graphical weather icon (`current_icon`, 24x24 monochrome icon).
@@ -367,8 +367,8 @@ Published as a **root JSON array** of asset objects. The `type` field drives dis
   "location_name": "สยามพารากอน, ปทุมวัน, กรุงเทพมหานคร",
   "location_line1": "สยามพารากอน",
   "location_line2": "ปทุมวัน, กรุงเทพมหานคร",
-  "date_en": "Wed, 26 Aug 2026",
-  "date_th": "พุธ 26 ส.ค. 2569",
+  "date_en": "Thursday, 27 August 2026",
+  "date_th": "พฤหัส 27 สิงหาคม 2569",
   "current_temp": 28.5,
   "current_condition": "มีเมฆมาก",
   "current_icon": "CLOUD",
