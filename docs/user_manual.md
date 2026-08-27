@@ -147,6 +147,15 @@ flowchart LR
 5. คลิก **CREATE**
 6. เว็บบราวเซอร์จะทำการดาวน์โหลดไฟล์นามสกุล `.json` (เช่น `your-project-id-xxxxxxxxxxxx.json`) มายังคอมพิวเตอร์ของคุณทันที!
 
+> [!TIP]
+> **หากพบ Error: "Service account key creation is disabled (iam.disableServiceAccountKeyCreation)":**
+> เกิดจากนโยบายความปลอดภัยเริ่มต้น (Secure by Default) ของ Google Cloud บล็อกการสร้างคีย์ไว้ สามารถปลดล็อกได้ดังนี้:
+> 1. ไปที่เมนู **IAM & Admin** > **Organization Policies** (นโยบายขององค์กร)
+> 2. ค้นหา `disableServiceAccountKeyCreation` แล้วคลิกที่นโยบาย **Disable service account key creation**
+> 3. คลิกปุ่ม **MANAGE POLICY** (หรือ **EDIT**)
+> 4. เลือก **Override parent's policy** > ตั้งค่า **Enforcement** เป็น **Off** (ปิดการบังคับใช้) แล้วกด **Set Policy**
+> 5. รอประมาณ 1 นาที แล้วกลับมากดสร้าง JSON Key ใหม่อีกครั้ง
+
 > [!CAUTION]
 > **ความปลอดภัย:** ไฟล์ `.json` นี้เปรียบเสมือนรหัสผ่านสำหรับเข้าถึงข้อมูล โปรดเก็บไฟล์นี้ไว้ในที่ปลอดภัยและ**ห้าม**อัปโหลดขึ้น GitHub หรือส่งให้ผู้อื่น
 
@@ -303,6 +312,18 @@ flowchart TD
   docker compose restart
   ```
 * **บนหน้าจอ ESP32-S3:** กดปุ่ม **RST (Reset)** บนตัวบอร์ด หรือถอดสาย USB แล้วเสียบใหม่ ตัวเครื่องจะเริ่มทำงานใหม่ภายใน 2-3 วินาที
+
+---
+
+### ❓ 5. กดสร้าง Service Account Key แล้วขึ้น "Service account key creation is disabled"
+* **สาเหตุ:** Google Cloud เปิดการบังคับใช้นโยบายความปลอดภัย **Organization Policy** (`iam.disableServiceAccountKeyCreation`) โดยอัตโนมัติสำหรับโปรเจกต์ใหม่ (Secure by Default) หรือเป็นบัญชีองค์กร
+* **วิธีแก้:**
+  1. ไปที่เมนู **IAM & Admin** > **Organization Policies** (นโยบายขององค์กร)
+  2. ค้นหาคำว่า `disableServiceAccountKeyCreation`
+  3. คลิกที่นโยบาย **Disable service account key creation**
+  4. คลิกปุ่ม **MANAGE POLICY** หรือ **EDIT** ด้านบน
+  5. เลือก **Override parent's policy** > ตั้งค่า **Enforcement** เป็น **Off** (ปิดการบังคับใช้) แล้วกด **Set Policy**
+  6. รอประมาณ 1 นาที แล้วกลับไปหน้า Service Accounts เพื่อกดสร้าง JSON Key ใหม่อีกครั้ง
 
 ---
 
