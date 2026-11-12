@@ -334,23 +334,48 @@ Diagnostic endpoint — fetches fresh prices from all data sources and reports M
 ### 6. Google Analytics 4 (GA4) & GCP Billing Endpoints
 
 #### `GET /api/v1/ga4?profile_id={profile_id}`
-Fetches real-time 30-minute visitor counts, 28-day active/new users, average engagement duration, total events, and top cities from GA4 Data API.
+Fetches real-time 30-minute active users along with 7-day summary KPIs (active/new users, sessions, page views, average engagement duration, bounce rate), 7-day top cities, 7-day device breakdown, and 7-day daily page view trend from the GA4 Data API.
 *   **Query Parameters:** `profile_id` (default `"default"`)
 *   **Response (`200 OK`):**
     ```json
     {
-      "active_users_30m": 34,
-      "active_28d_users": "14.2K",
-      "new_users": "1.8K",
-      "avg_engagement_time": "2m 15s",
-      "event_count": "92.4K",
-      "top_cities": [
-        { "city": "Bangkok", "active_users": 18 },
-        { "city": "Chiang Mai", "active_users": 6 },
-        { "city": "Nonthaburi", "active_users": 4 },
-        { "city": "Phuket", "active_users": 3 },
-        { "city": "Chon Buri", "active_users": 2 }
-      ]
+      "total_properties": 1,
+      "properties": [
+        {
+          "property_id": "541653787",
+          "property_name": "TrailHub",
+          "is_demo": false,
+          "active_users_30m": 0,
+          "active_7d_users": "139",
+          "active_28d_users": "139",
+          "new_users": "69",
+          "sessions": "216",
+          "page_views": "669",
+          "avg_engagement_time": "2m 18s",
+          "bounce_rate": "26.2%",
+          "event_count": "2.1K",
+          "top_cities": [
+            { "city": "Bangkok", "active_users": 47 },
+            { "city": "(not set)", "active_users": 17 },
+            { "city": "Pattaya City", "active_users": 13 },
+            { "city": "Surat Thani", "active_users": 6 },
+            { "city": "Nakhon Ratchasima", "active_users": 5 }
+          ],
+          "devices": [
+            { "device": "Mobile", "active_users": 73, "pct": 68.2 },
+            { "device": "Desktop", "active_users": 33, "pct": 30.8 },
+            { "device": "Tablet", "active_users": 1, "pct": 0.9 }
+          ],
+          "daily_trend": [68, 90, 80, 65, 102, 165, 82]
+        }
+      ],
+      "active_users_30m": 0,
+      "active_7d_users": "139",
+      "new_users": "69",
+      "sessions": "216",
+      "page_views": "669",
+      "avg_engagement_time": "2m 18s",
+      "bounce_rate": "26.2%"
     }
     ```
 

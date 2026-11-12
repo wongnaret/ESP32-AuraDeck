@@ -456,6 +456,17 @@ def trigger_analytics_polling(target_profile_id: Optional[str] = None, force: bo
     except Exception as e:
         logger.error(f"Error in background Analytics poller: {e}")
 
+def _publish_profile_service_payload(service: str, pid: str, data: Any, mappings: Optional[Dict[str, Any]] = None):
+    """Publishes a service payload to all paired device topics and default generic topic."""
+    if mappings is None:
+        mappings = load_device_mappings()
+    for mac, m_data in mappings.items():
+        if m_data.get("profile_id") == pid:
+            mqtt_service.publish(f"auradeck/device/{mac}/{service}", data)
+    if pid == "default":
+        mqtt_service.publish(f"auradeck/{service}", data)
+
+
 def trigger_ga4_polling(target_profile_id: Optional[str] = None, force: bool = False):
     """Polls Google Analytics 4 (GA4) detailed metrics for profiles based on configured interval."""
     now = time.time()
@@ -473,13 +484,8 @@ def trigger_ga4_polling(target_profile_id: Optional[str] = None, force: bool = F
 
             if force or (now - last_poll >= interval_secs):
                 LAST_POLL_TIMESTAMPS.setdefault(pid, {})["ga4"] = now
-                data = asyncio.run(get_ga4_analytics(pid))
-                for mac, m_data in mappings.items():
-                    if m_data.get("profile_id") == pid:
-                        mqtt_service.publish(f"auradeck/device/{mac}/ga4", data)
-                
-                if pid == "default":
-                    mqtt_service.publish("auradeck/ga4", data)
+                data = run_async_safe(get_ga4_analytics(pid))
+                _publish_profile_service_payload("ga4", pid, data, mappings)
                 logger.info(f"📈 [GA4 Analytics] Polled profile '{pid}' (interval: {intervals.get('ga4_mins', 5)}m)")
     except Exception as e:
         logger.error(f"Error in background GA4 poller: {e}")
@@ -1069,7 +1075,13 @@ async def api_upload_ga4_property(
     target_path = os.path.join(ga4_dir, f"{prop_id}.json")
     with open(target_path, "w", encoding="utf-8") as f:
         json.dump(parsed_json, f, indent=2)
-        
+
+    try:
+        ga4_data = await get_ga4_analytics(profile_id)
+        _publish_profile_service_payload("ga4", profile_id, ga4_data)
+    except Exception as e:
+        logger.warning(f"Immediate GA4 publish after upload failed for '{profile_id}': {e}")
+
     return {
         "status": "success",
         "property_id": prop_id,
@@ -1079,7 +1091,7 @@ async def api_upload_ga4_property(
 
 
 @app.delete("/api/profiles/{profile_id}/ga4-properties/{property_id}")
-def api_delete_ga4_property(profile_id: str, property_id: str, active_profile_id: Optional[str] = Cookie(None)):
+async def api_delete_ga4_property(profile_id: str, property_id: str, active_profile_id: Optional[str] = Cookie(None)):
     """Deletes a specific GA4 property service account key."""
     if not active_profile_id or active_profile_id != profile_id:
         raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
@@ -1087,6 +1099,11 @@ def api_delete_ga4_property(profile_id: str, property_id: str, active_profile_id
     target_path = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "ga4_properties", f"{property_id}.json")
     if os.path.exists(target_path):
         os.remove(target_path)
+        try:
+            ga4_data = await get_ga4_analytics(profile_id)
+            _publish_profile_service_payload("ga4", profile_id, ga4_data)
+        except Exception as e:
+            logger.warning(f"Immediate GA4 publish after delete failed for '{profile_id}': {e}")
         return {"status": "success", "message": f"Successfully removed GA4 Property '{property_id}'."}
     else:
         raise HTTPException(status_code=404, detail="GA4 property key not found.")
@@ -1186,10 +1203,13 @@ def api_verify_pairing_code(request: DevicePairRequest, active_profile_id: Optio
     try:
         logger.info(f"Triggering immediate data publish for newly paired device {mac}...")
         trigger_spotify_polling()
-        trigger_calendar_polling()
+        trigger_calendar_polling(target_profile_id=profile_id, force=True)
         trigger_stocks_polling()
-        trigger_analytics_polling()
-        trigger_antigravity_polling()
+        trigger_weather_polling(target_profile_id=profile_id, force=True)
+        trigger_ga4_polling(target_profile_id=profile_id, force=True)
+        trigger_gcp_billing_polling(target_profile_id=profile_id, force=True)
+        trigger_analytics_polling(target_profile_id=profile_id, force=True)
+        trigger_antigravity_polling(force=True)
     except Exception as e:
         logger.error(f"Error publishing initial data for paired device {mac}: {e}")
 

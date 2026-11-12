@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 import logging
 import random
 import httpx
@@ -129,46 +130,57 @@ def _generate_fallback_ga4_property(prop_id: str, prop_name: str) -> Dict[str, A
     global _simulated_property_states
     
     if prop_id not in _simulated_property_states:
-        base_30m = random.randint(20, 65)
+        base_30m = random.randint(2, 18)
         _simulated_property_states[prop_id] = {
             "active_users_30m": base_30m,
-            "active_28d_users": f"{random.randint(10, 25)}.{random.randint(1, 9)}K",
-            "new_users": f"{random.randint(1, 4)}.{random.randint(1, 9)}K",
-            "avg_engagement_time": f"{random.randint(1, 3)}m {random.randint(10, 55)}s",
-            "event_count": f"{random.randint(70, 150)}.{random.randint(1, 9)}K"
+            "active_7d_users": "139",
+            "new_users": "69",
+            "sessions": "216",
+            "page_views": "669",
+            "avg_engagement_time": "2m 18s",
+            "bounce_rate": "26.2%",
+            "event_count": "2.1K"
         }
 
     st = _simulated_property_states[prop_id]
-    fluctuation = random.choice([-2, -1, 0, 1, 2])
-    cur_30m = max(5, min(250, st["active_users_30m"] + fluctuation))
+    fluctuation = random.choice([-1, 0, 1])
+    cur_30m = max(0, min(250, st["active_users_30m"] + fluctuation))
     st["active_users_30m"] = cur_30m
 
-    cities = [
-        {"city": "Bangkok", "pct": 0.52},
-        {"city": "Chiang Mai", "pct": 0.18},
-        {"city": "Nonthaburi", "pct": 0.12},
-        {"city": "Phuket", "pct": 0.10},
-        {"city": "Chon Buri", "pct": 0.08}
+    city_list = [
+        {"city": "Bangkok", "active_users": 47},
+        {"city": "Pattaya City", "active_users": 13},
+        {"city": "Surat Thani", "active_users": 6},
+        {"city": "Nakhon Ratchasima", "active_users": 5},
+        {"city": "Prachuap Khiri Khan", "active_users": 5}
     ]
-    city_list = []
-    for c in cities:
-        count = max(1, int(cur_30m * c["pct"]))
-        city_list.append({"city": c["city"], "active_users": count})
+    device_list = [
+        {"device": "Mobile", "active_users": 73, "pct": 68.2},
+        {"device": "Desktop", "active_users": 33, "pct": 30.8},
+        {"device": "Tablet", "active_users": 1, "pct": 0.9}
+    ]
 
     return {
         "property_id": prop_id,
         "property_name": prop_name,
+        "is_demo": True,
         "active_users_30m": cur_30m,
-        "active_28d_users": st["active_28d_users"],
+        "active_7d_users": st["active_7d_users"],
+        "active_28d_users": st["active_7d_users"],
         "new_users": st["new_users"],
+        "sessions": st["sessions"],
+        "page_views": st["page_views"],
         "avg_engagement_time": st["avg_engagement_time"],
+        "bounce_rate": st["bounce_rate"],
         "event_count": st["event_count"],
-        "top_cities": city_list
+        "top_cities": city_list,
+        "devices": device_list,
+        "daily_trend": [68, 90, 80, 65, 102, 165, 82]
     }
 
 
 async def _fetch_single_property_analytics(profile_id: str, prop: Dict[str, Any]) -> Dict[str, Any]:
-    """Fetches real-time and standard metrics for a single GA4 property."""
+    """Fetches 30m real-time active users and 7-day analytics reports for a single GA4 property."""
     prop_id = prop["property_id"]
     prop_name = prop["property_name"]
     key_path = prop.get("key_path")
@@ -178,95 +190,185 @@ async def _fetch_single_property_analytics(profile_id: str, prop: Dict[str, Any]
         return _generate_fallback_ga4_property(prop_id, prop_name)
 
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    active_users_30m = 0
-    top_cities: List[Dict[str, Any]] = []
-
-    # 1. Fetch Realtime Report (Active users & City breakdown in last 30 minutes)
     realtime_url = f"https://analyticsdata.googleapis.com/v1beta/properties/{prop_id}:runRealtimeReport"
+    report_url = f"https://analyticsdata.googleapis.com/v1beta/properties/{prop_id}:runReport"
+
+    # 1. Realtime (30 minutes) - active users only (0 is a valid live state!)
     realtime_payload = {
         "metrics": [{"name": "activeUsers"}],
-        "dimensions": [{"name": "city"}],
-        "minuteRanges": [{"name": "0-29 minutes ago", "startMinutesAgo": 29}],
-        "orderBys": [{"metric": {"metricName": "activeUsers"}, "desc": True}],
-        "limit": 5
+        "minuteRanges": [{"name": "0-29 minutes ago", "startMinutesAgo": 29}]
     }
 
-    try:
-        async with httpx.AsyncClient() as client:
-            resp_rt = await client.post(realtime_url, headers=headers, json=realtime_payload, timeout=6.0)
-            if resp_rt.status_code == 200:
-                rt_data = resp_rt.json()
-                rows = rt_data.get("rows", [])
-                for r in rows:
-                    c_name = r.get("dimensionValues", [{}])[0].get("value", "Unknown")
-                    c_users = int(r.get("metricValues", [{}])[0].get("value", 0))
-                    active_users_30m += c_users
-                    top_cities.append({"city": c_name, "active_users": c_users})
-            else:
-                logger.warning(f"GA4 Realtime API status {resp_rt.status_code} for property {prop_id}: {resp_rt.text}")
-    except Exception as e:
-        logger.error(f"Error querying GA4 Realtime API for property {prop_id}: {e}")
-
-    # Fallback to simulated if real-time completely failed
-    if active_users_30m == 0 and not top_cities:
-        return _generate_fallback_ga4_property(prop_id, prop_name)
-
-    # 2. Fetch 28-day Standard Report
-    report_url = f"https://analyticsdata.googleapis.com/v1beta/properties/{prop_id}:runReport"
-    report_payload = {
-        "dateRanges": [{"startDate": "28daysAgo", "endDate": "yesterday"}],
+    # 2. 7-Day Summary Metrics
+    summary_payload = {
+        "dateRanges": [{"startDate": "7daysAgo", "endDate": "yesterday"}],
         "metrics": [
             {"name": "activeUsers"},
             {"name": "newUsers"},
+            {"name": "sessions"},
+            {"name": "screenPageViews"},
             {"name": "userEngagementDuration"},
+            {"name": "bounceRate"},
             {"name": "eventCount"}
         ]
     }
 
-    active_28d_users_str = "14.2K"
-    new_users_str = "1.8K"
-    avg_engagement_str = "2m 15s"
-    event_count_str = "84.2K"
+    # 3. 7-Day Top Cities
+    cities_payload = {
+        "dateRanges": [{"startDate": "7daysAgo", "endDate": "yesterday"}],
+        "dimensions": [{"name": "city"}],
+        "metrics": [{"name": "activeUsers"}],
+        "orderBys": [{"metric": {"metricName": "activeUsers"}, "desc": True}],
+        "limit": 5
+    }
 
-    try:
-        async with httpx.AsyncClient() as client:
-            resp_rep = await client.post(report_url, headers=headers, json=report_payload, timeout=6.0)
-            if resp_rep.status_code == 200:
-                rep_data = resp_rep.json()
-                rows = rep_data.get("rows", [])
-                if rows and rows[0].get("metricValues"):
-                    mv = rows[0]["metricValues"]
-                    u28 = int(float(mv[0].get("value", "0"))) if len(mv) > 0 else 0
-                    nu = int(float(mv[1].get("value", "0"))) if len(mv) > 1 else 0
-                    dur_total = float(mv[2].get("value", "0.0")) if len(mv) > 2 else 0.0
-                    events = int(float(mv[3].get("value", "0"))) if len(mv) > 3 else 0
+    # 4. 7-Day Device Breakdown
+    devices_payload = {
+        "dateRanges": [{"startDate": "7daysAgo", "endDate": "yesterday"}],
+        "dimensions": [{"name": "deviceCategory"}],
+        "metrics": [{"name": "activeUsers"}],
+        "orderBys": [{"metric": {"metricName": "activeUsers"}, "desc": True}],
+        "limit": 3
+    }
 
-                    active_28d_users_str = _format_count(u28) if u28 > 0 else "0"
-                    new_users_str = _format_count(nu) if nu > 0 else "0"
-                    event_count_str = _format_count(events) if events > 0 else "0"
+    # 5. 7-Day Daily Traffic Trend (Page Views per day)
+    trend_payload = {
+        "dateRanges": [{"startDate": "7daysAgo", "endDate": "yesterday"}],
+        "dimensions": [{"name": "date"}],
+        "metrics": [{"name": "screenPageViews"}],
+        "orderBys": [{"dimension": {"dimensionName": "date"}, "desc": False}]
+    }
 
-                    avg_sec = (dur_total / u28) if u28 > 0 else 0.0
-                    avg_engagement_str = _format_duration(avg_sec) if avg_sec > 0 else "0m 00s"
-            else:
-                logger.warning(f"GA4 Standard Report API status {resp_rep.status_code}: {resp_rep.text}")
-    except Exception as e:
-        logger.error(f"Error querying GA4 Standard Report API for property {prop_id}: {e}")
+    realtime_ok = False
+    report_ok = False
+    active_users_30m = 0
+
+    active_7d_users_str = "0"
+    new_users_str = "0"
+    sessions_str = "0"
+    page_views_str = "0"
+    avg_engagement_str = "0m 00s"
+    bounce_rate_str = "0.0%"
+    event_count_str = "0"
+    top_cities: List[Dict[str, Any]] = []
+    devices: List[Dict[str, Any]] = []
+    daily_trend: List[int] = []
+
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        results = await asyncio.gather(
+            client.post(realtime_url, headers=headers, json=realtime_payload),
+            client.post(report_url, headers=headers, json=summary_payload),
+            client.post(report_url, headers=headers, json=cities_payload),
+            client.post(report_url, headers=headers, json=devices_payload),
+            client.post(report_url, headers=headers, json=trend_payload),
+            return_exceptions=True
+        )
+
+    resp_rt, resp_sum, resp_cities, resp_dev, resp_trend = results
+
+    # Parse 1: Realtime 30m
+    if isinstance(resp_rt, Exception):
+        logger.error(f"Error querying GA4 Realtime API for property {prop_id}: {resp_rt}")
+    elif resp_rt.status_code == 200:
+        realtime_ok = True
+        rows = resp_rt.json().get("rows", [])
+        if rows and rows[0].get("metricValues"):
+            active_users_30m = int(float(rows[0]["metricValues"][0].get("value", "0")))
+    else:
+        logger.warning(f"GA4 Realtime API status {resp_rt.status_code} for property {prop_id}: {resp_rt.text}")
+
+    # Parse 2: 7-Day Summary
+    if isinstance(resp_sum, Exception):
+        logger.error(f"Error querying GA4 7D Summary API for property {prop_id}: {resp_sum}")
+    elif resp_sum.status_code == 200:
+        report_ok = True
+        rows = resp_sum.json().get("rows", [])
+        if rows and rows[0].get("metricValues"):
+            mv = rows[0]["metricValues"]
+            u7 = int(float(mv[0].get("value", "0"))) if len(mv) > 0 else 0
+            nu = int(float(mv[1].get("value", "0"))) if len(mv) > 1 else 0
+            sess = int(float(mv[2].get("value", "0"))) if len(mv) > 2 else 0
+            views = int(float(mv[3].get("value", "0"))) if len(mv) > 3 else 0
+            dur_total = float(mv[4].get("value", "0.0")) if len(mv) > 4 else 0.0
+            bounce_ratio = float(mv[5].get("value", "0.0")) if len(mv) > 5 else 0.0
+            events = int(float(mv[6].get("value", "0"))) if len(mv) > 6 else 0
+
+            active_7d_users_str = _format_count(u7)
+            new_users_str = _format_count(nu)
+            sessions_str = _format_count(sess)
+            page_views_str = _format_count(views)
+            event_count_str = _format_count(events)
+
+            avg_sec = (dur_total / u7) if u7 > 0 else 0.0
+            avg_engagement_str = _format_duration(avg_sec) if avg_sec > 0 else "0m 00s"
+            bounce_rate_str = f"{bounce_ratio * 100.0:.1f}%"
+    else:
+        logger.warning(f"GA4 7D Summary API status {resp_sum.status_code} for property {prop_id}: {resp_sum.text}")
+
+    # Only fall back to simulated demo data if BOTH realtime and 7-day summary APIs failed
+    if not realtime_ok and not report_ok:
+        return _generate_fallback_ga4_property(prop_id, prop_name)
+
+    # Parse 3: 7-Day Top Cities
+    if isinstance(resp_cities, Exception):
+        logger.error(f"Error querying GA4 Top Cities API for property {prop_id}: {resp_cities}")
+    elif resp_cities.status_code == 200:
+        for r in resp_cities.json().get("rows", []):
+            c_name = r.get("dimensionValues", [{}])[0].get("value", "Unknown")
+            c_users = int(float(r.get("metricValues", [{}])[0].get("value", "0")))
+            top_cities.append({"city": c_name, "active_users": c_users})
+    else:
+        logger.warning(f"GA4 Top Cities API status {resp_cities.status_code} for property {prop_id}: {resp_cities.text}")
+
+    # Parse 4: 7-Day Device Breakdown
+    if isinstance(resp_dev, Exception):
+        logger.error(f"Error querying GA4 Devices API for property {prop_id}: {resp_dev}")
+    elif resp_dev.status_code == 200:
+        raw_devs = []
+        total_dev_users = 0
+        for r in resp_dev.json().get("rows", []):
+            d_name = r.get("dimensionValues", [{}])[0].get("value", "other").capitalize()
+            d_users = int(float(r.get("metricValues", [{}])[0].get("value", "0")))
+            raw_devs.append((d_name, d_users))
+            total_dev_users += d_users
+        for d_name, d_users in raw_devs:
+            pct = round((d_users * 100.0 / total_dev_users), 1) if total_dev_users > 0 else 0.0
+            devices.append({"device": d_name, "active_users": d_users, "pct": pct})
+    else:
+        logger.warning(f"GA4 Devices API status {resp_dev.status_code} for property {prop_id}: {resp_dev.text}")
+
+    # Parse 5: 7-Day Daily Trend
+    if isinstance(resp_trend, Exception):
+        logger.error(f"Error querying GA4 Trend API for property {prop_id}: {resp_trend}")
+    elif resp_trend.status_code == 200:
+        for r in resp_trend.json().get("rows", []):
+            v = int(float(r.get("metricValues", [{}])[0].get("value", "0")))
+            daily_trend.append(v)
+    else:
+        logger.warning(f"GA4 Trend API status {resp_trend.status_code} for property {prop_id}: {resp_trend.text}")
 
     return {
         "property_id": prop_id,
         "property_name": prop_name,
-        "active_users_30m": active_users_30m if active_users_30m > 0 else 34,
-        "active_28d_users": active_28d_users_str,
+        "is_demo": False,
+        "active_users_30m": active_users_30m,
+        "active_7d_users": active_7d_users_str,
+        "active_28d_users": active_7d_users_str,
         "new_users": new_users_str,
+        "sessions": sessions_str,
+        "page_views": page_views_str,
         "avg_engagement_time": avg_engagement_str,
+        "bounce_rate": bounce_rate_str,
         "event_count": event_count_str,
-        "top_cities": top_cities
+        "top_cities": top_cities,
+        "devices": devices,
+        "daily_trend": daily_trend
     }
 
 
 async def get_ga4_analytics(profile_id: str = "default") -> Dict[str, Any]:
     """
-    Fetches real-time and 28-day analytics for all configured GA4 properties.
+    Fetches 30-minute real-time and 7-day analytics for all configured GA4 properties.
     Returns complete multi-property structure for ESP32 Screen 6 (GA4).
     """
     props = _get_configured_ga4_properties(profile_id)

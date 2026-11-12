@@ -167,20 +167,18 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 6: Google Analytics 4 (GA4 Multi-Property Real-Time & 28D Analytics)
-* **Purpose:** Granular web traffic telemetry, real-time visitors, engagement duration, and regional breakdown across multiple GA4 properties.
+### Page 6: Google Analytics 4 (GA4 Multi-Property Real-Time 30m & 7-Day Analytics)
+* **Purpose:** Granular web traffic telemetry combining 30-minute real-time active users with 7-day KPIs, device breakdown, regional breakdown, and daily view trends across multiple GA4 properties.
 * **Navigation:** Supports multiple configured GA4 properties with auto-cycling every 15s or manual switching via BOOT button (GPIO0).
 * **Layout Structure (Dual-Zone):**
-  * **Top Status Header:** Property Title and pagination index (`GA4 [1/2]: Main Website`) with click/BOOT switch hint.
-  * **Left Zone (230px):**
-    * **Real-time Counter (30m):** Eye-catching active visitor counter (`34` in bold `48px` Montserrat font) with subtitle `ACTIVE NOW (LAST 30M)`.
-    * **2x2 Metrics Grid:**
-      * `28D Active Users` (e.g. `14.2K`)
-      * `New Users` (e.g. `1.8K`)
-      * `Avg Engagement Time` (e.g. `2m 15s`)
-      * `Event Count` (e.g. `92.4K`)
-  * **Right Zone (138px):**
-    * **Top Cities Panel:** List of top 5 active visitor cities with counts (e.g. `1. Bangkok (18)`, `2. Chiang Mai (6)`, etc.) supporting ThaiReshaper.
+  * **Top Status Header:** Property Title and pagination index (`GA4 [1/2]: TrailHub`) with click/BOOT switch hint.
+  * **Left Zone (232x238px):**
+    * **Real-time Counter (30m):** Eye-catching active visitor counter (including `0` when idle, in bold `48px` Montserrat font) with subtitle `ACTIVE NOW (30M)`.
+    * **3x2 7-Day Metrics Grid:** `7D Users`, `New Users`, `Sessions`, `Views`, `Avg Time`, and `Bounce`.
+    * **Devices (7D):** Mobile / Desktop / Tablet percentage and user counts.
+  * **Right Zone (138x238px):**
+    * **Top Cities (7D):** List of top 5 cities over the past 7 days with user counts supporting ThaiReshaper.
+    * **7D Views Trend:** Compact 7-bar daily page views chart with max daily scale indicator.
 
 ---
 
@@ -208,28 +206,39 @@ The Raspberry Pi publishes structured, single-responsibility telemetry objects o
 ### Topic: `auradeck/ga4`
 ```json
 {
-  "total_properties": 2,
+  "total_properties": 1,
   "properties": [
     {
-      "property_id": "453120000",
-      "property_name": "Main Website",
-      "active_users_30m": 34,
-      "active_28d_users": "14.2K",
-      "new_users": "1.8K",
-      "avg_engagement_time": "2m 15s",
-      "event_count": "92.4K",
+      "property_id": "541653787",
+      "property_name": "TrailHub",
+      "is_demo": false,
+      "active_users_30m": 0,
+      "active_7d_users": "139",
+      "active_28d_users": "139",
+      "new_users": "69",
+      "sessions": "216",
+      "page_views": "669",
+      "avg_engagement_time": "2m 18s",
+      "bounce_rate": "26.2%",
+      "event_count": "2.1K",
       "top_cities": [
-        { "city": "Bangkok", "active_users": 18 },
-        { "city": "Chiang Mai", "active_users": 6 },
-        { "city": "Nonthaburi", "active_users": 4 },
-        { "city": "Phuket", "active_users": 3 },
-        { "city": "Chon Buri", "active_users": 2 }
-      ]
+        { "city": "Bangkok", "active_users": 47 },
+        { "city": "(not set)", "active_users": 17 },
+        { "city": "Pattaya City", "active_users": 13 },
+        { "city": "Surat Thani", "active_users": 6 },
+        { "city": "Nakhon Ratchasima", "active_users": 5 }
+      ],
+      "devices": [
+        { "device": "Mobile", "active_users": 73, "pct": 68.2 },
+        { "device": "Desktop", "active_users": 33, "pct": 30.8 },
+        { "device": "Tablet", "active_users": 1, "pct": 0.9 }
+      ],
+      "daily_trend": [68, 90, 80, 65, 102, 165, 82]
     }
   ]
 }
 ```
-> **ESP32 Handling:** `page_ga4.cpp` populates the 48px counter, 2x2 grid, and the right-hand active cities list with ThaiReshaper support, and supports cycling via `cycle_ga4_property()`.
+> **ESP32 Handling:** `page_ga4.cpp` populates the 48px 30m counter (preserving `0`), 3x2 7-day KPI grid, 7-day device breakdown, 7-day top cities list with ThaiReshaper support, and 7-day daily page views mini bar chart, and supports cycling via `cycle_ga4_property()`.
 
 ### Topic: `auradeck/gcp`
 ```json
