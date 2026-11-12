@@ -465,7 +465,7 @@ The Web Control Center (`backend/app/templates/auth.html`) is structured into 3 
 * **GCP Multi-Project Manager:** Drag & drop JSON upload for Service Account keys and project management for multi-tenant billing cost tracking.
 
 ### Zone 2: 🎨 Widget Content & Display Customization
-* **Weather Location (แผนที่พยากรณ์อากาศ):** Interactive Leaflet Map with CartoDB Voyager tiles, custom glowing Aura pin, Nominatim POI/ROI autocomplete search, and HTML5 GPS Geolocation locator with independent save and instant screen synchronization.
+* **Weather Location (แผนที่พยากรณ์อากาศ):** Interactive Leaflet Map with OpenStreetMap tiles, custom glowing Aura pin, Nominatim POI/ROI autocomplete search, and HTML5 GPS Geolocation locator with independent save and instant screen synchronization.
 * **Stock & Asset Watchlist:** Yahoo Finance autocomplete search and watchlist management table for global/Thai stocks, crypto, and gold.
 * **Spotify Monochrome Cover Preview:** Real-time Floyd-Steinberg 1-bit dithered album cover preview.
 * **Selected Google Task Lists:** Multi-list selection filter for tasks aggregation.

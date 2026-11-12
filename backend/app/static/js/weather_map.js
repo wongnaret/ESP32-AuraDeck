@@ -25,10 +25,9 @@ function initWeatherMap(lat = 13.7563, lon = 100.5018, locationName = '') {
         zoomControl: true
     });
 
-    // Clean Modern CartoDB Voyager Tile Layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
+    // OpenStreetMap Standard Tile Layer
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19
     }).addTo(g_weatherMap);
 
@@ -47,13 +46,13 @@ function initWeatherMap(lat = 13.7563, lon = 100.5018, locationName = '') {
     }).addTo(g_weatherMap);
 
     // Marker drag events
-    g_weatherMarker.on('dragend', function(e) {
+    g_weatherMarker.on('dragend', function (e) {
         const pos = e.target.getLatLng();
         setWeatherCoordinates(pos.lat, pos.lng, true);
     });
 
     // Map click anywhere to place marker
-    g_weatherMap.on('click', function(e) {
+    g_weatherMap.on('click', function (e) {
         setWeatherCoordinates(e.latlng.lat, e.latlng.lng, true);
     });
 
@@ -109,7 +108,7 @@ async function reverseGeocodeLocation(lat, lon) {
             if (!displayName) displayName = data.display_name || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
 
             if (nameLabel) nameLabel.textContent = displayName;
-            
+
             // Auto populate the input if empty or focused
             if (locInput && (!locInput.value || document.activeElement !== locInput)) {
                 let cleanLine = [poi, district, city].filter(Boolean).join(', ') || displayName;
@@ -205,7 +204,7 @@ function onMapSearchKeydown(event) {
 }
 
 // Close autocomplete dropdown when clicking outside
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const searchWrapper = document.querySelector('.map-search-wrapper');
     const dropdown = document.getElementById('map-autocomplete-list');
     if (dropdown && searchWrapper && !searchWrapper.contains(e.target)) {
@@ -255,7 +254,7 @@ async function saveWeatherConfig() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
+
         if (response.ok) {
             showToast("Weather location saved! Syncing weather to screen...");
             triggerSync('weather');
