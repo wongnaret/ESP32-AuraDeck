@@ -347,7 +347,6 @@ Fetches real-time 30-minute active users along with 7-day summary KPIs (active/n
           "is_demo": false,
           "active_users_30m": 0,
           "active_7d_users": "139",
-          "active_28d_users": "139",
           "new_users": "69",
           "sessions": "216",
           "page_views": "669",
@@ -368,14 +367,7 @@ Fetches real-time 30-minute active users along with 7-day summary KPIs (active/n
           ],
           "daily_trend": [68, 90, 80, 65, 102, 165, 82]
         }
-      ],
-      "active_users_30m": 0,
-      "active_7d_users": "139",
-      "new_users": "69",
-      "sessions": "216",
-      "page_views": "669",
-      "avg_engagement_time": "2m 18s",
-      "bounce_rate": "26.2%"
+      ]
     }
     ```
 

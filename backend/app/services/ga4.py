@@ -166,7 +166,6 @@ def _generate_fallback_ga4_property(prop_id: str, prop_name: str) -> Dict[str, A
         "is_demo": True,
         "active_users_30m": cur_30m,
         "active_7d_users": st["active_7d_users"],
-        "active_28d_users": st["active_7d_users"],
         "new_users": st["new_users"],
         "sessions": st["sessions"],
         "page_views": st["page_views"],
@@ -314,7 +313,8 @@ async def _fetch_single_property_analytics(profile_id: str, prop: Dict[str, Any]
         logger.error(f"Error querying GA4 Top Cities API for property {prop_id}: {resp_cities}")
     elif resp_cities.status_code == 200:
         for r in resp_cities.json().get("rows", []):
-            c_name = r.get("dimensionValues", [{}])[0].get("value", "Unknown")
+            raw_city = r.get("dimensionValues", [{}])[0].get("value", "")
+            c_name = raw_city.strip() or "(not set)"
             c_users = int(float(r.get("metricValues", [{}])[0].get("value", "0")))
             top_cities.append({"city": c_name, "active_users": c_users})
     else:
@@ -353,7 +353,6 @@ async def _fetch_single_property_analytics(profile_id: str, prop: Dict[str, Any]
         "is_demo": False,
         "active_users_30m": active_users_30m,
         "active_7d_users": active_7d_users_str,
-        "active_28d_users": active_7d_users_str,
         "new_users": new_users_str,
         "sessions": sessions_str,
         "page_views": page_views_str,
@@ -376,8 +375,7 @@ async def get_ga4_analytics(profile_id: str = "default") -> Dict[str, Any]:
         fallback = _generate_fallback_ga4_property("default", "AuraDeck Demo")
         return {
             "total_properties": 1,
-            "properties": [fallback],
-            **fallback  # Backward compatibility with single-property parsers
+            "properties": [fallback]
         }
 
     results = []
@@ -385,12 +383,9 @@ async def get_ga4_analytics(profile_id: str = "default") -> Dict[str, Any]:
         data = await _fetch_single_property_analytics(profile_id, p)
         results.append(data)
 
-    primary = results[0] if results else _generate_fallback_ga4_property("default", "AuraDeck Demo")
-
     return {
         "total_properties": len(results),
-        "properties": results,
-        **primary  # Backward compatibility
+        "properties": results
     }
 
 

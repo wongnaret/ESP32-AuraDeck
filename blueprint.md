@@ -214,7 +214,6 @@ The Raspberry Pi publishes structured, single-responsibility telemetry objects o
       "is_demo": false,
       "active_users_30m": 0,
       "active_7d_users": "139",
-      "active_28d_users": "139",
       "new_users": "69",
       "sessions": "216",
       "page_views": "669",

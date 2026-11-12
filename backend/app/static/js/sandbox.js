@@ -76,17 +76,34 @@ const mockTemplates = {
         "next_reset": "02h 15m"
     },
     "auradeck/ga4": {
-        "active_users_30m": 42,
-        "active_28d_users": "18.5K",
-        "new_users": "2.4K",
-        "avg_engagement_time": "2m 35s",
-        "event_count": "112.8K",
-        "top_cities": [
-            { "city": "Bangkok", "active_users": 22 },
-            { "city": "Chiang Mai", "active_users": 8 },
-            { "city": "Nonthaburi", "active_users": 5 },
-            { "city": "Phuket", "active_users": 4 },
-            { "city": "Chon Buri", "active_users": 3 }
+        "total_properties": 1,
+        "properties": [
+            {
+                "property_id": "541653787",
+                "property_name": "TrailHub",
+                "is_demo": false,
+                "active_users_30m": 2,
+                "active_7d_users": "139",
+                "new_users": "69",
+                "sessions": "216",
+                "page_views": "669",
+                "avg_engagement_time": "2m 18s",
+                "bounce_rate": "26.2%",
+                "event_count": "2.1K",
+                "top_cities": [
+                    { "city": "Bangkok", "active_users": 47 },
+                    { "city": "Pattaya City", "active_users": 13 },
+                    { "city": "Surat Thani", "active_users": 6 },
+                    { "city": "Nakhon Ratchasima", "active_users": 5 },
+                    { "city": "Prachuap Khiri Khan", "active_users": 5 }
+                ],
+                "devices": [
+                    { "device": "Mobile", "active_users": 73, "pct": 68.2 },
+                    { "device": "Desktop", "active_users": 33, "pct": 30.8 },
+                    { "device": "Tablet", "active_users": 1, "pct": 0.9 }
+                ],
+                "daily_trend": [68, 90, 80, 65, 102, 165, 82]
+            }
         ]
     },
     "auradeck/gcp": {
