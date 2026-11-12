@@ -479,14 +479,14 @@ def trigger_ga4_polling(target_profile_id: Optional[str] = None, force: bool = F
                 continue
 
             intervals = get_profile_polling_intervals(pid)
-            interval_secs = intervals.get("ga4_mins", 5) * 60
+            interval_secs = intervals.get("ga4_mins", 15) * 60
             last_poll = LAST_POLL_TIMESTAMPS.get(pid, {}).get("ga4", 0.0)
 
             if force or (now - last_poll >= interval_secs):
                 LAST_POLL_TIMESTAMPS.setdefault(pid, {})["ga4"] = now
                 data = run_async_safe(get_ga4_analytics(pid))
                 _publish_profile_service_payload("ga4", pid, data, mappings)
-                logger.info(f"📈 [GA4 Analytics] Polled profile '{pid}' (interval: {intervals.get('ga4_mins', 5)}m)")
+                logger.info(f"📈 [GA4 Analytics] Polled profile '{pid}' (interval: {intervals.get('ga4_mins', 15)}m)")
     except Exception as e:
         logger.error(f"Error in background GA4 poller: {e}")
 

@@ -12,7 +12,7 @@ DEFAULT_POLLING_INTERVALS: Dict[str, int] = {
     "stocks_mins": 5,
     "weather_mins": 30,
     "antigravity_mins": 1,
-    "ga4_mins": 5,
+    "ga4_mins": 15,
     "gcp_mins": 30,
     "analytics_mins": 15,
     "time_sync_secs": 10

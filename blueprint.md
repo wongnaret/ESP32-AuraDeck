@@ -443,7 +443,10 @@ AuraDeck allows users to customize background polling frequencies on a per-profi
 {
   "tasks_calendar_mins": 15,
   "stocks_mins": 5,
+  "weather_mins": 30,
   "antigravity_mins": 1,
+  "ga4_mins": 15,
+  "gcp_mins": 30,
   "analytics_mins": 15,
   "time_sync_secs": 10
 }
