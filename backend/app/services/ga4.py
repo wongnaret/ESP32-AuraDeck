@@ -92,7 +92,7 @@ def _get_ga4_access_token_for_property(profile_id: str, key_path: Optional[str] 
             if creds.token:
                 return creds.token
         except Exception as e:
-            logger.debug(f"Service account token refresh failed ({sa_path}): {e}")
+            logger.error(f"Service account token refresh failed ({sa_path}): {e}")
 
     # 4. Try Google User OAuth credentials
     try:
@@ -307,9 +307,11 @@ async def test_ga4_connection(profile_id: str, property_id: str, key_path: Optio
 
     token = _get_ga4_access_token_for_property(profile_id, key_path)
     if not token:
+        msg = "No valid Google Service Account Key or Google User OAuth credentials found for this property."
+        logger.warning(f"GA4 test failed for profile '{profile_id}' property '{property_id}': {msg}")
         return {
             "success": False,
-            "error": "No valid Google Service Account Key or Google User OAuth credentials found for this property."
+            "error": msg
         }
 
     url = f"https://analyticsdata.googleapis.com/v1beta/properties/{property_id}:runRealtimeReport"
@@ -334,21 +336,28 @@ async def test_ga4_connection(profile_id: str, property_id: str, key_path: Optio
                     "active_users_30m": users
                 }
             elif resp.status_code == 403:
+                msg = "Permission Denied (403). Please make sure your Service Account email is added as a 'Viewer' in GA4 Property Access Management."
+                logger.warning(f"GA4 test 403 for property '{property_id}': {resp.text}")
                 return {
                     "success": False,
-                    "error": f"Permission Denied (403). Please make sure your Service Account email is added as a 'Viewer' in GA4 Property Access Management."
+                    "error": msg
                 }
             elif resp.status_code == 404:
+                msg = f"Property Not Found (404). Please verify that GA4 Property ID '{property_id}' is correct (use numbers only, e.g. 453120000)."
+                logger.warning(f"GA4 test 404 for property '{property_id}': {resp.text}")
                 return {
                     "success": False,
-                    "error": f"Property Not Found (404). Please verify that GA4 Property ID '{property_id}' is correct (use numbers only, e.g. 453120000)."
+                    "error": msg
                 }
             else:
+                msg = f"GA4 API returned HTTP {resp.status_code}: {resp.text}"
+                logger.warning(f"GA4 test failed for property '{property_id}': {msg}")
                 return {
                     "success": False,
-                    "error": f"GA4 API returned HTTP {resp.status_code}: {resp.text}"
+                    "error": msg
                 }
     except Exception as e:
+        logger.error(f"GA4 test connection error for property '{property_id}': {e}")
         return {
             "success": False,
             "error": f"Connection error: {str(e)}"

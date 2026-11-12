@@ -220,6 +220,14 @@ Here are standard solutions to common deployment quirks encountered during local
     newgrp docker
     ```
 
+### 4. GA4 / GCP Service Account Test Fails (`No valid Google Service Account Key...` or `ModuleNotFoundError: No module named 'requests'`)
+*   **Cause:** `google-auth` requires the `requests` transport library (`google.auth.transport.requests`) to refresh Service Account OAuth tokens. Ensure `requests` is listed in `backend/requirements.txt` and rebuild the backend container image after updating dependencies.
+*   **Solution & Diagnostics:**
+    ```bash
+    docker compose up -d --build
+    docker compose logs -f backend | grep -i ga4
+    ```
+
 ---
 
 ## 🤖 Technical Note: Antigravity & AI Resource Monitoring Protocol
