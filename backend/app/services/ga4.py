@@ -17,37 +17,57 @@ _simulated_property_states: Dict[str, Dict[str, Any]] = {}
 def _get_configured_ga4_properties(profile_id: str) -> List[Dict[str, Any]]:
     """
     Scans the profile's dedicated ga4_properties directory and returns metadata for all configured properties.
+    If the current profile (e.g. 'default') has no properties, it automatically checks other configured profiles
+    to ensure multi-tenant consistency and prevent fallback to outdated legacy/mock property names.
     """
-    ga4_dir = os.path.join(settings.TOKENS_DIR, "profiles", profile_id, "ga4_properties")
+    profiles_base = os.path.join(settings.TOKENS_DIR, "profiles")
+    ga4_dir = os.path.join(profiles_base, profile_id, "ga4_properties")
     properties = []
 
-    if os.path.exists(ga4_dir):
-        for fname in sorted(os.listdir(ga4_dir)):
-            if fname.endswith(".json"):
-                path = os.path.join(ga4_dir, fname)
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        key_data = json.load(f)
-                    prop_id = str(key_data.get("property_id") or os.path.splitext(fname)[0])
-                    prop_name = key_data.get("property_name") or f"Property {prop_id}"
-                    properties.append({
-                        "property_id": prop_id,
-                        "property_name": prop_name,
-                        "key_path": path,
-                        "client_email": key_data.get("client_email", "")
-                    })
-                except Exception as e:
-                    logger.error(f"Failed to read GA4 property key {fname}: {e}")
+    def _read_props_from_dir(target_dir: str) -> List[Dict[str, Any]]:
+        found = []
+        if os.path.exists(target_dir):
+            for fname in sorted(os.listdir(target_dir)):
+                if fname.endswith(".json"):
+                    path = os.path.join(target_dir, fname)
+                    try:
+                        with open(path, "r", encoding="utf-8") as f:
+                            key_data = json.load(f)
+                        prop_id = str(key_data.get("property_id") or os.path.splitext(fname)[0])
+                        prop_name = key_data.get("property_name") or f"Property {prop_id}"
+                        found.append({
+                            "property_id": prop_id,
+                            "property_name": prop_name,
+                            "key_path": path,
+                            "client_email": key_data.get("client_email", "")
+                        })
+                    except Exception as e:
+                        logger.error(f"Failed to read GA4 property key {fname}: {e}")
+        return found
 
-    # Fallback to single ga_property_id from settings.json if no multi-properties configured
+    properties = _read_props_from_dir(ga4_dir)
+
+    # If this profile has no properties (e.g. background polling running on 'default'),
+    # inspect other profiles so we share actual configured properties (like TrailHub)
+    if not properties and os.path.exists(profiles_base):
+        for other_p in sorted(os.listdir(profiles_base)):
+            if other_p != profile_id:
+                other_dir = os.path.join(profiles_base, other_p, "ga4_properties")
+                other_props = _read_props_from_dir(other_dir)
+                if other_props:
+                    properties.extend(other_props)
+                    break
+
+    # Fallback to single ga_property_id from settings.json if no multi-properties configured anywhere
     if not properties:
         from app.services.google_auth import load_profile_settings
         prof_settings = load_profile_settings(profile_id)
         single_prop = prof_settings.get("ga_property_id") or settings.GA4_PROPERTY_ID
         if single_prop and single_prop != "mock_property_id":
+            prop_name = prof_settings.get("ga_property_name") or f"Property {single_prop}"
             properties.append({
                 "property_id": str(single_prop),
-                "property_name": "Main Website",
+                "property_name": prop_name,
                 "key_path": None,
                 "client_email": ""
             })
