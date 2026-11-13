@@ -175,10 +175,10 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
   * **Left Zone (232x238px):**
     * **Real-time Counter (30m):** Eye-catching active visitor counter (including `0` when idle, in bold `48px` Montserrat font) with subtitle `ACTIVE NOW (30M)`.
     * **3x2 7-Day Metrics Grid:** `7D Users`, `New Users`, `Sessions`, `Views`, `Avg Time`, and `Bounce`.
-    * **Devices (7D):** Mobile / Desktop / Tablet percentage and user counts.
+    * **Devices (7D):** Mobile / Desktop / Tablet horizontal progress bars with percentage and user counts (`%.1f%% (%d)`).
   * **Right Zone (138x238px):**
-    * **Top Cities (7D):** List of top 5 cities over the past 7 days with user counts supporting ThaiReshaper.
-    * **7D Views Trend:** Compact 7-bar daily page views chart with max daily scale indicator.
+    * **Top Cities (7D):** List of top 5 cities over the past 7 days with user counts, featuring circular marquee scrolling for long city names.
+    * **7D Views Trend:** 7-bar daily page views chart with an uncluttered L-shaped Y-axis (max, mid, and 0 labels).
 
 ---
 
