@@ -510,36 +510,62 @@ Holds current prices, percentage change direction, and asset categories (Thai Eq
 }
 ```
 
-### 5. Antigravity Quota Usage (`auradeck/device/{mac}/antigravity`)
-Monitors hourly and weekly AI credits.
+### 5. Antigravity Quota Usage (`auradeck/device/{mac}/antigravity` & `auradeck/antigravity`)
+Monitors multi-model AI quotas, available AI credits, dynamic model allocations, and reset countdowns.
 ```json
 {
+  "status": "ok",
+  "error_message": "",
   "plan": "Google AI Pro",
-  "available_credits": 823,
-  "ai_credits": 823,
+  "available_credits": 560,
+  "ai_credits": 560,
   "gemini_models": {
-    "weekly_limit_percent": 99.0,
-    "five_hour_limit_percent": 97.0,
-    "next_reset_5h": "03h 47m",
-    "next_reset_weekly": "6 days, 22 hours"
+    "five_hour_limit_percent": 69.0,
+    "weekly_limit_percent": 62.0,
+    "next_reset_5h": "03h 06m",
+    "next_reset_weekly": "1 day, 1 hour",
+    "reset_in_seconds_5h": 11160,
+    "reset_in_seconds_weekly": 90000
   },
   "claude_gpt_models": {
+    "five_hour_limit_percent": 100.0,
     "weekly_limit_percent": 100.0,
-    "five_hour_limit_percent": 100.0
+    "next_reset_5h": "Full",
+    "next_reset_weekly": "Full"
+  },
+  "dynamic_models": [
+    {
+      "key": "gemini-4-argon",
+      "name": "Gemini 4 Argon",
+      "display_name": "Gemini 4 Argon",
+      "weekly_limit_percent": 2.0,
+      "remaining_percent": 2.0,
+      "next_reset": "2 days, 4 hours",
+      "reset_in_seconds": 187200
+    }
+  ],
+  "additional_models": {
+    "gemini_4_argon": {
+      "name": "Gemini 4 Argon",
+      "weekly_limit_percent": 2.0,
+      "remaining_percent": 2.0,
+      "next_reset": "2 days, 4 hours",
+      "reset_in_seconds": 187200
+    }
   },
   "limit_5h": {
-    "used": 3.0,
+    "used": 31.0,
     "total": 100.0,
-    "percentage": 3.0
+    "percentage": 31.0
   },
   "limit_weekly": {
-    "used": 1.0,
+    "used": 38.0,
     "total": 100.0,
-    "percentage": 1.0
+    "percentage": 38.0
   },
-  "next_reset": "03h 47m",
-  "credit_hours_remaining": 823.0,
-  "percent_quota_used": 3.0
+  "next_reset": "03h 06m",
+  "credit_hours_remaining": 560.0,
+  "percent_quota_used": 31.0
 }
 ```
 
@@ -593,4 +619,38 @@ Contains weather location hierarchy, dual-language formatted dates, live outdoor
 | `hourly` | array | 6-hour forecast slots with `time`, `condition`, `icon`, `rain_prob` (%), and `temp` (°C) |
 
 > **ESP32 Handling:** `page_home.cpp` renders `location_line1` with `lv_font_prompt_16` and `location_line2` with `lv_font_prompt_12` (both using ThaiReshaper and circular marquee scrolling) on the top-left, dual-language dates on the top-right, SHTC3 indoor sensor and outdoor weather in Tier 2, and the 6-hour rain forecast strip in Tier 3.
+
+---
+
+## Antigravity REST & CLI Bridge Specification
+
+### 1. `GET /api/v1/antigravity`
+Retrieves normalized Antigravity quota limits, AI credits, and countdown timers. Immediately publishes to MQTT topic `auradeck/antigravity`.
+* **Response (`200 OK`):**
+  Unified multi-model JSON payload (as defined in Topic `auradeck/antigravity` above).
+
+### 2. `POST /api/v1/antigravity`
+Ingests Antigravity quota updates from the CLI statusline bridge (`cyberdeck_statusline.py`) or external webhook, atomically updates disk state, and broadcasts immediately over MQTT.
+* **Request Body:**
+  Accepts raw Antigravity CLI format (root `quota` dictionary, `credits`, `plan`) or normalized format.
+* **Response (`200 OK`):**
+  Returns the normalized payload persisted to disk and broadcast to MQTT.
+
+### 3. Antigravity CLI Bridge (`cyberdeck_statusline.py`)
+An ultra-fast (<50ms execution), zero-dependency Python 3 bridge that connects Antigravity CLI (`agy /statusline`) to AuraDeck.
+* **Execution Contract:**
+  * Reads JSON from `sys.stdin`.
+  * Outputs strictly a single summary line to `sys.stdout` (plain text or ANSI colored).
+  * Strict silence on errors: zero stdout tracebacks or logs on network/JSON failures.
+* **Command Line Flags:**
+  * `--debug-dump [PATH]`: Dumps verbatim stdin JSON to specified path or temporary file.
+  * `--no-color`: Disables ANSI color escape sequences.
+  * `--config PATH`: Specifies custom configuration JSON file.
+* **Environment Variables:**
+  * `CYBERDECK_DEBUG_DUMP`: Path to debug dump file.
+  * `CYBERDECK_REST_URL`: Backend ingestion URL (default: `http://127.0.0.1:8000/api/v1/antigravity`).
+  * `CYBERDECK_FILE_PATH`: Target local atomic JSON state path.
+  * `CYBERDECK_MQTT_HOST` / `CYBERDECK_MQTT_PORT` / `CYBERDECK_MQTT_TOPIC`: MQTT broker configuration.
+  * `CYBERDECK_NO_COLOR` or `NO_COLOR`: Disables ANSI output.
+
 

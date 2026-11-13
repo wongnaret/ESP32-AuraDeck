@@ -1,0 +1,31 @@
+{
+  "statusline": {
+    "use_ansi": true,
+    "show_credits": true,
+    "show_countdowns": false,
+    "max_dynamic_models": 2
+  },
+  "transports": {
+    "file": {
+      "enabled": true,
+      "path": "backend/tokens/antigravity_data.json",
+      "fallback_path": "/tmp/agy_quota.json"
+    },
+    "rest": {
+      "enabled": true,
+      "url": "http://127.0.0.1:8000/api/v1/antigravity",
+      "timeout_seconds": 0.2
+    },
+    "mqtt": {
+      "enabled": false,
+      "host": "127.0.0.1",
+      "port": 1883,
+      "topic": "auradeck/antigravity",
+      "timeout_seconds": 0.2
+    }
+  },
+  "debug": {
+    "dump_file": "",
+    "log_file": ""
+  }
+}

@@ -106,13 +106,19 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 1: Antigravity Credit Limit
-* **Purpose:** Monitor AI usage credits and quota limits.
-* **Layout Elements:**
-  * **Remaining Hours:** Prominent digital countdown (e.g. `4.5 Hrs Left` with ~32px font size).
-  * **Linear Progress Bar:** Custom LVGL monochrome bar showing used vs. total weekly quota.
-  * **Quota Label:** Center-aligned percentage text (e.g., `Quota Used: 72%`).
-  * **Footer Info:** API quota reset period notification.
+### Page 1: Antigravity Credit Limit & Multi-Model Quotas
+* **Purpose:** Monitor AI model quotas, countdown reset timers, and developer credit balances.
+* **Layout Elements (400x274 Active Viewport):**
+  * **Card 1 (y: 4..36, 376x32): Plan & Credits Header:** Displays active Plan Name (e.g., `Plan: Google AI Pro`) and prominent right-aligned AI credits balance (`560 AI Credits`).
+  * **Card 2 (y: 40..112, 376x72): Gemini Models Quota Panel:**
+    * *5h Limit:* High-contrast monochrome progress bar showing remaining quota percentage (e.g., `69%`) and digital reset countdown (e.g., `03h 06m`).
+    * *Weekly Limit:* Progress bar showing remaining weekly quota (e.g., `62%`) and refresh countdown (e.g., `1 day, 1 hour`).
+  * **Card 3 (y: 116..188, 376x72): Claude & GPT Models (3P) Panel:**
+    * *5h Limit:* Progress bar showing third-party 5-hour quota (e.g., `100%`, `Full`).
+    * *Weekly Limit:* Progress bar showing third-party weekly quota (e.g., `100%`, `Full`).
+  * **Card 4 (y: 192..242, 376x50): Dynamic Model Panel:**
+    * Automatically adapts to arbitrary dynamic model buckets (e.g., `Gemini 4 Argon` at `2%` weekly with `2 days, 4 hours` countdown).
+  * **Footer (y: 248..270): Action & Status Hint:** Bottom centered hint (`🔘 Press BOOT to Sync Quota`). Offline/unauthenticated status gracefully zeroes progress bars and displays `Check Antigravity CLI Login`.
 
 ---
 
@@ -325,34 +331,61 @@ Published as a **root JSON array** of asset objects. The `type` field drives dis
 ### Topic: `auradeck/antigravity`
 ```json
 {
+  "status": "ok",
+  "error_message": "",
   "plan": "Google AI Pro",
-  "available_credits": 823,
-  "ai_credits": 823,
+  "available_credits": 560,
+  "ai_credits": 560,
   "gemini_models": {
-    "weekly_limit_percent": 99.0,
-    "five_hour_limit_percent": 97.0,
-    "next_reset_5h": "03h 47m",
-    "next_reset_weekly": "6 days, 22 hours"
+    "five_hour_limit_percent": 69.0,
+    "weekly_limit_percent": 62.0,
+    "next_reset_5h": "03h 06m",
+    "next_reset_weekly": "1 day, 1 hour",
+    "reset_in_seconds_5h": 11160,
+    "reset_in_seconds_weekly": 90000
   },
   "claude_gpt_models": {
+    "five_hour_limit_percent": 100.0,
     "weekly_limit_percent": 100.0,
-    "five_hour_limit_percent": 100.0
+    "next_reset_5h": "Full",
+    "next_reset_weekly": "Full"
+  },
+  "dynamic_models": [
+    {
+      "key": "gemini-4-argon",
+      "name": "Gemini 4 Argon",
+      "display_name": "Gemini 4 Argon",
+      "weekly_limit_percent": 2.0,
+      "remaining_percent": 2.0,
+      "next_reset": "2 days, 4 hours",
+      "reset_in_seconds": 187200
+    }
+  ],
+  "additional_models": {
+    "gemini_4_argon": {
+      "name": "Gemini 4 Argon",
+      "weekly_limit_percent": 2.0,
+      "remaining_percent": 2.0,
+      "next_reset": "2 days, 4 hours",
+      "reset_in_seconds": 187200
+    }
   },
   "limit_5h": {
-    "used": 3.0,
+    "used": 31.0,
     "total": 100.0,
-    "percentage": 3.0
+    "percentage": 31.0
   },
   "limit_weekly": {
-    "used": 1.0,
+    "used": 38.0,
     "total": 100.0,
-    "percentage": 1.0
+    "percentage": 38.0
   },
-  "next_reset": "03h 47m",
-  "credit_hours_remaining": 823.0,
-  "percent_quota_used": 3.0
+  "next_reset": "03h 06m",
+  "credit_hours_remaining": 560.0,
+  "percent_quota_used": 31.0
 }
 ```
+> **ESP32 Handling:** `page_antigravity.cpp` parses the multi-tier structure for Gemini, 3P, and dynamic models. If nested models are absent, it gracefully falls back to legacy flat fields (`credit_hours_remaining`, `percent_quota_used`, `limit_5h`). Unauthenticated or error states safely zero out all bars and render offline indicators without freezing.
 
 ### Topic: `auradeck/analytics`
 ```json

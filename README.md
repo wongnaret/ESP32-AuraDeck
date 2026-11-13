@@ -388,3 +388,62 @@ tailscale status
 *   **TV-Style PIN Screen Pairing**: Registers physical screen MAC addresses wirelessly with standard 6-digit verification codes.
 *   **D-Bus Container Access Point Toggles**: FastAPI containers interact with host NetworkManager services securely without root privilege elevations.
 *   **High-End Dark UI**: Modern glassmorphic web dashboard providing live AP statuses, device pairings, and credentials configuration.
+
+---
+
+## 🤖 Antigravity Quota Monitor & CLI Bridge (`cyberdeck_statusline.py`)
+
+AuraDeck integrates directly with the Google Antigravity CLI (`agy`) through a high-performance, zero-external-dependency status line bridge script (`cyberdeck_statusline.py`).
+
+### Key Features
+1. **Ultra-Fast Execution (<50ms):** Parses standard and dynamic model quota dictionaries and prints a single-line summary to `sys.stdout` instantly before dispatching non-blocking network updates.
+2. **Strict Error Silence:** Emits zero tracebacks, warnings, or logs to `sys.stdout` if Cyberdeck or the network is offline, preserving a clean interactive CLI terminal.
+3. **Dynamic Model Discovery:** Automatically captures standard models (`Gemini 5h`, `Gemini Weekly`, `3P 5h`, `3P Weekly`) and arbitrary dynamic models (e.g., `Gemini 4 Argon`) with human-readable countdown timers.
+4. **Decoupled Multi-Transport:** Delivers normalized quota payloads to AuraDeck via atomic local file writes (`backend/tokens/antigravity_data.json`), backend REST ingestion (`POST /api/v1/antigravity`), or MQTT (`auradeck/antigravity`).
+
+### 1. Antigravity CLI Registration
+Register the status line bridge inside your Antigravity CLI terminal session:
+```bash
+# Register via agy interactive command:
+agy /statusline /path/to/ESP32-AuraDeck/cyberdeck_statusline.py
+
+# Or configure statically:
+agy config set statusline "/usr/bin/python3 /path/to/ESP32-AuraDeck/cyberdeck_statusline.py"
+```
+
+### 2. Mock Pipe Testing & Verification
+Verify the status line output and transport mechanisms using synthetic JSON payloads:
+```bash
+# Nominal pipe test (outputs ANSI colored single-line summary):
+cat tests/fixtures/nominal_quota.json | python3 cyberdeck_statusline.py
+
+# Plain text output (no ANSI codes):
+cat tests/fixtures/nominal_quota.json | python3 cyberdeck_statusline.py --no-color
+
+# Schema inspection via Debug Dump flag:
+cat tests/fixtures/nominal_quota.json | python3 cyberdeck_statusline.py --debug-dump /tmp/agy_quota_dump.json
+
+# Test fail-safe silence on malformed input:
+echo "corrupt json {" | python3 cyberdeck_statusline.py
+# (Outputs 'Antigravity Quota: Unavailable', 0 exit code, zero stderr output)
+```
+
+### 3. Configuration & Environment Variables
+The bridge script loads settings from `config.json` (falling back to `config.example.json`), overridable via environment variables:
+| Setting | Config JSON Key | Environment Variable | Default Value | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| ANSI Colors | `statusline.use_ansi` | `CYBERDECK_NO_COLOR=1` | `true` | Enable color-coded percentage status |
+| Show Credits | `statusline.show_credits` | — | `true` | Show available AI developer credits in status line |
+| File Transport | `transports.file.enabled` | `CYBERDECK_FILE_PATH` | `true` | Atomic write to `backend/tokens/antigravity_data.json` |
+| REST Transport | `transports.rest.enabled` | `CYBERDECK_REST_URL` | `true` | HTTP POST to `http://127.0.0.1:8000/api/v1/antigravity` |
+| MQTT Transport | `transports.mqtt.enabled` | `CYBERDECK_MQTT_HOST` | `false` | Direct MQTT publish to `auradeck/antigravity` |
+| Debug Dump | `debug.dump_file` | `CYBERDECK_DEBUG_DUMP` | `""` | File path to dump verbatim stdin payloads |
+
+### 4. ESP32-S3 Display Layout (Page 1)
+The Waveshare 4.2" ST7305 mono reflective LCD (400x300, 400x274 active viewport) organizes quota information into four high-contrast cards:
+- **Card 1 (y: 4..36):** Plan Name (e.g., `Plan: Google AI Pro`) & AI Credits (`560 AI Credits`)
+- **Card 2 (y: 40..112):** Gemini Models (5-Hour `69%` with `03h 06m` reset & Weekly `62%` with `1 day, 1 hour` reset)
+- **Card 3 (y: 116..188):** Claude & GPT Models 3P (5-Hour `100%` & Weekly `100%`)
+- **Card 4 (y: 192..242):** Dynamic Models (e.g., `Gemini 4 Argon` Weekly `2%` with `2 days, 4 hours` reset)
+- **Footer (y: 248..270):** Action hint (`🔘 Press BOOT to Sync Quota`) with automatic offline error indicators.
+

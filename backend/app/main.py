@@ -32,7 +32,7 @@ from app.services.stocks import get_multi_asset_prices, search_stocks_yahoo
 from app.services.analytics import get_combined_analytics
 from app.services.ga4 import get_ga4_analytics, test_ga4_connection
 from app.services.gcp_billing import get_gcp_multi_project_billing
-from app.services.antigravity import get_antigravity_credits
+from app.services.antigravity import get_antigravity_credits, ingest_antigravity_payload
 
 from fastapi.staticfiles import StaticFiles
 
@@ -197,6 +197,18 @@ def handle_mqtt_command(topic: str, payload_str: str):
                 trigger_gcp_billing_polling(force=True)
             if svc in ["spotify", "all"]:
                 trigger_spotify_polling()
+
+        elif topic == "auradeck/antigravity/inbound":
+            try:
+                raw_payload = json.loads(payload)
+                normalized = ingest_antigravity_payload(raw_payload)
+                mqtt_service.publish("auradeck/antigravity", normalized)
+                mappings = load_device_mappings()
+                for mac in mappings:
+                    mqtt_service.publish(f"auradeck/device/{mac}/antigravity", normalized)
+                logger.info("Successfully ingested inbound Antigravity quota payload via MQTT")
+            except Exception as e:
+                logger.error(f"Error handling inbound Antigravity MQTT payload: {e}")
     except Exception as e:
         logger.error(f"Failed to execute hardware MQTT command: {e}")
 
@@ -1484,6 +1496,20 @@ async def api_get_antigravity_credits():
     # Publish to MQTT topic as well
     mqtt_service.publish("auradeck/antigravity", data)
     return data
+
+
+@app.post("/api/v1/antigravity")
+async def api_post_antigravity(payload: Dict[str, Any]):
+    """
+    Ingests Antigravity quota payload, updates state file, and immediately broadcasts
+    over MQTT on auradeck/antigravity and device-specific topics.
+    """
+    normalized = ingest_antigravity_payload(payload)
+    mqtt_service.publish("auradeck/antigravity", normalized)
+    mappings = load_device_mappings()
+    for mac in mappings:
+        mqtt_service.publish(f"auradeck/device/{mac}/antigravity", normalized)
+    return normalized
 
 
 # --- Stock Watchlist & Autocomplete API Endpoints ---

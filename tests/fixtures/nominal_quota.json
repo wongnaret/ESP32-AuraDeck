@@ -1,0 +1,41 @@
+{
+  "plan": "Google AI Pro",
+  "credits": 560,
+  "quota": {
+    "gemini-5h": {
+      "display_name": "Gemini (5-Hour)",
+      "limit_type": "5h",
+      "remaining_fraction": 0.69,
+      "reset_in_seconds": 11160,
+      "reset_time": "2026-11-13T08:46:00Z"
+    },
+    "gemini-weekly": {
+      "display_name": "Gemini (Weekly)",
+      "limit_type": "weekly",
+      "remaining_fraction": 0.62,
+      "reset_in_seconds": 90000,
+      "reset_time": "2026-11-14T06:40:00Z"
+    },
+    "3p-5h": {
+      "display_name": "Claude and GPT (5-Hour)",
+      "limit_type": "5h",
+      "remaining_fraction": 1.0,
+      "reset_in_seconds": 0,
+      "reset_time": null
+    },
+    "3p-weekly": {
+      "display_name": "Claude and GPT (Weekly)",
+      "limit_type": "weekly",
+      "remaining_fraction": 1.0,
+      "reset_in_seconds": 0,
+      "reset_time": null
+    },
+    "gemini-4-argon": {
+      "display_name": "Gemini 4 Argon",
+      "limit_type": "weekly",
+      "remaining_fraction": 0.02,
+      "reset_in_seconds": 187200,
+      "reset_time": "2026-11-15T09:40:00Z"
+    }
+  }
+}

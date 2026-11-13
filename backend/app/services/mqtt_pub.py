@@ -25,9 +25,10 @@ class MqttService:
         if rc == 0:
             logger.info("Successfully connected to MQTT Broker!")
             self.connected = True
-            # Subscribe to hardware command topics from ESP32
+            # Subscribe to hardware command topics and inbound relays
             client.subscribe("auradeck/command/#")
-            logger.info("📬 Subscribed to command topic: 'auradeck/command/#'")
+            client.subscribe("auradeck/antigravity/inbound")
+            logger.info("📬 Subscribed to command topic: 'auradeck/command/#' and 'auradeck/antigravity/inbound'")
         else:
             logger.error(f"Failed to connect to MQTT Broker, return code {rc}")
             self.connected = False

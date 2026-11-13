@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # Cache and local file storage paths
     TOKENS_DIR: str = "./tokens"
     ANTIGRAVITY_CLI_CMD: str = "agy status --json"
+    ANTIGRAVITY_STATE_FILE: str = "./tokens/antigravity_data.json"
 
     
     model_config = SettingsConfigDict(
