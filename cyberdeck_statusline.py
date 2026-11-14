@@ -348,6 +348,7 @@ def parse_antigravity_input(raw_json: str) -> dict:
 
     return {
         "status": data.get("status", "ok"),
+        "has_quota": len(parsed_buckets) > 0,
         "plan": plan,
         "credits": credits,
         "available_credits": credits,
@@ -365,6 +366,8 @@ def format_statusline(parsed_data: dict, config: dict) -> str:
     """Formats a single-line summary string with optional ANSI colors."""
     if not parsed_data or parsed_data.get("status") == "error":
         return "Antigravity Quota: Unavailable"
+    if not parsed_data.get("has_quota", True):
+        return "Antigravity Quota: Loading..."
 
     cfg = config.get("statusline") if isinstance(config.get("statusline"), dict) else {}
     use_ansi = cfg.get("use_ansi", True)
@@ -632,8 +635,8 @@ def main():
     sys.stdout.write(summary_line + "\n")
     sys.stdout.flush()
 
-    # Build and dispatch relay transports (runs after stdout is flushed to ensure zero CLI delay)
-    if parsed_data and parsed_data.get("status") == "ok":
+    # Build and dispatch relay transports (only if quota buckets were actually populated)
+    if parsed_data and parsed_data.get("status") == "ok" and parsed_data.get("has_quota", False):
         try:
             payload = build_relay_payload(parsed_data)
             execute_transports(payload, config)
