@@ -276,9 +276,9 @@ def parse_antigravity_input(raw_json: str) -> dict:
             try:
                 credits = int(float(credits_val))
             except Exception:
-                credits = 0
+                credits = None
     else:
-        credits = 0
+        credits = None
 
     # Extract Quota dictionary
     quota_dict = data.get("quota") or data.get("quotas")
@@ -418,8 +418,8 @@ def format_statusline(parsed_data: dict, config: dict) -> str:
         parts.append(f"{short_name}: {colorize(dm_txt, dm_pct)}")
 
     # Credits
-    credits = parsed_data.get("credits", 0)
-    if show_credits and credits > 0:
+    credits = parsed_data.get("credits")
+    if show_credits and credits is not None and credits > 0:
         cr_text = f"Credits: {credits}"
         if use_ansi:
             cr_text = f"\033[36m{cr_text}\033[0m"  # Cyan
@@ -449,12 +449,14 @@ def build_relay_payload(parsed_data: dict) -> dict:
             "reset_in_seconds": dm.get("reset_in_seconds", 0)
         }
 
+    credits_val = parsed_data.get("credits")
+
     return {
         "status": parsed_data.get("status", "ok"),
         "error_message": "",
         "plan": parsed_data.get("plan", "Google AI Pro"),
-        "available_credits": parsed_data.get("credits", 0),
-        "ai_credits": parsed_data.get("credits", 0),
+        "available_credits": credits_val,
+        "ai_credits": credits_val,
         "gemini_models": {
             "five_hour_limit_percent": g5h,
             "weekly_limit_percent": gwk,
@@ -483,7 +485,7 @@ def build_relay_payload(parsed_data: dict) -> dict:
             "percentage": used_wk
         },
         "next_reset": parsed_data["gemini_5h"]["next_reset"],
-        "credit_hours_remaining": float(parsed_data.get("credits", 0)),
+        "credit_hours_remaining": float(credits_val) if credits_val is not None else -1.0,
         "percent_quota_used": used_5h,
         "timestamp": int(time.time()),
         "source": "cyberdeck_statusline"

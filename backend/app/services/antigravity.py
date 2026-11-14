@@ -147,11 +147,18 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
     status = raw_data.get("status", "ok")
     error_msg = raw_data.get("error_message", "")
     plan = raw_data.get("plan") or raw_data.get("plan_tier") or "Google AI Pro"
-    credits_val = raw_data.get("available_credits", raw_data.get("ai_credits", raw_data.get("credits", 823)))
-    try:
-        credits = int(float(credits_val))
-    except (ValueError, TypeError):
-        credits = 0
+    credits_val = raw_data.get("available_credits")
+    if credits_val is None:
+        credits_val = raw_data.get("ai_credits")
+    if credits_val is None:
+        credits_val = raw_data.get("credits")
+    if credits_val is not None:
+        try:
+            credits = int(float(credits_val))
+        except (ValueError, TypeError):
+            credits = None
+    else:
+        credits = None
 
     # 1. Check if raw_data has a 'quota' or 'quotas' dictionary
     quota_dict = raw_data.get("quota") or raw_data.get("quotas")
@@ -325,7 +332,7 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
         "next_reset": gemini_5h["next_reset"],
         
         # Flat fields expected by ESP32-S3 screen client
-        "credit_hours_remaining": float(credits),
+        "credit_hours_remaining": float(credits) if credits is not None else -1.0,
         "percent_quota_used": used_5h
     }
 
