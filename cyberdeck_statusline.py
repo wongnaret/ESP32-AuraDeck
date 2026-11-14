@@ -15,9 +15,6 @@ import os
 import json
 import time
 import argparse
-import tempfile
-import urllib.request
-import urllib.error
 
 # Default fallback configurations
 DEFAULT_CONFIG = {
@@ -268,7 +265,7 @@ def parse_antigravity_input(raw_json: str) -> dict:
         return {}
 
     # Extract Plan
-    plan = data.get("plan") or "Google AI Pro"
+    plan = data.get("plan") or data.get("plan_tier") or "Google AI Pro"
 
     # Extract Credits
     credits_val = data.get("credits", data.get("available_credits", data.get("ai_credits")))
@@ -325,7 +322,10 @@ def parse_antigravity_input(raw_json: str) -> dict:
             # Dynamic model bucket
             display_name = bucket_info.get("display_name")
             if not display_name:
-                display_name = norm_key.replace("-", " ").replace("_", " ").title()
+                if "argon" in norm_key and ("wtu" in norm_key or "weekly" in norm_key):
+                    display_name = "Gemini 4 Argon"
+                else:
+                    display_name = norm_key.replace("-", " ").replace("_", " ").title()
             dynamic_buckets.append({
                 "key": norm_key,
                 "name": display_name,
@@ -522,20 +522,25 @@ def execute_transports(payload: dict, config: dict):
 
     # 2. Network Transports (REST & MQTT) dispatched with tight timeout
     def run_network():
-        # REST POST Transport
+        # REST POST Transport (lightweight http.client for minimal latency)
         rest_cfg = transports.get("rest") if isinstance(transports.get("rest"), dict) else {}
         if rest_cfg.get("enabled", True):
             url = rest_cfg.get("url", "http://127.0.0.1:8000/api/v1/antigravity")
             timeout = float(rest_cfg.get("timeout_seconds", 0.08))
             try:
-                req = urllib.request.Request(
-                    url,
-                    data=payload_json.encode("utf-8"),
-                    headers={"Content-Type": "application/json"},
-                    method="POST"
-                )
-                with urllib.request.urlopen(req, timeout=timeout) as resp:
-                    pass
+                import http.client
+                from urllib.parse import urlsplit
+                parsed = urlsplit(url)
+                host = parsed.hostname or "127.0.0.1"
+                port = parsed.port or (443 if parsed.scheme == "https" else 80)
+                path = parsed.path or "/api/v1/antigravity"
+                if parsed.query:
+                    path += "?" + parsed.query
+                conn_cls = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+                conn = conn_cls(host, port, timeout=timeout)
+                conn.request("POST", path, body=payload_json.encode("utf-8"), headers={"Content-Type": "application/json"})
+                conn.getresponse()
+                conn.close()
             except Exception as e:
                 log_debug(f"REST transport POST to {url} failed: {e}", log_file)
 
@@ -567,7 +572,7 @@ def execute_transports(payload: dict, config: dict):
 
 def main():
     parser = argparse.ArgumentParser(description="Antigravity Status Line Bridge for AuraDeck", add_help=False)
-    parser.add_argument("--debug-dump", nargs="?", const=os.path.join(tempfile.gettempdir(), "cyberdeck_debug_dump.json"), default=None,
+    parser.add_argument("--debug-dump", nargs="?", const="__DEFAULT__", default=None,
                         help="Dumps raw stdin JSON to specified or default temporary file.")
     parser.add_argument("--config", type=str, default=None, help="Path to configuration JSON.")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color codes.")
@@ -594,6 +599,9 @@ def main():
     # Check debug dump flag/env
     debug_cfg = config.get("debug") if isinstance(config.get("debug"), dict) else {}
     dump_target = args.debug_dump or debug_cfg.get("dump_file")
+    if dump_target == "__DEFAULT__":
+        import tempfile
+        dump_target = os.path.join(tempfile.gettempdir(), "cyberdeck_debug_dump.json")
     if dump_target:
         try:
             dump_dir = os.path.dirname(os.path.abspath(dump_target))

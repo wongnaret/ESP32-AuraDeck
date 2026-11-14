@@ -146,7 +146,7 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
 
     status = raw_data.get("status", "ok")
     error_msg = raw_data.get("error_message", "")
-    plan = raw_data.get("plan") or "Google AI Pro"
+    plan = raw_data.get("plan") or raw_data.get("plan_tier") or "Google AI Pro"
     credits_val = raw_data.get("available_credits", raw_data.get("ai_credits", raw_data.get("credits", 823)))
     try:
         credits = int(float(credits_val))
@@ -182,7 +182,12 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
             elif any(k_norm == a for a in aliases_3p_wk):
                 three_p_wk = bucket
             else:
-                name = bucket.get("display_name") or k_norm.replace("-", " ").replace("_", " ").title()
+                if bucket.get("display_name"):
+                    name = bucket["display_name"]
+                elif "argon" in k_norm and ("wtu" in k_norm or "weekly" in k_norm):
+                    name = "Gemini 4 Argon"
+                else:
+                    name = k_norm.replace("-", " ").replace("_", " ").title()
                 model_entry = {
                     "key": k_norm,
                     "name": name,
