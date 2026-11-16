@@ -253,14 +253,15 @@ async def _fetch_bigquery_billing(
             query_sql = f"""
             SELECT
                 DATE(usage_start_time, 'Asia/Bangkok') AS usage_date,
-                service.description AS service_name,
+                IFNULL(service.description, 'Other Services') AS service_name,
                 currency,
                 ROUND(SUM(cost), 2) AS gross_cost,
                 ROUND(SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) c), 0)), 2) AS credits,
                 ROUND(SUM(cost) + SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) c), 0)), 2) AS net_cost
             FROM `{project_id}.{found_dataset}.{found_table}`
-            WHERE usage_start_time >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
-               OR usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 10 DAY)
+            WHERE (project.id = '{project_id}' OR project.id IS NULL)
+              AND (usage_start_time >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
+                   OR usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 10 DAY))
             GROUP BY 1, 2, 3
             ORDER BY usage_date ASC
             """
