@@ -469,7 +469,9 @@ def build_relay_payload(parsed_data: dict) -> dict:
             "five_hour_limit_percent": parsed_data["3p_5h"]["remaining_percent"],
             "weekly_limit_percent": parsed_data["3p_weekly"]["remaining_percent"],
             "next_reset_5h": parsed_data["3p_5h"]["next_reset"],
-            "next_reset_weekly": parsed_data["3p_weekly"]["next_reset"]
+            "next_reset_weekly": parsed_data["3p_weekly"]["next_reset"],
+            "reset_in_seconds_5h": parsed_data["3p_5h"]["reset_in_seconds"],
+            "reset_in_seconds_weekly": parsed_data["3p_weekly"]["reset_in_seconds"]
         },
         "dynamic_models": dyn_list,
         "additional_models": dyn_dict,

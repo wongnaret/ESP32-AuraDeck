@@ -531,7 +531,9 @@ Monitors multi-model AI quotas, available AI credits, dynamic model allocations,
     "five_hour_limit_percent": 100.0,
     "weekly_limit_percent": 100.0,
     "next_reset_5h": "Full",
-    "next_reset_weekly": "Full"
+    "next_reset_weekly": "Full",
+    "reset_in_seconds_5h": 0,
+    "reset_in_seconds_weekly": 0
   },
   "dynamic_models": [
     {
@@ -565,7 +567,9 @@ Monitors multi-model AI quotas, available AI credits, dynamic model allocations,
   },
   "next_reset": "03h 06m",
   "credit_hours_remaining": 560.0,
-  "percent_quota_used": 31.0
+  "percent_quota_used": 31.0,
+  "timestamp": 1794629369,
+  "server_time": 1794629669
 }
 ```
 

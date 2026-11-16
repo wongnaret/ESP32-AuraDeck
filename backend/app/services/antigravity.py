@@ -1,6 +1,8 @@
 import logging
 import os
 import json
+import copy
+import time
 import asyncio
 from typing import Dict, Any, List, Optional
 from app.config import settings
@@ -35,7 +37,9 @@ DEFAULT_ANTIGRAVITY_STATE: Dict[str, Any] = {
         "weekly_limit_percent": 100.0,
         "five_hour_limit_percent": 100.0,
         "next_reset_5h": "Full",
-        "next_reset_weekly": "Full"
+        "next_reset_weekly": "Full",
+        "reset_in_seconds_5h": 0,
+        "reset_in_seconds_weekly": 0
     },
     "dynamic_models": [],
     "additional_models": {},
@@ -51,7 +55,8 @@ DEFAULT_ANTIGRAVITY_STATE: Dict[str, Any] = {
     },
     "next_reset": "03h 47m",
     "credit_hours_remaining": 823.0,
-    "percent_quota_used": 3.0
+    "percent_quota_used": 3.0,
+    "timestamp": 0
 }
 
 
@@ -205,7 +210,7 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
                     "reset_in_seconds": bucket["reset_in_seconds"]
                 }
                 dynamic_models_list.append(model_entry)
-                additional_models_dict[k_norm.replace("-", "_")] = model_entry
+                additional_models_dict[k_norm.replace("-", "_")] = model_entry.copy()
 
     # 2. Check if nested model dicts exist (e.g. from existing state or previous normalization)
     raw_gemini = raw_data.get("gemini_models", {})
@@ -230,16 +235,18 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
     raw_3p = raw_data.get("claude_gpt_models", {})
     if isinstance(raw_3p, dict):
         if three_p_5h is None and "five_hour_limit_percent" in raw_3p:
+            sec_3p_5h = raw_3p.get("reset_in_seconds_5h", 0)
             three_p_5h = {
                 "remaining_percent": parse_fraction_or_percent(raw_3p.get("five_hour_limit_percent", 100.0)),
-                "next_reset": raw_3p.get("next_reset_5h", "Full"),
-                "reset_in_seconds": 0
+                "next_reset": raw_3p.get("next_reset_5h") or (format_countdown(sec_3p_5h) if sec_3p_5h > 0 else "Full"),
+                "reset_in_seconds": sec_3p_5h
             }
         if three_p_wk is None and "weekly_limit_percent" in raw_3p:
+            sec_3p_wk = raw_3p.get("reset_in_seconds_weekly", 0)
             three_p_wk = {
                 "remaining_percent": parse_fraction_or_percent(raw_3p.get("weekly_limit_percent", 100.0)),
-                "next_reset": raw_3p.get("next_reset_weekly", "Full"),
-                "reset_in_seconds": 0
+                "next_reset": raw_3p.get("next_reset_weekly") or (format_countdown(sec_3p_wk) if sec_3p_wk > 0 else "Full"),
+                "reset_in_seconds": sec_3p_wk
             }
 
     # Also capture any existing additional_models or dynamic_models
@@ -294,6 +301,12 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
     used_5h = round(100.0 - gemini_5h["remaining_percent"], 1)
     used_wk = round(100.0 - gemini_wk["remaining_percent"], 1)
 
+    ts_raw = raw_data.get("timestamp")
+    try:
+        timestamp = int(ts_raw) if ts_raw is not None else 0
+    except (ValueError, TypeError):
+        timestamp = 0
+
     return {
         "status": status,
         "error_message": error_msg,
@@ -312,7 +325,9 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
             "five_hour_limit_percent": three_p_5h["remaining_percent"],
             "weekly_limit_percent": three_p_wk["remaining_percent"],
             "next_reset_5h": three_p_5h["next_reset"],
-            "next_reset_weekly": three_p_wk["next_reset"]
+            "next_reset_weekly": three_p_wk["next_reset"],
+            "reset_in_seconds_5h": three_p_5h.get("reset_in_seconds", 0),
+            "reset_in_seconds_weekly": three_p_wk.get("reset_in_seconds", 0)
         },
         "dynamic_models": dynamic_models_list,
         "additional_models": additional_models_dict,
@@ -333,8 +348,155 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
         
         # Flat fields expected by ESP32-S3 screen client
         "credit_hours_remaining": float(credits) if credits is not None else -1.0,
-        "percent_quota_used": used_5h
+        "percent_quota_used": used_5h,
+        "timestamp": timestamp
     }
+
+
+def _advance_pair(
+    pct_5h: float,
+    sec_5h: int,
+    rst_5h: str,
+    pct_wk: float,
+    sec_wk: int,
+    rst_wk: str,
+    elapsed: int,
+) -> tuple[float, int, str, float, int, str]:
+    """Advances a (5h, weekly) quota pair by `elapsed` seconds.
+
+    Weekly resets to 100% / "Full" when its countdown expires.
+    5h resets to 100% / "Full" ONLY when weekly quota is > 0% (never overrides
+    an exhausted weekly limit).
+    """
+    new_sec_wk = sec_wk
+    new_pct_wk = pct_wk
+    new_rst_wk = rst_wk
+    if sec_wk > 0:
+        new_sec_wk = max(0, sec_wk - elapsed)
+        if new_sec_wk == 0:
+            new_pct_wk = 100.0
+            new_rst_wk = "Full"
+        else:
+            new_rst_wk = format_countdown(new_sec_wk)
+
+    new_sec_5h = sec_5h
+    new_pct_5h = pct_5h
+    new_rst_5h = rst_5h
+    if sec_5h > 0:
+        new_sec_5h = max(0, sec_5h - elapsed)
+        if new_sec_5h == 0:
+            if new_pct_wk > 0.0:
+                new_pct_5h = 100.0
+                new_rst_5h = "Full"
+            else:
+                new_rst_5h = "0m"
+        else:
+            new_rst_5h = format_countdown(new_sec_5h)
+
+    return new_pct_5h, new_sec_5h, new_rst_5h, new_pct_wk, new_sec_wk, new_rst_wk
+
+
+def apply_elapsed_time(state: Dict[str, Any], now_ts: Optional[int] = None) -> Dict[str, Any]:
+    """Returns a copy of `state` with countdowns adjusted for elapsed time since `timestamp`."""
+    if not isinstance(state, dict):
+        return state
+    if state.get("status") in ("unauthenticated", "error"):
+        return state
+
+    ts = state.get("timestamp") or 0
+    try:
+        ts = int(ts)
+    except (ValueError, TypeError):
+        ts = 0
+
+    now = int(time.time()) if now_ts is None else int(now_ts)
+    result = copy.deepcopy(state)
+    result["server_time"] = now
+
+    if ts <= 0:
+        return result
+
+    elapsed = max(0, now - ts)
+    if elapsed == 0:
+        return result
+
+    gm = result.get("gemini_models")
+    if isinstance(gm, dict):
+        g5h, g5h_s, g5h_r, gwk, gwk_s, gwk_r = _advance_pair(
+            float(gm.get("five_hour_limit_percent", 100.0)),
+            int(gm.get("reset_in_seconds_5h", 0) or 0),
+            str(gm.get("next_reset_5h", "Full")),
+            float(gm.get("weekly_limit_percent", 100.0)),
+            int(gm.get("reset_in_seconds_weekly", 0) or 0),
+            str(gm.get("next_reset_weekly", "Full")),
+            elapsed,
+        )
+        gm["five_hour_limit_percent"] = g5h
+        gm["reset_in_seconds_5h"] = g5h_s
+        gm["next_reset_5h"] = g5h_r
+        gm["weekly_limit_percent"] = gwk
+        gm["reset_in_seconds_weekly"] = gwk_s
+        gm["next_reset_weekly"] = gwk_r
+
+        used_5h = round(100.0 - g5h, 1)
+        used_wk = round(100.0 - gwk, 1)
+        result["limit_5h"] = {"used": used_5h, "total": 100.0, "percentage": used_5h}
+        result["limit_weekly"] = {"used": used_wk, "total": 100.0, "percentage": used_wk}
+        result["next_reset"] = g5h_r
+        result["percent_quota_used"] = used_5h
+
+    cg = result.get("claude_gpt_models")
+    if isinstance(cg, dict):
+        t5h, t5h_s, t5h_r, twk, twk_s, twk_r = _advance_pair(
+            float(cg.get("five_hour_limit_percent", 100.0)),
+            int(cg.get("reset_in_seconds_5h", 0) or 0),
+            str(cg.get("next_reset_5h", "Full")),
+            float(cg.get("weekly_limit_percent", 100.0)),
+            int(cg.get("reset_in_seconds_weekly", 0) or 0),
+            str(cg.get("next_reset_weekly", "Full")),
+            elapsed,
+        )
+        cg["five_hour_limit_percent"] = t5h
+        cg["reset_in_seconds_5h"] = t5h_s
+        cg["next_reset_5h"] = t5h_r
+        cg["weekly_limit_percent"] = twk
+        cg["reset_in_seconds_weekly"] = twk_s
+        cg["next_reset_weekly"] = twk_r
+
+    seen_ids = set()
+    dyn = result.get("dynamic_models")
+    if isinstance(dyn, list):
+        for item in dyn:
+            if isinstance(item, dict) and id(item) not in seen_ids:
+                seen_ids.add(id(item))
+                sec = int(item.get("reset_in_seconds", 0) or 0)
+                if sec > 0:
+                    new_sec = max(0, sec - elapsed)
+                    item["reset_in_seconds"] = new_sec
+                    if new_sec == 0:
+                        item["weekly_limit_percent"] = 100.0
+                        item["remaining_percent"] = 100.0
+                        item["next_reset"] = "Full"
+                    else:
+                        item["next_reset"] = format_countdown(new_sec)
+
+    add = result.get("additional_models")
+    if isinstance(add, dict):
+        for item in add.values():
+            if isinstance(item, dict) and id(item) not in seen_ids:
+                seen_ids.add(id(item))
+                sec = int(item.get("reset_in_seconds", 0) or 0)
+                if sec > 0:
+                    new_sec = max(0, sec - elapsed)
+                    item["reset_in_seconds"] = new_sec
+                    if new_sec == 0:
+                        item["weekly_limit_percent"] = 100.0
+                        item["remaining_percent"] = 100.0
+                        item["next_reset"] = "Full"
+                    else:
+                        item["next_reset"] = format_countdown(new_sec)
+
+    return result
 
 
 def load_antigravity_state() -> Dict[str, Any]:
@@ -378,7 +540,10 @@ def ingest_antigravity_payload(raw_payload: Dict[str, Any]) -> Dict[str, Any]:
     normalizes the schema, atomically persists to disk, and returns normalized state.
     """
     normalized = normalize_antigravity_payload(raw_payload)
+    if not normalized.get("timestamp"):
+        normalized["timestamp"] = int(time.time())
     save_antigravity_state(normalized)
+    normalized["server_time"] = int(time.time())
     return normalized
 
 
@@ -433,4 +598,4 @@ async def get_antigravity_credits() -> Dict[str, Any]:
             state["status"] = "unauthenticated"
             state["error_message"] = cli_result.get("error_message", "Antigravity CLI unauthenticated or unavailable")
 
-    return normalize_antigravity_payload(state)
+    return apply_elapsed_time(normalize_antigravity_payload(state))

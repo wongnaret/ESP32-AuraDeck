@@ -19,6 +19,7 @@ if REPO_ROOT not in sys.path:
 
 from app.services.antigravity import (
     normalize_antigravity_payload,
+    apply_elapsed_time,
     load_antigravity_state,
     save_antigravity_state,
     ingest_antigravity_payload,
@@ -201,6 +202,46 @@ class TestAntigravityService(unittest.TestCase):
             self.assertIn("credit_hours_remaining", credits_data)
         finally:
             loop.close()
+
+    def test_apply_elapsed_time_countdown_and_weekly_guard(self):
+        base = normalize_antigravity_payload({
+            "timestamp": 1700000000,
+            "quota": {
+                "gemini-5h": {"remaining_fraction": 0.50, "reset_in_seconds": 3600},
+                "gemini-weekly": {"remaining_fraction": 0.80, "reset_in_seconds": 86400},
+                "3p-5h": {"remaining_fraction": 0.0, "reset_in_seconds": 1800},
+                "3p-weekly": {"remaining_fraction": 0.0, "reset_in_seconds": 7200},
+                "gemini-argon-wtu-weekly": {"remaining_fraction": 0.90, "reset_in_seconds": 1200}
+            }
+        })
+        self.assertEqual(base["timestamp"], 1700000000)
+        self.assertEqual(base["claude_gpt_models"]["reset_in_seconds_5h"], 1800)
+
+        # After 600s: countdowns advance without resetting
+        t1 = apply_elapsed_time(base, now_ts=1700000600)
+        self.assertEqual(t1["server_time"], 1700000600)
+        self.assertEqual(t1["gemini_models"]["reset_in_seconds_5h"], 3000)
+        self.assertEqual(t1["gemini_models"]["next_reset_5h"], "50m")
+        self.assertEqual(t1["gemini_models"]["five_hour_limit_percent"], 50.0)
+        self.assertEqual(t1["dynamic_models"][0]["reset_in_seconds"], 600)
+        self.assertEqual(t1["dynamic_models"][0]["next_reset"], "10m")
+
+        # After 3600s: gemini-5h expires (weekly > 0 -> resets to 100% / Full),
+        # 3p-5h expires (3p-weekly == 0 -> stays 0% and "0m", NOT 100%)
+        t2 = apply_elapsed_time(base, now_ts=1700003600)
+        self.assertEqual(t2["gemini_models"]["five_hour_limit_percent"], 100.0)
+        self.assertEqual(t2["gemini_models"]["next_reset_5h"], "Full")
+        self.assertEqual(t2["claude_gpt_models"]["five_hour_limit_percent"], 0.0)
+        self.assertEqual(t2["claude_gpt_models"]["next_reset_5h"], "0m")
+        self.assertEqual(t2["dynamic_models"][0]["weekly_limit_percent"], 100.0)
+        self.assertEqual(t2["dynamic_models"][0]["next_reset"], "Full")
+
+        # After 7200s: 3p-weekly expires -> both 3p-weekly and 3p-5h reset to 100% / Full
+        t3 = apply_elapsed_time(base, now_ts=1700007200)
+        self.assertEqual(t3["claude_gpt_models"]["weekly_limit_percent"], 100.0)
+        self.assertEqual(t3["claude_gpt_models"]["next_reset_weekly"], "Full")
+        self.assertEqual(t3["claude_gpt_models"]["five_hour_limit_percent"], 100.0)
+        self.assertEqual(t3["claude_gpt_models"]["next_reset_5h"], "Full")
 
 
 if __name__ == "__main__":

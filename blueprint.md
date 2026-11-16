@@ -348,7 +348,9 @@ Published as a **root JSON array** of asset objects. The `type` field drives dis
     "five_hour_limit_percent": 100.0,
     "weekly_limit_percent": 100.0,
     "next_reset_5h": "Full",
-    "next_reset_weekly": "Full"
+    "next_reset_weekly": "Full",
+    "reset_in_seconds_5h": 0,
+    "reset_in_seconds_weekly": 0
   },
   "dynamic_models": [
     {
@@ -382,10 +384,12 @@ Published as a **root JSON array** of asset objects. The `type` field drives dis
   },
   "next_reset": "03h 06m",
   "credit_hours_remaining": 560.0,
-  "percent_quota_used": 31.0
+  "percent_quota_used": 31.0,
+  "timestamp": 1794629369,
+  "server_time": 1794629669
 }
 ```
-> **ESP32 Handling:** `page_antigravity.cpp` parses the multi-tier structure for Gemini, 3P, and dynamic models. If nested models are absent, it gracefully falls back to legacy flat fields (`credit_hours_remaining`, `percent_quota_used`, `limit_5h`). Unauthenticated or error states safely zero out all bars and render offline indicators without freezing.
+> **ESP32 Handling:** `page_antigravity.cpp` parses the multi-tier structure for Gemini, 3P, and dynamic models, and runs a 1-minute LVGL timer to tick reset countdowns and display snapshot age (`Updated Xm ago | BOOT: Sync`) using `timestamp` and `server_time` (respecting the Weekly > 0% guard before resetting 5h bars to `100%` / `Full`). If nested models are absent, it gracefully falls back to legacy flat fields (`credit_hours_remaining`, `percent_quota_used`, `limit_5h`). Unauthenticated or error states safely zero out all bars and render offline indicators without freezing.
 
 ### Topic: `auradeck/analytics`
 ```json

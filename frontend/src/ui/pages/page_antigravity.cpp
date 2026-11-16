@@ -13,6 +13,39 @@
 
 #include "page_antigravity.h"
 #include <Arduino.h>
+#include <time.h>
+
+// Live countdown snapshot state
+struct AntigravityLiveState {
+    bool hasData = false;
+    bool isError = false;
+    uint32_t rxMillis = 0;
+    int64_t snapshotTs = 0;
+    int64_t serverTime = 0;
+
+    float g5hPct = 100.0f;
+    float gWkPct = 100.0f;
+    int32_t g5hSec = 0;
+    int32_t gWkSec = 0;
+    char g5hRst[24] = "Full";
+    char gWkRst[24] = "Full";
+
+    float tp5hPct = 100.0f;
+    float tpWkPct = 100.0f;
+    int32_t tp5hSec = 0;
+    int32_t tpWkSec = 0;
+    char tp5hRst[24] = "Full";
+    char tpWkRst[24] = "Full";
+
+    bool hasDyn = false;
+    float dynPct = 0.0f;
+    int32_t dynSec = 0;
+    char dynRst[24] = "Full";
+};
+
+static AntigravityLiveState s_live;
+static lv_timer_t* s_countdownTimer = nullptr;
+static void antigravity_refresh_countdowns();
 
 // Static widget pointers for Screen 1 (Antigravity)
 static lv_obj_t* s_cardPlan          = nullptr;
@@ -239,6 +272,190 @@ void create_page_antigravity(lv_obj_t* parent) {
     lv_obj_set_style_text_align(s_footerLabel, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(s_footerLabel, LV_ALIGN_BOTTOM_MID, 0, -4);
     lv_label_set_text(s_footerLabel, "Press BOOT to Sync Quota");
+
+    if (s_countdownTimer) {
+        lv_timer_del(s_countdownTimer);
+        s_countdownTimer = nullptr;
+    }
+    s_countdownTimer = lv_timer_create([](lv_timer_t* timer) {
+        (void)timer;
+        antigravity_refresh_countdowns();
+    }, 60000, nullptr);
+}
+
+static void format_countdown_str(int32_t seconds, char* buf, size_t len) {
+    if (seconds <= 0) {
+        snprintf(buf, len, "Full");
+        return;
+    }
+    if (seconds < 60) {
+        snprintf(buf, len, "<1m");
+        return;
+    }
+    if (seconds < 3600) {
+        snprintf(buf, len, "%dm", (int)(seconds / 60));
+        return;
+    }
+    if (seconds < 86400) {
+        int h = (int)(seconds / 3600);
+        int m = (int)((seconds % 3600) / 60);
+        snprintf(buf, len, "%02dh %02dm", h, m);
+        return;
+    }
+    int days = (int)(seconds / 86400);
+    int remHours = (int)((seconds % 86400) / 3600);
+    if (days == 1 && remHours == 1) {
+        snprintf(buf, len, "1 day, 1 hour");
+    } else if (days == 1) {
+        if (remHours > 0) snprintf(buf, len, "1 day, %d hours", remHours);
+        else snprintf(buf, len, "1 day");
+    } else if (remHours > 0) {
+        snprintf(buf, len, "%d days, %d hours", days, remHours);
+    } else {
+        snprintf(buf, len, "%d days", days);
+    }
+}
+
+static void apply_pair_countdown(
+    float init5hPct, int32_t init5hSec, const char* init5hRst,
+    float initWkPct, int32_t initWkSec, const char* initWkRst,
+    uint32_t elapsed,
+    lv_obj_t* bar5h, lv_obj_t* pct5hLbl, lv_obj_t* rst5hLbl,
+    lv_obj_t* barWk, lv_obj_t* pctWkLbl, lv_obj_t* rstWkLbl
+) {
+    float curWkPct = initWkPct;
+    char wkRstBuf[24];
+    if (initWkSec > 0) {
+        int32_t remWk = initWkSec - (int32_t)elapsed;
+        if (remWk <= 0) {
+            curWkPct = 100.0f;
+            snprintf(wkRstBuf, sizeof(wkRstBuf), "Full");
+        } else {
+            format_countdown_str(remWk, wkRstBuf, sizeof(wkRstBuf));
+        }
+    } else {
+        snprintf(wkRstBuf, sizeof(wkRstBuf), "%s", initWkRst ? initWkRst : "Full");
+    }
+
+    float cur5hPct = init5hPct;
+    char fiveHRstBuf[24];
+    if (init5hSec > 0) {
+        int32_t rem5h = init5hSec - (int32_t)elapsed;
+        if (rem5h <= 0) {
+            if (curWkPct > 0.0f) {
+                cur5hPct = 100.0f;
+                snprintf(fiveHRstBuf, sizeof(fiveHRstBuf), "Full");
+            } else {
+                snprintf(fiveHRstBuf, sizeof(fiveHRstBuf), "0m");
+            }
+        } else {
+            format_countdown_str(rem5h, fiveHRstBuf, sizeof(fiveHRstBuf));
+        }
+    } else {
+        snprintf(fiveHRstBuf, sizeof(fiveHRstBuf), "%s", init5hRst ? init5hRst : "Full");
+    }
+
+    int val5h = (int)round(cur5hPct);
+    if (val5h < 0) val5h = 0;
+    if (val5h > 100) val5h = 100;
+    if (bar5h) lv_bar_set_value(bar5h, val5h, LV_ANIM_OFF);
+    if (pct5hLbl) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%d%%", val5h);
+        lv_label_set_text(pct5hLbl, buf);
+    }
+    if (rst5hLbl) lv_label_set_text(rst5hLbl, fiveHRstBuf);
+
+    int valWk = (int)round(curWkPct);
+    if (valWk < 0) valWk = 0;
+    if (valWk > 100) valWk = 100;
+    if (barWk) lv_bar_set_value(barWk, valWk, LV_ANIM_OFF);
+    if (pctWkLbl) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%d%%", valWk);
+        lv_label_set_text(pctWkLbl, buf);
+    }
+    if (rstWkLbl) lv_label_set_text(rstWkLbl, wkRstBuf);
+}
+
+static void antigravity_refresh_countdowns() {
+    if (!s_live.hasData || s_live.isError) return;
+
+    uint32_t elapsed = (uint32_t)((millis() - s_live.rxMillis) / 1000UL);
+
+    apply_pair_countdown(
+        s_live.g5hPct, s_live.g5hSec, s_live.g5hRst,
+        s_live.gWkPct, s_live.gWkSec, s_live.gWkRst,
+        elapsed,
+        s_gemini5hBar, s_gemini5hPctLabel, s_gemini5hResetLabel,
+        s_geminiWkBar, s_geminiWkPctLabel, s_geminiWkResetLabel
+    );
+
+    apply_pair_countdown(
+        s_live.tp5hPct, s_live.tp5hSec, s_live.tp5hRst,
+        s_live.tpWkPct, s_live.tpWkSec, s_live.tpWkRst,
+        elapsed,
+        s_threeP5hBar, s_threeP5hPctLabel, s_threeP5hResetLabel,
+        s_threePWkBar, s_threePWkPctLabel, s_threePWkResetLabel
+    );
+
+    if (s_live.hasDyn) {
+        float curDynPct = s_live.dynPct;
+        char dynRstBuf[24];
+        if (s_live.dynSec > 0) {
+            int32_t remDyn = s_live.dynSec - (int32_t)elapsed;
+            if (remDyn <= 0) {
+                curDynPct = 100.0f;
+                snprintf(dynRstBuf, sizeof(dynRstBuf), "Full");
+            } else {
+                format_countdown_str(remDyn, dynRstBuf, sizeof(dynRstBuf));
+            }
+        } else {
+            snprintf(dynRstBuf, sizeof(dynRstBuf), "%s", s_live.dynRst);
+        }
+
+        int dynVal = (int)round(curDynPct);
+        if (dynVal < 0) dynVal = 0;
+        if (dynVal > 100) dynVal = 100;
+        if (s_dynBar) lv_bar_set_value(s_dynBar, dynVal, LV_ANIM_OFF);
+        if (s_dynPctLabel) {
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%d%%", dynVal);
+            lv_label_set_text(s_dynPctLabel, buf);
+        }
+        if (s_dynResetLabel) lv_label_set_text(s_dynResetLabel, dynRstBuf);
+    }
+
+    if (s_footerLabel) {
+        if (s_live.snapshotTs > 0) {
+            int64_t ageSec = 0;
+            if (s_live.serverTime >= s_live.snapshotTs) {
+                ageSec = (s_live.serverTime - s_live.snapshotTs) + (int64_t)elapsed;
+            } else {
+                time_t nowEpoch = time(nullptr);
+                if (nowEpoch > 1700000000 && nowEpoch >= s_live.snapshotTs) {
+                    ageSec = (int64_t)nowEpoch - s_live.snapshotTs;
+                } else {
+                    ageSec = (int64_t)elapsed;
+                }
+            }
+            if (ageSec < 0) ageSec = 0;
+
+            char footerBuf[48];
+            if (ageSec < 60) {
+                snprintf(footerBuf, sizeof(footerBuf), "Updated just now | BOOT: Sync");
+            } else if (ageSec < 3600) {
+                snprintf(footerBuf, sizeof(footerBuf), "Updated %ldm ago | BOOT: Sync", (long)(ageSec / 60));
+            } else if (ageSec < 86400) {
+                snprintf(footerBuf, sizeof(footerBuf), "Updated %ldh ago | BOOT: Sync", (long)(ageSec / 3600));
+            } else {
+                snprintf(footerBuf, sizeof(footerBuf), "Updated %ldd ago | BOOT: Sync", (long)(ageSec / 86400));
+            }
+            lv_label_set_text(s_footerLabel, footerBuf);
+        } else {
+            lv_label_set_text(s_footerLabel, "Press BOOT to Sync Quota");
+        }
+    }
 }
 
 void update_page_antigravity(JsonVariantConst data) {
@@ -250,6 +467,8 @@ void update_page_antigravity(JsonVariantConst data) {
     // 1. Check for error or unauthenticated status
     const char* status = data["status"] | "ok";
     if (status && (strcmp(status, "unauthenticated") == 0 || strcmp(status, "error") == 0)) {
+        s_live.hasData = true;
+        s_live.isError = true;
         if (s_planLabel) lv_label_set_text(s_planLabel, "Status: Auth Required");
         if (s_creditsLabel) lv_label_set_text(s_creditsLabel, "0 AI Credits");
         
@@ -298,11 +517,19 @@ void update_page_antigravity(JsonVariantConst data) {
     }
 
     // 3. Gemini Models Quotas (5h and Weekly)
+    s_live.hasData = true;
+    s_live.isError = false;
+    s_live.rxMillis = millis();
+    s_live.snapshotTs = data["timestamp"] | (int64_t)0;
+    s_live.serverTime = data["server_time"] | (int64_t)0;
+
     float g5h = -1.0f;
     const char* g5hRst = nullptr;
+    int32_t g5hSec = 0;
     if (data.containsKey("gemini_models")) {
         g5h = data["gemini_models"]["five_hour_limit_percent"] | -1.0f;
         g5hRst = data["gemini_models"]["next_reset_5h"] | nullptr;
+        g5hSec = data["gemini_models"]["reset_in_seconds_5h"] | 0;
     }
     if (g5h < 0.0f && data.containsKey("limit_5h")) {
         // Fallback from legacy used percentage: remaining = 100 - used
@@ -314,26 +541,15 @@ void update_page_antigravity(JsonVariantConst data) {
         if (usedFlat >= 0.0f) g5h = 100.0f - usedFlat;
     }
     if (g5h < 0.0f) g5h = 100.0f;
-
-    int g5hVal = (int)round(g5h);
-    if (g5hVal < 0) g5hVal = 0;
-    if (g5hVal > 100) g5hVal = 100;
-    if (s_gemini5hBar) lv_bar_set_value(s_gemini5hBar, g5hVal, LV_ANIM_OFF);
-    if (s_gemini5hPctLabel) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%d%%", g5hVal);
-        lv_label_set_text(s_gemini5hPctLabel, buf);
-    }
-    if (s_gemini5hResetLabel) {
-        if (!g5hRst) g5hRst = data["next_reset"] | "Full";
-        lv_label_set_text(s_gemini5hResetLabel, g5hRst);
-    }
+    if (!g5hRst) g5hRst = data["next_reset"] | "Full";
 
     float gWk = -1.0f;
     const char* gWkRst = nullptr;
+    int32_t gWkSec = 0;
     if (data.containsKey("gemini_models")) {
         gWk = data["gemini_models"]["weekly_limit_percent"] | -1.0f;
         gWkRst = data["gemini_models"]["next_reset_weekly"] | nullptr;
+        gWkSec = data["gemini_models"]["reset_in_seconds_weekly"] | 0;
     }
     if (gWk < 0.0f && data.containsKey("limit_weekly")) {
         float used = data["limit_weekly"]["percentage"] | data["limit_weekly"]["used"] | -1.0f;
@@ -341,61 +557,48 @@ void update_page_antigravity(JsonVariantConst data) {
     }
     if (gWk < 0.0f) gWk = 100.0f;
 
-    int gWkVal = (int)round(gWk);
-    if (gWkVal < 0) gWkVal = 0;
-    if (gWkVal > 100) gWkVal = 100;
-    if (s_geminiWkBar) lv_bar_set_value(s_geminiWkBar, gWkVal, LV_ANIM_OFF);
-    if (s_geminiWkPctLabel) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%d%%", gWkVal);
-        lv_label_set_text(s_geminiWkPctLabel, buf);
-    }
-    if (s_geminiWkResetLabel) {
-        lv_label_set_text(s_geminiWkResetLabel, gWkRst ? gWkRst : "Full");
-    }
+    s_live.g5hPct = g5h;
+    s_live.g5hSec = g5hSec;
+    snprintf(s_live.g5hRst, sizeof(s_live.g5hRst), "%s", g5hRst ? g5hRst : "Full");
+    s_live.gWkPct = gWk;
+    s_live.gWkSec = gWkSec;
+    snprintf(s_live.gWkRst, sizeof(s_live.gWkRst), "%s", gWkRst ? gWkRst : "Full");
 
     // 4. Claude & GPT Models (3P) Quotas
     float tp5h = 100.0f;
     const char* tp5hRst = "Full";
+    int32_t tp5hSec = 0;
     float tpWk = 100.0f;
     const char* tpWkRst = "Full";
+    int32_t tpWkSec = 0;
     if (data.containsKey("claude_gpt_models")) {
         tp5h = data["claude_gpt_models"]["five_hour_limit_percent"] | 100.0f;
         tp5hRst = data["claude_gpt_models"]["next_reset_5h"] | "Full";
+        tp5hSec = data["claude_gpt_models"]["reset_in_seconds_5h"] | 0;
         tpWk = data["claude_gpt_models"]["weekly_limit_percent"] | 100.0f;
         tpWkRst = data["claude_gpt_models"]["next_reset_weekly"] | "Full";
+        tpWkSec = data["claude_gpt_models"]["reset_in_seconds_weekly"] | 0;
     }
-    int tp5hVal = (int)round(tp5h);
-    if (tp5hVal < 0) tp5hVal = 0;
-    if (tp5hVal > 100) tp5hVal = 100;
-    if (s_threeP5hBar) lv_bar_set_value(s_threeP5hBar, tp5hVal, LV_ANIM_OFF);
-    if (s_threeP5hPctLabel) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%d%%", tp5hVal);
-        lv_label_set_text(s_threeP5hPctLabel, buf);
+    if (tp5hSec == 0 && data.containsKey("quota") && data["quota"].containsKey("3p-5h")) {
+        tp5hSec = data["quota"]["3p-5h"]["reset_in_seconds"] | 0;
     }
-    if (s_threeP5hResetLabel) {
-        lv_label_set_text(s_threeP5hResetLabel, tp5hRst);
+    if (tpWkSec == 0 && data.containsKey("quota") && data["quota"].containsKey("3p-weekly")) {
+        tpWkSec = data["quota"]["3p-weekly"]["reset_in_seconds"] | 0;
     }
 
-    int tpWkVal = (int)round(tpWk);
-    if (tpWkVal < 0) tpWkVal = 0;
-    if (tpWkVal > 100) tpWkVal = 100;
-    if (s_threePWkBar) lv_bar_set_value(s_threePWkBar, tpWkVal, LV_ANIM_OFF);
-    if (s_threePWkPctLabel) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%d%%", tpWkVal);
-        lv_label_set_text(s_threePWkPctLabel, buf);
-    }
-    if (s_threePWkResetLabel) {
-        lv_label_set_text(s_threePWkResetLabel, tpWkRst);
-    }
+    s_live.tp5hPct = tp5h;
+    s_live.tp5hSec = tp5hSec;
+    snprintf(s_live.tp5hRst, sizeof(s_live.tp5hRst), "%s", tp5hRst ? tp5hRst : "Full");
+    s_live.tpWkPct = tpWk;
+    s_live.tpWkSec = tpWkSec;
+    snprintf(s_live.tpWkRst, sizeof(s_live.tpWkRst), "%s", tpWkRst ? tpWkRst : "Full");
 
     // 5. Dynamic Models Quotas (e.g. Gemini 4 Argon)
     bool hasDynamic = false;
     const char* dynName = "Gemini 4 Argon";
     float dynPct = 0.0f;
     const char* dynRst = "Full";
+    int32_t dynSec = 0;
 
     // Priority 1: Check dynamic_models array
     if (data.containsKey("dynamic_models") && data["dynamic_models"].is<JsonArrayConst>()) {
@@ -405,6 +608,7 @@ void update_page_antigravity(JsonVariantConst data) {
             dynName = firstDyn["name"] | firstDyn["display_name"] | "Gemini 4 Argon";
             dynPct = firstDyn["remaining_percent"] | firstDyn["weekly_limit_percent"] | 0.0f;
             dynRst = firstDyn["next_reset"] | "Full";
+            dynSec = firstDyn["reset_in_seconds"] | 0;
             hasDynamic = true;
         }
     }
@@ -418,6 +622,7 @@ void update_page_antigravity(JsonVariantConst data) {
                 dynName = m["name"] | kv.key().c_str();
                 dynPct = m["weekly_limit_percent"] | m["remaining_percent"] | 0.0f;
                 dynRst = m["next_reset"] | "Full";
+                dynSec = m["reset_in_seconds"] | 0;
                 hasDynamic = true;
                 break;
             }
@@ -428,6 +633,7 @@ void update_page_antigravity(JsonVariantConst data) {
                 dynName = m["name"] | m["display_name"] | "Gemini 4 Argon";
                 dynPct = m["weekly_limit_percent"] | m["remaining_percent"] | 0.0f;
                 dynRst = m["next_reset"] | "Full";
+                dynSec = m["reset_in_seconds"] | 0;
                 hasDynamic = true;
             }
         }
@@ -439,23 +645,18 @@ void update_page_antigravity(JsonVariantConst data) {
         dynName = "Gemini 4 Argon";
         dynPct = argon["remaining_percent"] | 0.0f;
         dynRst = argon["next_reset"] | "Full";
+        dynSec = argon["reset_in_seconds"] | 0;
         hasDynamic = true;
     }
 
-    if (hasDynamic) {
-        int dynVal = (int)round(dynPct);
-        if (dynVal < 0) dynVal = 0;
-        if (dynVal > 100) dynVal = 100;
+    s_live.hasDyn = hasDynamic;
+    s_live.dynPct = dynPct;
+    s_live.dynSec = dynSec;
+    snprintf(s_live.dynRst, sizeof(s_live.dynRst), "%s", dynRst ? dynRst : "Full");
 
+    if (hasDynamic) {
         if (s_dynTitleLabel) lv_label_set_text(s_dynTitleLabel, dynName);
         if (s_dynPeriodLabel) lv_label_set_text(s_dynPeriodLabel, "Weekly");
-        if (s_dynBar) lv_bar_set_value(s_dynBar, dynVal, LV_ANIM_OFF);
-        if (s_dynPctLabel) {
-            char buf[16];
-            snprintf(buf, sizeof(buf), "%d%%", dynVal);
-            lv_label_set_text(s_dynPctLabel, buf);
-        }
-        if (s_dynResetLabel) lv_label_set_text(s_dynResetLabel, dynRst);
     } else {
         // Neutral fallback for dynamic box
         if (s_dynTitleLabel) lv_label_set_text(s_dynTitleLabel, "Additional Models");
@@ -465,12 +666,14 @@ void update_page_antigravity(JsonVariantConst data) {
         if (s_dynResetLabel) lv_label_set_text(s_dynResetLabel, "None");
     }
 
-    if (s_footerLabel) {
-        lv_label_set_text(s_footerLabel, "Press BOOT to Sync Quota");
-    }
+    antigravity_refresh_countdowns();
 }
 
 void destroy_page_antigravity() {
+    if (s_countdownTimer) {
+        lv_timer_del(s_countdownTimer);
+        s_countdownTimer = nullptr;
+    }
     // Invalidate all static widget pointers before LVGL frees the parent container.
     s_cardPlan           = nullptr;
     s_planLabel          = nullptr;
