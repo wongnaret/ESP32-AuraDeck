@@ -268,29 +268,24 @@ The **System & AI Resource Monitor Agent** inspects local CLI tools, environment
 
 ---
 
-### 🛠️ Antigravity CLI Setup & Host Cron Runner
+### 🛠️ Antigravity CLI Setup & Zero-Quota Host Cron Runner
 
-To enable automatic AI credit & quota tracking when running AuraDeck inside Docker:
+To enable automatic AI quota tracking when running AuraDeck inside Docker without consuming LLM tokens or AI credits:
 
 1. **Install and Authenticate `agy` CLI on the Host Machine / Raspberry Pi:**
+   Register `cyberdeck_statusline.py` as your `agy` status line bridge (see `README.md` for details).
+2. **Test the Zero-Quota Refresher Script on Host:**
    ```bash
-   agy auth login
+   /bin/bash /path/to/ESP32-AuraDeck/backend/scripts/update_antigravity_cli.sh
    ```
-2. **Verify CLI JSON Output on Host:**
-   ```bash
-   agy status --json
-   ```
+   The script ensures a detached GNU `screen` session named `agy` is running, sends `/usage` + `Enter` to refresh the quota panel and trigger `cyberdeck_statusline.py`, waits 5 seconds, and sends `Esc` to close the panel (**0% LLM quota usage**).
 3. **Set Up Host Cron Job for Automatic Synchronization:**
-   Add a 5-minute cron schedule on the Host Machine to execute the provided helper script:
-   ```bash
-   chmod +x backend/scripts/update_antigravity_cli.sh
-   crontab -e
-   ```
-   Add the following line (replace `/path/to/ESP32-AuraDeck` with your actual repository path):
+   Add a 15-minute cron schedule on the Host Machine (`crontab -e`):
    ```cron
-   */5 * * * * /bin/bash /path/to/ESP32-AuraDeck/backend/scripts/update_antigravity_cli.sh >> /tmp/auradeck_cli.log 2>&1
+   */15 * * * * /bin/bash /path/to/ESP32-AuraDeck/backend/scripts/update_antigravity_cli.sh >> /tmp/agy_cron.log 2>&1
    ```
+   *(You no longer need a separate `@reboot` entry for `screen` because `update_antigravity_cli.sh` automatically starts the detached `agy` screen session if it is not running.)*
 4. **Container Shared Volume:**
-   The backend container uses `./backend/tokens:/app/tokens` volume mapping in `docker-compose.yml`. Whenever the host cron job updates `tokens/antigravity_data.json`, the FastAPI container automatically broadcasts the fresh credit metrics via MQTT to all paired ESP32-S3 screens!
+   The backend container uses `./backend/tokens:/app/tokens` volume mapping in `docker-compose.yml`. Whenever the host status line updates `tokens/antigravity_data.json` (or POSTs to `/api/v1/antigravity`), the FastAPI container automatically broadcasts the fresh quota metrics via MQTT to all paired ESP32-S3 screens!
 
 

@@ -411,6 +411,13 @@ agy /statusline /path/to/ESP32-AuraDeck/cyberdeck_statusline.py
 agy config set statusline "/usr/bin/python3 /path/to/ESP32-AuraDeck/cyberdeck_statusline.py"
 ```
 
+### 1.1 Zero-Quota Periodic Refresh (Host Cron)
+To keep quotas updated automatically on a headless Raspberry Pi without sending LLM prompts or spending AI credits, schedule [backend/scripts/update_antigravity_cli.sh](backend/scripts/update_antigravity_cli.sh) via `crontab -e`:
+```cron
+*/15 * * * * /bin/bash /path/to/ESP32-AuraDeck/backend/scripts/update_antigravity_cli.sh >> /tmp/agy_cron.log 2>&1
+```
+The script auto-starts a detached `screen` session (`agy`) if missing, triggers `/usage` + `Enter` to refresh quota and invoke `cyberdeck_statusline.py`, then sends `Esc` to close the panel cleanly.
+
 ### 2. Mock Pipe Testing & Verification
 Verify the status line output and transport mechanisms using synthetic JSON payloads:
 ```bash

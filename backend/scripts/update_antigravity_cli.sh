@@ -1,71 +1,67 @@
 #!/bin/bash
-# AuraDeck Antigravity CLI Status Updater Script
-# This script executes the Antigravity CLI on the Host machine / Raspberry Pi
-# and saves the JSON status directly to backend/tokens/antigravity_data.json
-# so that the containerized backend reads real-time host quota & credit metrics.
+# AuraDeck Antigravity CLI Zero-Quota Status Refresher
+# Triggers the `/usage` panel inside a detached GNU `screen` session running `agy`,
+# waits for `agy` to refresh quota and invoke `cyberdeck_statusline.py`, then presses
+# `Esc` to close the panel — consuming ZERO LLM tokens, model quota, or AI credits.
+
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOKENS_DIR="$(cd "$SCRIPT_DIR/../tokens" 2>/dev/null && pwd || echo "$SCRIPT_DIR/../tokens")"
-mkdir -p "$TOKENS_DIR"
-
-# Ensure TOKENS_DIR is writable by current host user (if created by root Docker container)
-if [ ! -w "$TOKENS_DIR" ]; then
-    echo "[$(date)] Fixing ownership for $TOKENS_DIR..."
-    sudo chown -R "$USER:$USER" "$TOKENS_DIR" 2>/dev/null || chmod -R 777 "$TOKENS_DIR" 2>/dev/null
-fi
-
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TOKENS_DIR="$REPO_DIR/backend/tokens"
 OUTPUT_FILE="$TOKENS_DIR/antigravity_data.json"
 
-echo "[$(date)] Running Antigravity status check..."
+SCREEN_NAME="${AGY_SCREEN_NAME:-agy}"
+AGY_BIN="${AGY_BIN:-$(command -v agy 2>/dev/null || echo "$HOME/.local/bin/agy")}"
+SCREEN_BIN="${SCREEN_BIN:-$(command -v screen 2>/dev/null || echo "/usr/bin/screen")}"
+USAGE_WAIT_SECS="${AGY_USAGE_WAIT_SECS:-5}"
+BOOT_WAIT_SECS="${AGY_BOOT_WAIT_SECS:-10}"
 
-# Check if agy CLI exists on host
-if command -v agy &> /dev/null; then
-    # Run agy in background and enforce a strict 2-second limit
-    agy status --json < /dev/null > "$OUTPUT_FILE.tmp" 2>&1 &
-    AGY_PID=$!
-    
-    # Wait maximum 2 seconds
-    sleep 2
-    
-    # If process is still running after 2s, kill forcefully with SIGKILL (-9)
-    if kill -0 "$AGY_PID" 2>/dev/null; then
-        kill -9 "$AGY_PID" 2>/dev/null
-        wait "$AGY_PID" 2>/dev/null
-    fi
+mkdir -p "$TOKENS_DIR"
 
-    # Verify if output is valid JSON
-    if [ -f "$OUTPUT_FILE.tmp" ] && grep -q "{" "$OUTPUT_FILE.tmp" 2>/dev/null; then
-        mv "$OUTPUT_FILE.tmp" "$OUTPUT_FILE"
-        echo "[$(date)] Successfully updated Antigravity CLI status -> $OUTPUT_FILE"
-        exit 0
-    else
-        rm -f "$OUTPUT_FILE.tmp"
-        echo "[$(date)] Notice: 'agy status --json' did not return direct JSON output. Preserving default JSON state."
-    fi
+if [ ! -x "$SCREEN_BIN" ]; then
+    echo "[$(date)] Error: 'screen' binary not found at $SCREEN_BIN."
+    exit 1
 fi
 
+if [ ! -x "$AGY_BIN" ]; then
+    echo "[$(date)] Error: 'agy' binary not found at $AGY_BIN."
+    exit 1
+fi
 
-
-# Ensure default JSON state exists if file is missing
-if [ ! -f "$OUTPUT_FILE" ]; then
-    cat << 'EOF' > "$OUTPUT_FILE"
-{
-    "status": "ok",
-    "plan": "Google AI Pro",
-    "available_credits": 823,
-    "ai_credits": 823,
-    "gemini_models": {
-        "weekly_limit_percent": 99.0,
-        "five_hour_limit_percent": 97.0,
-        "next_reset_5h": "03h 47m",
-        "next_reset_weekly": "6 days, 22 hours"
-    },
-    "claude_gpt_models": {
-        "weekly_limit_percent": 100.0,
-        "five_hour_limit_percent": 100.0
-    }
+get_json_timestamp() {
+    if [ -f "$OUTPUT_FILE" ]; then
+        grep -oE '"timestamp"[[:space:]]*:[[:space:]]*[0-9]+' "$OUTPUT_FILE" 2>/dev/null | head -n 1 | grep -oE '[0-9]+'
+    fi
 }
-EOF
-    echo "[$(date)] Initialized default Antigravity JSON state -> $OUTPUT_FILE"
+
+BEFORE_TS="$(get_json_timestamp)"
+
+# Ensure the detached screen session running `agy` exists
+if ! "$SCREEN_BIN" -list 2>/dev/null | grep -qE "[0-9]+\.${SCREEN_NAME}[[:space:]]"; then
+    echo "[$(date)] Starting detached screen session '${SCREEN_NAME}' with ${AGY_BIN}..."
+    "$SCREEN_BIN" -dmS "$SCREEN_NAME" bash -c "cd \"$REPO_DIR\" && \"$AGY_BIN\""
+    sleep "$BOOT_WAIT_SECS"
 fi
 
+echo "[$(date)] Refreshing Antigravity quota via /usage (zero-quota) in screen '${SCREEN_NAME}'..."
+
+# 1. Dismiss any open modal and clear any stray input
+"$SCREEN_BIN" -S "$SCREEN_NAME" -p 0 -X stuff $'\033'
+sleep 0.5
+"$SCREEN_BIN" -S "$SCREEN_NAME" -p 0 -X stuff $'\025'
+sleep 0.2
+
+# 2. Open /usage panel to trigger quota refresh & statusLine bridge
+"$SCREEN_BIN" -S "$SCREEN_NAME" -p 0 -X stuff $'/usage\r'
+sleep "$USAGE_WAIT_SECS"
+
+# 3. Press Esc to close the /usage panel cleanly
+"$SCREEN_BIN" -S "$SCREEN_NAME" -p 0 -X stuff $'\033'
+
+AFTER_TS="$(get_json_timestamp)"
+if [ -n "$AFTER_TS" ] && [ "$AFTER_TS" != "$BEFORE_TS" ]; then
+    echo "[$(date)] Quota refreshed successfully (timestamp: ${BEFORE_TS:-none} -> ${AFTER_TS})."
+else
+    echo "[$(date)] Sent /usage + Esc (timestamp unchanged: ${AFTER_TS:-none})."
+fi
