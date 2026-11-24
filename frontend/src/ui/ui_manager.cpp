@@ -277,6 +277,13 @@ void UIManager::showPage(int pageIndex) {
     replayCachedData(pageIndex);
 }
 
+void UIManager::cycleCalendarPage() {
+    if (m_currentPageIndex == 4) {
+        cycle_calendar_page();
+        lv_refr_now(nullptr);
+    }
+}
+
 void UIManager::cycleGa4Property() {
     if (m_currentPageIndex == 6) {
         cycle_ga4_property();

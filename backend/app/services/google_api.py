@@ -48,14 +48,85 @@ async def get_google_task_lists(profile_id: str) -> List[Dict[str, Any]]:
         return []
 
 
+def parse_calendar_items(
+    items: List[Dict[str, Any]],
+    today_local: date,
+    max_events: int = 15,
+) -> Dict[str, Any]:
+    """
+    Parses raw Google Calendar API items into AuraDeck's calendar payload.
+    Only includes today and future events (no past events):
+      - `month_days_with_events`: sorted day numbers in the current month (>= today)
+      - `events`: up to `max_events` chronological upcoming events with date labels
+    """
+    month_days_set = set()
+    events_list: List[Dict[str, Any]] = []
+
+    for item in items:
+        summary = item.get("summary", "No Title")
+        start = item.get("start", {})
+        end = item.get("end", {})
+
+        start_dt_str = start.get("dateTime") or start.get("date")
+        if not start_dt_str:
+            continue
+
+        is_all_day = "dateTime" not in start
+
+        if is_all_day:
+            event_date = datetime.strptime(start_dt_str[:10], "%Y-%m-%d").date()
+            # Handle multi-day all-day events that started before today but still span today
+            end_date_str = end.get("date")
+            if event_date < today_local and end_date_str:
+                end_exclusive = datetime.strptime(end_date_str[:10], "%Y-%m-%d").date()
+                if end_exclusive > today_local:
+                    event_date = today_local
+            event_time_str = "All Day"
+        else:
+            dt_part = start_dt_str[:16]  # YYYY-MM-DDTHH:MM
+            event_datetime = datetime.strptime(dt_part, "%Y-%m-%dT%H:%M")
+            event_date = event_datetime.date()
+            event_time_str = event_datetime.strftime("%H:%M")
+
+        # Only include today and upcoming events
+        if event_date < today_local:
+            continue
+
+        # Collect event days for current month grid (today & future in current month)
+        if event_date.year == today_local.year and event_date.month == today_local.month:
+            month_days_set.add(event_date.day)
+
+        if len(events_list) < max_events:
+            events_list.append({
+                "date": event_date.strftime("%Y-%m-%d"),
+                "date_label": event_date.strftime("%a %d %b"),
+                "time": event_time_str,
+                "is_all_day": is_all_day,
+                "is_today": (event_date == today_local),
+                "title": summary,
+            })
+
+    return {
+        "year": today_local.year,
+        "month": today_local.month,
+        "today_day": today_local.day,
+        "month_days_with_events": sorted(list(month_days_set)),
+        "events": events_list,
+    }
+
+
 async def get_google_calendar_and_tasks(profile_id: str) -> Dict[str, Any]:
     """
     Fetches events from Google Calendar and tasks from Google Tasks for a profile.
-    Aggregates calendar events for today & tomorrow, calculates month-level active days,
-    and lists active tasks across all selected Google Task lists, utilizing auto-refresh.
+    Aggregates upcoming calendar events (today onward, up to 15), calculates active
+    days for the current month grid, and lists active tasks across selected task lists.
     """
+    today_local = datetime.now().date()
     fallback_state = {
         "calendar": {
+            "year": today_local.year,
+            "month": today_local.month,
+            "today_day": today_local.day,
             "month_days_with_events": [],
             "events": []
         },
@@ -77,24 +148,21 @@ async def get_google_calendar_and_tasks(profile_id: str) -> Dict[str, Any]:
 
     try:
         # --- 1. Fetch Calendar Events ---
-        now = datetime.now(timezone.utc)
-        today_local = datetime.now().date()
-        tomorrow_local = today_local + timedelta(days=1)
-        
-        # Calculate time range: from start of today to the end of next month
-        time_min = datetime(today_local.year, today_local.month, today_local.day, 0, 0, 0, tzinfo=timezone.utc).isoformat()
-        
-        # End of next month
+        now_local = datetime.now().astimezone()
+        today_local = now_local.date()
+
+        # Start of today in local timezone through end of next month
+        time_min = now_local.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+
         if today_local.month == 12:
             next_month_year = today_local.year + 1
             next_month_val = 1
         else:
             next_month_year = today_local.year
             next_month_val = today_local.month + 1
-        
-        # Get last day of next month
+
         end_date = (datetime(next_month_year, next_month_val, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-        time_max = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=timezone.utc).isoformat()
+        time_max = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=now_local.tzinfo).isoformat()
 
         cal_url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
         cal_params = {
@@ -118,49 +186,12 @@ async def get_google_calendar_and_tasks(profile_id: str) -> Dict[str, Any]:
                 logger.error(f"Failed to refresh Google token for profile {profile_id}.")
                 return fallback_state
 
-        month_days_set = set()
-        events_list = []
+        calendar_payload = fallback_state["calendar"]
 
         if cal_response.status_code == 200:
             cal_data = cal_response.json()
             items = cal_data.get("items", [])
-
-            for item in items:
-                summary = item.get("summary", "No Title")
-                start = item.get("start", {})
-                
-                start_dt_str = start.get("dateTime") or start.get("date")
-                if not start_dt_str:
-                    continue
-
-                is_all_day = "dateTime" not in start
-
-                if is_all_day:
-                    event_date = datetime.strptime(start_dt_str[:10], "%Y-%m-%d").date()
-                    event_time_str = "All Day"
-                else:
-                    dt_part = start_dt_str[:16] # YYYY-MM-DDTHH:MM
-                    event_datetime = datetime.strptime(dt_part, "%Y-%m-%dT%H:%M")
-                    event_date = event_datetime.date()
-                    event_time_str = event_datetime.strftime("%H:%M")
-
-                # Collect event days for current month grid
-                if event_date.year == today_local.year and event_date.month == today_local.month:
-                    month_days_set.add(event_date.day)
-
-                # Extract events for today and tomorrow
-                if event_date == today_local:
-                    events_list.append({
-                        "time": event_time_str,
-                        "title": summary,
-                        "is_today": True
-                    })
-                elif event_date == tomorrow_local:
-                    events_list.append({
-                        "time": f"Tomorrow {event_time_str}" if not is_all_day else "Tomorrow (All Day)",
-                        "title": summary,
-                        "is_today": False
-                    })
+            calendar_payload = parse_calendar_items(items, today_local, max_events=15)
         else:
             logger.warning(f"Google Calendar API returned status code: {cal_response.status_code} for profile {profile_id}")
 
@@ -219,10 +250,7 @@ async def get_google_calendar_and_tasks(profile_id: str) -> Dict[str, Any]:
             tasks_list.extend(rlist)
 
         return {
-            "calendar": {
-                "month_days_with_events": sorted(list(month_days_set)),
-                "events": events_list[:8]
-            },
+            "calendar": calendar_payload,
             "todos": tasks_list[:8] # limit to 8 total aggregated tasks
         }
 

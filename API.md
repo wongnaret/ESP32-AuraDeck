@@ -469,13 +469,16 @@ Contains playback tracking metrics.
 > **ESP32 Handling:** `page_spotify.cpp` reads `title` (with `track` as legacy fallback) and converts `progress_ms`/`duration_ms` from milliseconds to seconds for UI display.
 
 ### 2. Calendar Agenda (`auradeck/device/{mac}/calendar`)
-Combines a monthly grid marker list with specific details for Today and Tomorrow.
+Combines current-month upcoming event day markers (`month_days_with_events`) with up to 15 chronological upcoming events (today onward) for the dual-card ESP32 calendar screen.
 ```json
 {
-  "month_days_with_events": [1, 5, 12, 15, 20, 21, 22, 28],
+  "year": 2026,
+  "month": 11,
+  "today_day": 24,
+  "month_days_with_events": [24, 25, 27],
   "events": [
-    { "time": "14:00", "title": "ประชุมทีมสถาปัตยกรรม", "is_today": true },
-    { "time": "10:00", "title": "สแตนด์อัปรายวัน", "is_today": false }
+    { "date": "2026-11-24", "date_label": "Tue 24 Nov", "time": "14:00", "is_all_day": false, "is_today": true, "title": "ประชุมทีมสถาปัตยกรรม" },
+    { "date": "2026-11-25", "date_label": "Wed 25 Nov", "time": "All Day", "is_all_day": true, "is_today": false, "title": "ส่งรายงานประจำเดือน" }
   ]
 }
 ```

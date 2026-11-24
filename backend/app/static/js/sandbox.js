@@ -55,10 +55,17 @@ const mockTemplates = {
         "next_lyric": "แม้เวลาจะหมุนเวียนเปลี่ยนไปนานแค่ไหน..."
     },
     "auradeck/calendar": {
-        "month_days_with_events": [1, 5, 12, 15, 20, 21, 22, 28],
+        "year": 2026,
+        "month": 11,
+        "today_day": 24,
+        "month_days_with_events": [24, 25, 26, 27, 29],
         "events": [
-            { "time": "14:00", "title": "ประชุมทีมสถาปัตยกรรม", "is_today": true },
-            { "time": "Tomorrow 10:00", "title": "สแตนด์อัปรายวัน", "is_today": false }
+            { "date": "2026-11-24", "date_label": "Tue 24 Nov", "time": "All Day", "is_all_day": true, "is_today": true, "title": "ชุดไทย ลอยกระทง" },
+            { "date": "2026-11-24", "date_label": "Tue 24 Nov", "time": "14:00", "is_all_day": false, "is_today": true, "title": "ประชุมทีมสถาปัตยกรรม" },
+            { "date": "2026-11-25", "date_label": "Wed 25 Nov", "time": "10:00", "is_all_day": false, "is_today": false, "title": "สแตนด์อัปรายวัน" },
+            { "date": "2026-11-26", "date_label": "Thu 26 Nov", "time": "All Day", "is_all_day": true, "is_today": false, "title": "ส่งรายงานประจำเดือน" },
+            { "date": "2026-11-27", "date_label": "Fri 27 Nov", "time": "15:30", "is_all_day": false, "is_today": false, "title": "Sprint Review & Demo" },
+            { "date": "2026-11-29", "date_label": "Sun 29 Nov", "time": "09:00", "is_all_day": false, "is_today": false, "title": "วางแผนงานเดือนธันวาคม" }
         ]
     },
     "auradeck/todos": [

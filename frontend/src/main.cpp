@@ -203,7 +203,10 @@ void loop() {
         g_actionTriggered = false;
         Serial.printf("⚡ Action Button (BOOT) triggered on Page %d\n", g_currentPageIndex);
         
-        if (g_currentPageIndex == 6) {
+        if (g_currentPageIndex == 4) {
+            // Screen 4 (Calendar): Switch to next upcoming agenda page immediately
+            g_ui.cycleCalendarPage();
+        } else if (g_currentPageIndex == 6) {
             // Screen 6 (GA4): Switch to next property immediately
             g_ui.cycleGa4Property();
         } else if (g_currentPageIndex == 7) {
@@ -213,13 +216,12 @@ void loop() {
             // Screen 5 (Spotify): Toggle Play/Pause playback
             g_network.publishCommand("auradeck/command/spotify/toggle", "{}");
         } else {
-            // Other Screens (0..4): Request instant telemetry sync from backend
+            // Other Screens (0..3): Request instant telemetry sync from backend
             const char* svc = "all";
             if (g_currentPageIndex == 0) svc = "weather";
             else if (g_currentPageIndex == 1) svc = "antigravity";
             else if (g_currentPageIndex == 2) svc = "stocks";
             else if (g_currentPageIndex == 3) svc = "todos";
-            else if (g_currentPageIndex == 4) svc = "calendar";
             
             char cmdTopic[64];
             snprintf(cmdTopic, sizeof(cmdTopic), "auradeck/command/sync/%s", svc);

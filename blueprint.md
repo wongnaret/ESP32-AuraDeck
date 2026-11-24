@@ -144,13 +144,19 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 
 ---
 
-### Page 4: Calendar (Chronological Agendas)
-* **Purpose:** Chronicle immediate Google Calendar events.
-* **Source:** Google Calendar API.
-* **Layout Elements:**
-  * Clean multi-line schedule list showcasing the next 3 chronological agendas.
-  * Displays: `[Start Time] Event Title (Today/Tomorrow)`.
-  * Integrated C++ ThaiReshaper and auto-ellipsis truncation protecting layout margins.
+### Page 4: Calendar (Monthly Grid & Upcoming Agendas)
+* **Purpose:** Visual monthly calendar paired with paginated upcoming Google Calendar agendas (today onward, up to 15 events).
+* **Source:** Google Calendar API (with hardware PCF85063 RTC fallback for offline monthly grid rendering).
+* **Navigation:** Press `BOOT` (GPIO0) to paginate through remaining upcoming agendas (`+ X more | BOOT: Next`) and wrap back to Page 1.
+* **Layout Structure (Dual-Card AuraDeck Theme, 400x274 Active Viewport):**
+  * **Top Bar (`y: 4..24`):** Left English month/year (`NOV 2026`, `lv_font_montserrat_16`) + Right page/action indicator (`Page 1/2 | BOOT: Next`).
+  * **Left Card (`x=10, y=28, 188x238`, 1px black border, radius=4):**
+    * 7-column English weekday header (`Su Mo Tu We Th Fr Sa`) with subtle vertical Sunday column divider.
+    * Today highlighted with an inverted black rounded pill (white text); today & upcoming event days in the current month marked with a black dot underneath.
+  * **Right Card (`x=204, y=28, 186x238`, 1px black border, radius=4):**
+    * Upcoming events grouped under English date headers (`Today - 24 Nov`, `Wed 25 Nov`) with thin horizontal dividers.
+    * Timed events show `HH:MM Title`, all-day events show `Title` with crisp `4x4` bullet dots, using `lv_font_prompt_12` + `ThaiReshaper` with clean 2-line wrapping and ellipsis truncation.
+    * Card footer displays remaining agenda count (`+ X more | BOOT: Next`).
 
 ---
 
@@ -297,13 +303,17 @@ The Raspberry Pi publishes structured, single-responsibility telemetry objects o
 ### Topic: `auradeck/calendar`
 ```json
 {
-  "month_days_with_events": [1, 5, 12, 15, 20, 21, 22, 28],
+  "year": 2026,
+  "month": 11,
+  "today_day": 24,
+  "month_days_with_events": [24, 25, 27],
   "events": [
-    { "time": "14:00", "title": "ประชุมทีมสถาปัตยกรรม", "is_today": true },
-    { "time": "10:00", "title": "สแตนด์อัปรายวัน", "is_today": false }
+    { "date": "2026-11-24", "date_label": "Tue 24 Nov", "time": "14:00", "is_all_day": false, "is_today": true, "title": "ประชุมทีมสถาปัตยกรรม" },
+    { "date": "2026-11-25", "date_label": "Wed 25 Nov", "time": "All Day", "is_all_day": true, "is_today": false, "title": "ส่งรายงานประจำเดือน" }
   ]
 }
 ```
+> **ESP32 Handling:** `page_calendar.cpp` renders the current month grid using `year`/`month`/`today_day` (falling back to hardware `g_rtc.now()` offline), dots `month_days_with_events` (>= today), groups up to 15 upcoming events by date, and supports BOOT pagination via `cycle_calendar_page()`.
 
 ### Topic: `auradeck/todos`
 Published as a **root JSON array** of task objects. Each item's `title` field may carry a `[List Name]` prefix when the profile has multiple Google Task lists configured.
