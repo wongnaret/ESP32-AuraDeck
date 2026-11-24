@@ -447,10 +447,9 @@ The bridge script loads settings from `config.json` (falling back to `config.exa
 | Debug Dump | `debug.dump_file` | `CYBERDECK_DEBUG_DUMP` | `""` | File path to dump verbatim stdin payloads |
 
 ### 4. ESP32-S3 Display Layout (Page 1)
-The Waveshare 4.2" ST7305 mono reflective LCD (400x300, 400x274 active viewport) organizes quota information into four high-contrast cards:
-- **Card 1 (y: 4..36):** Plan Name (e.g., `Plan: Google AI Pro`) & AI Credits (`560 AI Credits`)
-- **Card 2 (y: 40..112):** Gemini Models (5-Hour `69%` with `03h 06m` reset & Weekly `62%` with `1 day, 1 hour` reset)
-- **Card 3 (y: 116..188):** Claude & GPT Models 3P (5-Hour `100%` & Weekly `100%`)
-- **Card 4 (y: 192..242):** Dynamic Models (e.g., `Gemini 4 Argon` Weekly `2%` with `2 days, 4 hours` reset)
-- **Footer (y: 248..270):** Action hint (`🔘 Press BOOT to Sync Quota`) with automatic offline error indicators.
+The Waveshare 4.2" ST7305 mono reflective LCD (400x300, 400x274 active viewport) organizes quota information into three high-contrast cards aligned with Antigravity's unified 2-group quota model:
+- **Card 1 (y: 6..42):** Plan Name (e.g., `Plan: Google AI Pro`) & AI Credits (`--- AI Credits` or numeric balance)
+- **Card 2 (y: 50..142):** Gemini Models (`All Gemini 4 & 3.8`, including Neon, Carbon, Argon, Hydrogen, Flash — 5-Hour & Weekly limits with live countdowns)
+- **Card 3 (y: 150..242):** Claude & GPT Models (`3P Models` — 5-Hour & Weekly limits with live countdowns)
+- **Footer (y: 252..268):** Live snapshot age & action hint (`Updated Xm ago | BOOT: Sync`) with automatic offline error indicators.
 

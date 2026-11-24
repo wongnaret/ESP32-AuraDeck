@@ -535,26 +535,8 @@ Monitors multi-model AI quotas, available AI credits, dynamic model allocations,
     "reset_in_seconds_5h": 0,
     "reset_in_seconds_weekly": 0
   },
-  "dynamic_models": [
-    {
-      "key": "gemini-4-argon",
-      "name": "Gemini 4 Argon",
-      "display_name": "Gemini 4 Argon",
-      "weekly_limit_percent": 2.0,
-      "remaining_percent": 2.0,
-      "next_reset": "2 days, 4 hours",
-      "reset_in_seconds": 187200
-    }
-  ],
-  "additional_models": {
-    "gemini_4_argon": {
-      "name": "Gemini 4 Argon",
-      "weekly_limit_percent": 2.0,
-      "remaining_percent": 2.0,
-      "next_reset": "2 days, 4 hours",
-      "reset_in_seconds": 187200
-    }
-  },
+  "dynamic_models": [],
+  "additional_models": {},
   "limit_5h": {
     "used": 31.0,
     "total": 100.0,

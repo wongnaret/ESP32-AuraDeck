@@ -71,9 +71,32 @@ const mockTemplates = {
         { "symbol": "GOLD_TH", "price": 41200.00, "change_pct": -0.24, "type": "GOLD" }
     ],
     "auradeck/antigravity": {
-        "limit_5h": { "used": 12.5, "total": 50.0, "percentage": 25.0 },
-        "limit_weekly": { "used": 140.0, "total": 500.0, "percentage": 28.0 },
-        "next_reset": "02h 15m"
+        "status": "ok",
+        "plan": "Google AI Pro",
+        "available_credits": null,
+        "gemini_models": {
+            "five_hour_limit_percent": 75.0,
+            "weekly_limit_percent": 88.0,
+            "next_reset_5h": "03h 45m",
+            "next_reset_weekly": "6 days, 22 hours",
+            "reset_in_seconds_5h": 13500,
+            "reset_in_seconds_weekly": 597600
+        },
+        "claude_gpt_models": {
+            "five_hour_limit_percent": 100.0,
+            "weekly_limit_percent": 100.0,
+            "next_reset_5h": "Full",
+            "next_reset_weekly": "Full",
+            "reset_in_seconds_5h": 0,
+            "reset_in_seconds_weekly": 0
+        },
+        "dynamic_models": [],
+        "additional_models": {},
+        "limit_5h": { "used": 25.0, "total": 100.0, "percentage": 25.0 },
+        "limit_weekly": { "used": 12.0, "total": 100.0, "percentage": 12.0 },
+        "next_reset": "03h 45m",
+        "credit_hours_remaining": -1.0,
+        "percent_quota_used": 25.0
     },
     "auradeck/ga4": {
         "total_properties": 1,

@@ -297,6 +297,9 @@ def parse_antigravity_input(raw_json: str) -> dict:
         "3p-weekly": ["3p-weekly", "3p_weekly", "3p-wk", "claude-gpt-weekly", "claude_gpt_weekly"]
     }
 
+    # Deprecated standalone Argon bucket (now unified under Gemini Models)
+    deprecated_keys = {"gemini-argon-wtu-weekly", "gemini_argon_wtu_weekly"}
+
     # Map raw keys to standard keys or dynamic keys
     gemini_5h_bucket = None
     gemini_wk_bucket = None
@@ -306,6 +309,8 @@ def parse_antigravity_input(raw_json: str) -> dict:
 
     for raw_key, raw_val in quota_dict.items():
         norm_key = raw_key.lower().strip()
+        if norm_key in deprecated_keys:
+            continue
         bucket_info = extract_quota_bucket(raw_val)
         parsed_buckets[norm_key] = bucket_info
 
@@ -322,10 +327,7 @@ def parse_antigravity_input(raw_json: str) -> dict:
             # Dynamic model bucket
             display_name = bucket_info.get("display_name")
             if not display_name:
-                if "argon" in norm_key and ("wtu" in norm_key or "weekly" in norm_key):
-                    display_name = "Gemini 4 Argon"
-                else:
-                    display_name = norm_key.replace("-", " ").replace("_", " ").title()
+                display_name = norm_key.replace("-", " ").replace("_", " ").title()
             dynamic_buckets.append({
                 "key": norm_key,
                 "name": display_name,

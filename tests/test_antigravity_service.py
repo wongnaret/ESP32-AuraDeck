@@ -211,11 +211,17 @@ class TestAntigravityService(unittest.TestCase):
                 "gemini-weekly": {"remaining_fraction": 0.80, "reset_in_seconds": 86400},
                 "3p-5h": {"remaining_fraction": 0.0, "reset_in_seconds": 1800},
                 "3p-weekly": {"remaining_fraction": 0.0, "reset_in_seconds": 7200},
-                "gemini-argon-wtu-weekly": {"remaining_fraction": 0.90, "reset_in_seconds": 1200}
+                "gemini-argon-wtu-weekly": {"remaining_fraction": 1.0, "reset_in_seconds": 604800},
+                "custom-model-weekly": {"remaining_fraction": 0.90, "reset_in_seconds": 1200}
             }
         })
         self.assertEqual(base["timestamp"], 1700000000)
         self.assertEqual(base["claude_gpt_models"]["reset_in_seconds_5h"], 1800)
+        # Deprecated standalone Argon bucket is filtered out (unified into Gemini Models)
+        self.assertNotIn("gemini-argon-wtu-weekly", base["quota"])
+        self.assertNotIn("gemini_argon_wtu_weekly", base["additional_models"])
+        self.assertEqual(len(base["dynamic_models"]), 1)
+        self.assertEqual(base["dynamic_models"][0]["key"], "custom-model-weekly")
 
         # After 600s: countdowns advance without resetting
         t1 = apply_elapsed_time(base, now_ts=1700000600)

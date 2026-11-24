@@ -2,13 +2,12 @@
  * @file page_antigravity.cpp
  * @brief Source for Screen 1 (Antigravity Models & AI Quotas) of the AuraDeck dashboard.
  *
- * Implements high-contrast monochrome card layout for Waveshare 4.2" ST7305 RLCD (400x300,
- * 400x274 active viewport) rendering multi-model AI quotas:
- *   - Card 1 (y: 4..36):  Plan Name & Available AI Credits
- *   - Card 2 (y: 40..112): Gemini Models (5h & Weekly Quotas with Countdowns)
- *   - Card 3 (y: 116..188): Claude & GPT Models 3P (5h & Weekly Quotas)
- *   - Card 4 (y: 192..242): Dynamic Models (e.g. Gemini 4 Argon with Countdown)
- *   - Footer (y: 248..270): Action & Status Hint
+ * Implements high-contrast monochrome 3-card layout for Waveshare 4.2" ST7305 RLCD (400x300,
+ * 400x274 active viewport) aligned with Antigravity's unified 2-group quota model:
+ *   - Card 1 (y: 6..42):    Plan Name & Available AI Credits
+ *   - Card 2 (y: 50..142):  Gemini Models (All Gemini 4 & 3.8: 5h & Weekly Quotas + Countdowns)
+ *   - Card 3 (y: 150..242): Claude & GPT Models 3P (5h & Weekly Quotas + Countdowns)
+ *   - Footer (y: 252..268): Live Snapshot Age & Sync Hint
  */
 
 #include "page_antigravity.h"
@@ -36,11 +35,6 @@ struct AntigravityLiveState {
     int32_t tpWkSec = 0;
     char tp5hRst[24] = "Full";
     char tpWkRst[24] = "Full";
-
-    bool hasDyn = false;
-    float dynPct = 0.0f;
-    int32_t dynSec = 0;
-    char dynRst[24] = "Full";
 };
 
 static AntigravityLiveState s_live;
@@ -67,13 +61,6 @@ static lv_obj_t* s_threeP5hResetLabel= nullptr;
 static lv_obj_t* s_threePWkBar       = nullptr;
 static lv_obj_t* s_threePWkPctLabel  = nullptr;
 static lv_obj_t* s_threePWkResetLabel= nullptr;
-
-static lv_obj_t* s_cardDyn           = nullptr;
-static lv_obj_t* s_dynTitleLabel     = nullptr;
-static lv_obj_t* s_dynPeriodLabel    = nullptr;
-static lv_obj_t* s_dynBar            = nullptr;
-static lv_obj_t* s_dynPctLabel       = nullptr;
-static lv_obj_t* s_dynResetLabel     = nullptr;
 
 static lv_obj_t* s_footerLabel       = nullptr;
 
@@ -111,166 +98,145 @@ void create_page_antigravity(lv_obj_t* parent) {
     destroy_page_antigravity();
 
     // -------------------------------------------------------------
-    // Card 1: Plan Name and AI Credits Header (376 x 32 px at y=4)
+    // Card 1: Plan Name and AI Credits Header (376 x 36 px at y=6)
     // -------------------------------------------------------------
-    s_cardPlan = create_card(parent, 12, 4, 376, 32);
+    s_cardPlan = create_card(parent, 12, 6, 376, 36);
 
     s_planLabel = lv_label_create(s_cardPlan);
-    lv_obj_set_style_text_font(s_planLabel, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(s_planLabel, 8, 7);
+    lv_obj_set_style_text_font(s_planLabel, &lv_font_montserrat_16, 0);
+    lv_obj_align(s_planLabel, LV_ALIGN_LEFT_MID, 10, 0);
     lv_label_set_text(s_planLabel, "Plan: Google AI Pro");
 
     s_creditsLabel = lv_label_create(s_cardPlan);
     lv_obj_set_style_text_font(s_creditsLabel, &lv_font_montserrat_16, 0);
-    lv_obj_align(s_creditsLabel, LV_ALIGN_RIGHT_MID, -8, 0);
+    lv_obj_align(s_creditsLabel, LV_ALIGN_RIGHT_MID, -10, 0);
     lv_label_set_text(s_creditsLabel, "--- AI Credits");
 
     // -------------------------------------------------------------
-    // Card 2: Gemini Models Quota Panel (376 x 72 px at y=40)
+    // Card 2: Gemini Models Quota Panel (376 x 92 px at y=50)
     // -------------------------------------------------------------
-    s_cardGemini = create_card(parent, 12, 40, 376, 72);
+    s_cardGemini = create_card(parent, 12, 50, 376, 92);
 
     lv_obj_t* geminiTitle = lv_label_create(s_cardGemini);
-    lv_obj_set_style_text_font(geminiTitle, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(geminiTitle, 8, 4);
+    lv_obj_set_style_text_font(geminiTitle, &lv_font_montserrat_16, 0);
+    lv_obj_set_pos(geminiTitle, 10, 8);
     lv_label_set_text(geminiTitle, "Gemini Models");
+
+    lv_obj_t* geminiSub = lv_label_create(s_cardGemini);
+    lv_obj_set_style_text_font(geminiSub, &lv_font_montserrat_12, 0);
+    lv_obj_align(geminiSub, LV_ALIGN_TOP_RIGHT, -10, 10);
+    lv_label_set_text(geminiSub, "All Gemini 4 & 3.8");
 
     // Row 1: Five-Hour Limit
     lv_obj_t* lblG5h = lv_label_create(s_cardGemini);
     lv_obj_set_style_text_font(lblG5h, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lblG5h, 8, 22);
+    lv_obj_set_pos(lblG5h, 10, 38);
     lv_label_set_text(lblG5h, "5h Limit");
 
-    s_gemini5hBar = create_quota_bar(s_cardGemini, 66, 25, 144, 10);
+    s_gemini5hBar = create_quota_bar(s_cardGemini, 68, 38, 140, 14);
 
     s_gemini5hPctLabel = lv_label_create(s_cardGemini);
-    lv_obj_set_style_text_font(s_gemini5hPctLabel, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(s_gemini5hPctLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_align(s_gemini5hPctLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_gemini5hPctLabel, 216, 22);
-    lv_obj_set_width(s_gemini5hPctLabel, 44);
+    lv_obj_set_pos(s_gemini5hPctLabel, 212, 35);
+    lv_obj_set_width(s_gemini5hPctLabel, 50);
     lv_label_set_text(s_gemini5hPctLabel, "---%");
 
     s_gemini5hResetLabel = lv_label_create(s_cardGemini);
     lv_obj_set_style_text_font(s_gemini5hResetLabel, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(s_gemini5hResetLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_gemini5hResetLabel, 264, 22);
+    lv_obj_set_pos(s_gemini5hResetLabel, 264, 38);
     lv_obj_set_width(s_gemini5hResetLabel, 104);
     lv_label_set_text(s_gemini5hResetLabel, "---");
 
     // Row 2: Weekly Limit
     lv_obj_t* lblGWk = lv_label_create(s_cardGemini);
     lv_obj_set_style_text_font(lblGWk, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lblGWk, 8, 46);
+    lv_obj_set_pos(lblGWk, 10, 66);
     lv_label_set_text(lblGWk, "Weekly");
 
-    s_geminiWkBar = create_quota_bar(s_cardGemini, 66, 49, 144, 10);
+    s_geminiWkBar = create_quota_bar(s_cardGemini, 68, 66, 140, 14);
 
     s_geminiWkPctLabel = lv_label_create(s_cardGemini);
-    lv_obj_set_style_text_font(s_geminiWkPctLabel, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(s_geminiWkPctLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_align(s_geminiWkPctLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_geminiWkPctLabel, 216, 46);
-    lv_obj_set_width(s_geminiWkPctLabel, 44);
+    lv_obj_set_pos(s_geminiWkPctLabel, 212, 63);
+    lv_obj_set_width(s_geminiWkPctLabel, 50);
     lv_label_set_text(s_geminiWkPctLabel, "---%");
 
     s_geminiWkResetLabel = lv_label_create(s_cardGemini);
     lv_obj_set_style_text_font(s_geminiWkResetLabel, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(s_geminiWkResetLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_geminiWkResetLabel, 264, 46);
+    lv_obj_set_pos(s_geminiWkResetLabel, 264, 66);
     lv_obj_set_width(s_geminiWkResetLabel, 104);
     lv_label_set_text(s_geminiWkResetLabel, "---");
 
     // -------------------------------------------------------------
-    // Card 3: Claude & GPT 3P Quota Panel (376 x 72 px at y=116)
+    // Card 3: Claude & GPT 3P Quota Panel (376 x 92 px at y=150)
     // -------------------------------------------------------------
-    s_cardThreeP = create_card(parent, 12, 116, 376, 72);
+    s_cardThreeP = create_card(parent, 12, 150, 376, 92);
 
     lv_obj_t* threePTitle = lv_label_create(s_cardThreeP);
-    lv_obj_set_style_text_font(threePTitle, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(threePTitle, 8, 4);
-    lv_label_set_text(threePTitle, "Claude & GPT Models (3P)");
+    lv_obj_set_style_text_font(threePTitle, &lv_font_montserrat_16, 0);
+    lv_obj_set_pos(threePTitle, 10, 8);
+    lv_label_set_text(threePTitle, "Claude & GPT Models");
+
+    lv_obj_t* threePSub = lv_label_create(s_cardThreeP);
+    lv_obj_set_style_text_font(threePSub, &lv_font_montserrat_12, 0);
+    lv_obj_align(threePSub, LV_ALIGN_TOP_RIGHT, -10, 10);
+    lv_label_set_text(threePSub, "3P Models");
 
     // Row 1: Five-Hour Limit
     lv_obj_t* lbl3p5h = lv_label_create(s_cardThreeP);
     lv_obj_set_style_text_font(lbl3p5h, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl3p5h, 8, 22);
+    lv_obj_set_pos(lbl3p5h, 10, 38);
     lv_label_set_text(lbl3p5h, "5h Limit");
 
-    s_threeP5hBar = create_quota_bar(s_cardThreeP, 66, 25, 144, 10);
+    s_threeP5hBar = create_quota_bar(s_cardThreeP, 68, 38, 140, 14);
 
     s_threeP5hPctLabel = lv_label_create(s_cardThreeP);
-    lv_obj_set_style_text_font(s_threeP5hPctLabel, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(s_threeP5hPctLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_align(s_threeP5hPctLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_threeP5hPctLabel, 216, 22);
-    lv_obj_set_width(s_threeP5hPctLabel, 44);
+    lv_obj_set_pos(s_threeP5hPctLabel, 212, 35);
+    lv_obj_set_width(s_threeP5hPctLabel, 50);
     lv_label_set_text(s_threeP5hPctLabel, "---%");
 
     s_threeP5hResetLabel = lv_label_create(s_cardThreeP);
     lv_obj_set_style_text_font(s_threeP5hResetLabel, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(s_threeP5hResetLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_threeP5hResetLabel, 264, 22);
+    lv_obj_set_pos(s_threeP5hResetLabel, 264, 38);
     lv_obj_set_width(s_threeP5hResetLabel, 104);
     lv_label_set_text(s_threeP5hResetLabel, "Full");
 
     // Row 2: Weekly Limit
     lv_obj_t* lbl3pWk = lv_label_create(s_cardThreeP);
     lv_obj_set_style_text_font(lbl3pWk, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl3pWk, 8, 46);
+    lv_obj_set_pos(lbl3pWk, 10, 66);
     lv_label_set_text(lbl3pWk, "Weekly");
 
-    s_threePWkBar = create_quota_bar(s_cardThreeP, 66, 49, 144, 10);
+    s_threePWkBar = create_quota_bar(s_cardThreeP, 68, 66, 140, 14);
 
     s_threePWkPctLabel = lv_label_create(s_cardThreeP);
-    lv_obj_set_style_text_font(s_threePWkPctLabel, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(s_threePWkPctLabel, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_align(s_threePWkPctLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_threePWkPctLabel, 216, 46);
-    lv_obj_set_width(s_threePWkPctLabel, 44);
+    lv_obj_set_pos(s_threePWkPctLabel, 212, 63);
+    lv_obj_set_width(s_threePWkPctLabel, 50);
     lv_label_set_text(s_threePWkPctLabel, "---%");
 
     s_threePWkResetLabel = lv_label_create(s_cardThreeP);
     lv_obj_set_style_text_font(s_threePWkResetLabel, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(s_threePWkResetLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_threePWkResetLabel, 264, 46);
+    lv_obj_set_pos(s_threePWkResetLabel, 264, 66);
     lv_obj_set_width(s_threePWkResetLabel, 104);
     lv_label_set_text(s_threePWkResetLabel, "Full");
 
     // -------------------------------------------------------------
-    // Card 4: Dynamic Models Panel (376 x 50 px at y=192)
-    // -------------------------------------------------------------
-    s_cardDyn = create_card(parent, 12, 192, 376, 50);
-
-    s_dynTitleLabel = lv_label_create(s_cardDyn);
-    lv_obj_set_style_text_font(s_dynTitleLabel, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(s_dynTitleLabel, 8, 4);
-    lv_label_set_text(s_dynTitleLabel, "Gemini 4 Argon");
-
-    s_dynPeriodLabel = lv_label_create(s_cardDyn);
-    lv_obj_set_style_text_font(s_dynPeriodLabel, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(s_dynPeriodLabel, 8, 24);
-    lv_label_set_text(s_dynPeriodLabel, "Weekly");
-
-    s_dynBar = create_quota_bar(s_cardDyn, 66, 27, 144, 10);
-
-    s_dynPctLabel = lv_label_create(s_cardDyn);
-    lv_obj_set_style_text_font(s_dynPctLabel, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_align(s_dynPctLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_dynPctLabel, 216, 24);
-    lv_obj_set_width(s_dynPctLabel, 44);
-    lv_label_set_text(s_dynPctLabel, "---%");
-
-    s_dynResetLabel = lv_label_create(s_cardDyn);
-    lv_obj_set_style_text_font(s_dynResetLabel, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_align(s_dynResetLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(s_dynResetLabel, 264, 24);
-    lv_obj_set_width(s_dynResetLabel, 104);
-    lv_label_set_text(s_dynResetLabel, "---");
-
-    // -------------------------------------------------------------
-    // Zone 5: Action & Status Footer (y=248..270)
+    // Footer: Action & Live Snapshot Age Hint (y=252..268)
     // -------------------------------------------------------------
     s_footerLabel = lv_label_create(parent);
     lv_obj_set_style_text_font(s_footerLabel, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(s_footerLabel, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(s_footerLabel, LV_ALIGN_BOTTOM_MID, 0, -4);
+    lv_obj_align(s_footerLabel, LV_ALIGN_BOTTOM_MID, 0, -6);
     lv_label_set_text(s_footerLabel, "Press BOOT to Sync Quota");
 
     if (s_countdownTimer) {
@@ -399,33 +365,6 @@ static void antigravity_refresh_countdowns() {
         s_threePWkBar, s_threePWkPctLabel, s_threePWkResetLabel
     );
 
-    if (s_live.hasDyn) {
-        float curDynPct = s_live.dynPct;
-        char dynRstBuf[24];
-        if (s_live.dynSec > 0) {
-            int32_t remDyn = s_live.dynSec - (int32_t)elapsed;
-            if (remDyn <= 0) {
-                curDynPct = 100.0f;
-                snprintf(dynRstBuf, sizeof(dynRstBuf), "Full");
-            } else {
-                format_countdown_str(remDyn, dynRstBuf, sizeof(dynRstBuf));
-            }
-        } else {
-            snprintf(dynRstBuf, sizeof(dynRstBuf), "%s", s_live.dynRst);
-        }
-
-        int dynVal = (int)round(curDynPct);
-        if (dynVal < 0) dynVal = 0;
-        if (dynVal > 100) dynVal = 100;
-        if (s_dynBar) lv_bar_set_value(s_dynBar, dynVal, LV_ANIM_OFF);
-        if (s_dynPctLabel) {
-            char buf[16];
-            snprintf(buf, sizeof(buf), "%d%%", dynVal);
-            lv_label_set_text(s_dynPctLabel, buf);
-        }
-        if (s_dynResetLabel) lv_label_set_text(s_dynResetLabel, dynRstBuf);
-    }
-
     if (s_footerLabel) {
         if (s_live.snapshotTs > 0) {
             int64_t ageSec = 0;
@@ -471,7 +410,7 @@ void update_page_antigravity(JsonVariantConst data) {
         s_live.isError = true;
         if (s_planLabel) lv_label_set_text(s_planLabel, "Status: Auth Required");
         if (s_creditsLabel) lv_label_set_text(s_creditsLabel, "0 AI Credits");
-        
+
         if (s_gemini5hBar) lv_bar_set_value(s_gemini5hBar, 0, LV_ANIM_OFF);
         if (s_gemini5hPctLabel) lv_label_set_text(s_gemini5hPctLabel, "N/A");
         if (s_gemini5hResetLabel) lv_label_set_text(s_gemini5hResetLabel, "Offline");
@@ -482,12 +421,11 @@ void update_page_antigravity(JsonVariantConst data) {
 
         if (s_threeP5hBar) lv_bar_set_value(s_threeP5hBar, 0, LV_ANIM_OFF);
         if (s_threeP5hPctLabel) lv_label_set_text(s_threeP5hPctLabel, "N/A");
+        if (s_threeP5hResetLabel) lv_label_set_text(s_threeP5hResetLabel, "Offline");
 
         if (s_threePWkBar) lv_bar_set_value(s_threePWkBar, 0, LV_ANIM_OFF);
         if (s_threePWkPctLabel) lv_label_set_text(s_threePWkPctLabel, "N/A");
-
-        if (s_dynBar) lv_bar_set_value(s_dynBar, 0, LV_ANIM_OFF);
-        if (s_dynPctLabel) lv_label_set_text(s_dynPctLabel, "N/A");
+        if (s_threePWkResetLabel) lv_label_set_text(s_threePWkResetLabel, "Offline");
 
         const char* err = data["error_message"] | "Check Antigravity CLI Login";
         if (s_footerLabel) lv_label_set_text(s_footerLabel, err);
@@ -516,7 +454,7 @@ void update_page_antigravity(JsonVariantConst data) {
         lv_label_set_text(s_creditsLabel, buf);
     }
 
-    // 3. Gemini Models Quotas (5h and Weekly)
+    // 3. Gemini Models Quotas (5h and Weekly — unified group including Argon, Neon, Flash)
     s_live.hasData = true;
     s_live.isError = false;
     s_live.rxMillis = millis();
@@ -593,79 +531,6 @@ void update_page_antigravity(JsonVariantConst data) {
     s_live.tpWkSec = tpWkSec;
     snprintf(s_live.tpWkRst, sizeof(s_live.tpWkRst), "%s", tpWkRst ? tpWkRst : "Full");
 
-    // 5. Dynamic Models Quotas (e.g. Gemini 4 Argon)
-    bool hasDynamic = false;
-    const char* dynName = "Gemini 4 Argon";
-    float dynPct = 0.0f;
-    const char* dynRst = "Full";
-    int32_t dynSec = 0;
-
-    // Priority 1: Check dynamic_models array
-    if (data.containsKey("dynamic_models") && data["dynamic_models"].is<JsonArrayConst>()) {
-        JsonArrayConst dynArr = data["dynamic_models"].as<JsonArrayConst>();
-        if (dynArr.size() > 0) {
-            JsonObjectConst firstDyn = dynArr[0];
-            dynName = firstDyn["name"] | firstDyn["display_name"] | "Gemini 4 Argon";
-            dynPct = firstDyn["remaining_percent"] | firstDyn["weekly_limit_percent"] | 0.0f;
-            dynRst = firstDyn["next_reset"] | "Full";
-            dynSec = firstDyn["reset_in_seconds"] | 0;
-            hasDynamic = true;
-        }
-    }
-    
-    // Priority 2: Check additional_models dictionary or array
-    if (!hasDynamic && data.containsKey("additional_models")) {
-        if (data["additional_models"].is<JsonObjectConst>()) {
-            JsonObjectConst addObj = data["additional_models"].as<JsonObjectConst>();
-            for (JsonPairConst kv : addObj) {
-                JsonObjectConst m = kv.value().as<JsonObjectConst>();
-                dynName = m["name"] | kv.key().c_str();
-                dynPct = m["weekly_limit_percent"] | m["remaining_percent"] | 0.0f;
-                dynRst = m["next_reset"] | "Full";
-                dynSec = m["reset_in_seconds"] | 0;
-                hasDynamic = true;
-                break;
-            }
-        } else if (data["additional_models"].is<JsonArrayConst>()) {
-            JsonArrayConst addArr = data["additional_models"].as<JsonArrayConst>();
-            if (addArr.size() > 0) {
-                JsonObjectConst m = addArr[0];
-                dynName = m["name"] | m["display_name"] | "Gemini 4 Argon";
-                dynPct = m["weekly_limit_percent"] | m["remaining_percent"] | 0.0f;
-                dynRst = m["next_reset"] | "Full";
-                dynSec = m["reset_in_seconds"] | 0;
-                hasDynamic = true;
-            }
-        }
-    }
-
-    // Priority 3: Check raw quota bucket
-    if (!hasDynamic && data.containsKey("quota") && data["quota"].containsKey("gemini-4-argon")) {
-        JsonObjectConst argon = data["quota"]["gemini-4-argon"];
-        dynName = "Gemini 4 Argon";
-        dynPct = argon["remaining_percent"] | 0.0f;
-        dynRst = argon["next_reset"] | "Full";
-        dynSec = argon["reset_in_seconds"] | 0;
-        hasDynamic = true;
-    }
-
-    s_live.hasDyn = hasDynamic;
-    s_live.dynPct = dynPct;
-    s_live.dynSec = dynSec;
-    snprintf(s_live.dynRst, sizeof(s_live.dynRst), "%s", dynRst ? dynRst : "Full");
-
-    if (hasDynamic) {
-        if (s_dynTitleLabel) lv_label_set_text(s_dynTitleLabel, dynName);
-        if (s_dynPeriodLabel) lv_label_set_text(s_dynPeriodLabel, "Weekly");
-    } else {
-        // Neutral fallback for dynamic box
-        if (s_dynTitleLabel) lv_label_set_text(s_dynTitleLabel, "Additional Models");
-        if (s_dynPeriodLabel) lv_label_set_text(s_dynPeriodLabel, "Weekly");
-        if (s_dynBar) lv_bar_set_value(s_dynBar, 0, LV_ANIM_OFF);
-        if (s_dynPctLabel) lv_label_set_text(s_dynPctLabel, "---%");
-        if (s_dynResetLabel) lv_label_set_text(s_dynResetLabel, "None");
-    }
-
     antigravity_refresh_countdowns();
 }
 
@@ -694,13 +559,6 @@ void destroy_page_antigravity() {
     s_threePWkBar        = nullptr;
     s_threePWkPctLabel   = nullptr;
     s_threePWkResetLabel = nullptr;
-
-    s_cardDyn            = nullptr;
-    s_dynTitleLabel      = nullptr;
-    s_dynPeriodLabel     = nullptr;
-    s_dynBar             = nullptr;
-    s_dynPctLabel        = nullptr;
-    s_dynResetLabel      = nullptr;
 
     s_footerLabel        = nullptr;
 }

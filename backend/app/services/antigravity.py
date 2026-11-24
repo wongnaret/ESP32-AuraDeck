@@ -173,6 +173,8 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
     aliases_wk = ["gemini-weekly", "gemini_weekly", "gemini-wk", "gemini_wk"]
     aliases_3p_5h = ["3p-5h", "3p_5h", "3p-5-hour", "claude-gpt-5h", "claude_gpt_5h"]
     aliases_3p_wk = ["3p-weekly", "3p_weekly", "3p-wk", "claude-gpt-weekly", "claude_gpt_weekly"]
+    # Deprecated standalone Argon bucket (now unified under Gemini Models)
+    deprecated_keys = {"gemini-argon-wtu-weekly", "gemini_argon_wtu_weekly"}
 
     gemini_5h = None
     gemini_wk = None
@@ -180,10 +182,14 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
     three_p_wk = None
     dynamic_models_list: List[Dict[str, Any]] = []
     additional_models_dict: Dict[str, Any] = {}
+    cleaned_quota_dict: Dict[str, Any] = {}
 
     if isinstance(quota_dict, dict):
         for raw_k, raw_v in quota_dict.items():
             k_norm = str(raw_k).lower().strip()
+            if k_norm in deprecated_keys:
+                continue
+            cleaned_quota_dict[raw_k] = raw_v
             bucket = extract_bucket_data(raw_v)
             if any(k_norm == a for a in aliases_5h):
                 gemini_5h = bucket
@@ -196,8 +202,6 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
             else:
                 if bucket.get("display_name"):
                     name = bucket["display_name"]
-                elif "argon" in k_norm and ("wtu" in k_norm or "weekly" in k_norm):
-                    name = "Gemini 4 Argon"
                 else:
                     name = k_norm.replace("-", " ").replace("_", " ").title()
                 model_entry = {
@@ -254,7 +258,9 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
     if isinstance(raw_dyn, list) and not dynamic_models_list:
         for item in raw_dyn:
             if isinstance(item, dict):
-                k = item.get("key", "dynamic-model")
+                k = str(item.get("key", "dynamic-model"))
+                if k.lower().strip() in deprecated_keys:
+                    continue
                 name = item.get("name") or item.get("display_name") or k.replace("-", " ").title()
                 pct = parse_fraction_or_percent(item.get("remaining_percent", item.get("weekly_limit_percent", 0.0)))
                 entry = {
@@ -267,12 +273,14 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
                     "reset_in_seconds": item.get("reset_in_seconds", 0)
                 }
                 dynamic_models_list.append(entry)
-                additional_models_dict[k.replace("-", "_")] = entry
+                additional_models_dict[k.replace("-", "_")] = entry.copy()
 
     raw_add = raw_data.get("additional_models")
     if isinstance(raw_add, dict) and not additional_models_dict:
         for k, item in raw_add.items():
             if isinstance(item, dict):
+                if str(k).lower().strip() in deprecated_keys:
+                    continue
                 name = item.get("name") or k.replace("_", " ").title()
                 pct = parse_fraction_or_percent(item.get("weekly_limit_percent", item.get("remaining_percent", 0.0)))
                 entry = {
@@ -285,7 +293,7 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
                     "reset_in_seconds": item.get("reset_in_seconds", 0)
                 }
                 dynamic_models_list.append(entry)
-                additional_models_dict[k] = entry
+                additional_models_dict[k] = entry.copy()
 
     # Fill defaults for anything still None
     if gemini_5h is None:
@@ -331,7 +339,7 @@ def normalize_antigravity_payload(raw_data: Optional[Dict[str, Any]]) -> Dict[st
         },
         "dynamic_models": dynamic_models_list,
         "additional_models": additional_models_dict,
-        "quota": raw_data.get("quota", {}),
+        "quota": cleaned_quota_dict,
         
         # Legacy/Nested fields for Web Dashboard compatibility
         "limit_5h": {

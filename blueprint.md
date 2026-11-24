@@ -107,18 +107,16 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 ---
 
 ### Page 1: Antigravity Credit Limit & Multi-Model Quotas
-* **Purpose:** Monitor AI model quotas, countdown reset timers, and developer credit balances.
-* **Layout Elements (400x274 Active Viewport):**
-  * **Card 1 (y: 4..36, 376x32): Plan & Credits Header:** Displays active Plan Name (e.g., `Plan: Google AI Pro`) and prominent right-aligned AI credits balance (`560 AI Credits`).
-  * **Card 2 (y: 40..112, 376x72): Gemini Models Quota Panel:**
-    * *5h Limit:* High-contrast monochrome progress bar showing remaining quota percentage (e.g., `69%`) and digital reset countdown (e.g., `03h 06m`).
-    * *Weekly Limit:* Progress bar showing remaining weekly quota (e.g., `62%`) and refresh countdown (e.g., `1 day, 1 hour`).
-  * **Card 3 (y: 116..188, 376x72): Claude & GPT Models (3P) Panel:**
-    * *5h Limit:* Progress bar showing third-party 5-hour quota (e.g., `100%`, `Full`).
-    * *Weekly Limit:* Progress bar showing third-party weekly quota (e.g., `100%`, `Full`).
-  * **Card 4 (y: 192..242, 376x50): Dynamic Model Panel:**
-    * Automatically adapts to arbitrary dynamic model buckets (e.g., `Gemini 4 Argon` at `2%` weekly with `2 days, 4 hours` countdown).
-  * **Footer (y: 248..270): Action & Status Hint:** Bottom centered hint (`🔘 Press BOOT to Sync Quota`). Offline/unauthenticated status gracefully zeroes progress bars and displays `Check Antigravity CLI Login`.
+* **Purpose:** Monitor AI model quotas, live countdown reset timers, and developer credit balances aligned with Antigravity's unified 2-group quota model (Gemini Models + Claude & GPT Models).
+* **Layout Elements (400x274 Active Viewport — 3-Card Layout):**
+  * **Card 1 (y: 6..42, 376x36): Plan & Credits Header:** Displays active Plan Name (e.g., `Plan: Google AI Pro`) and right-aligned AI credits balance (`--- AI Credits` when omitted by CLI, or numeric count).
+  * **Card 2 (y: 50..142, 376x92): Gemini Models Quota Panel (`All Gemini 4 & 3.8`):** Unified quota pool covering Gemini 4 Neon, Carbon, Argon, Hydrogen, Orchestrator, and Gemini 3.8 Flash.
+    * *5h Limit:* High-contrast 14px monochrome progress bar showing remaining quota percentage (`16px` font) and live reset countdown (e.g., `03h 56m` or `Full`).
+    * *Weekly Limit:* 14px progress bar showing remaining weekly quota and refresh countdown (e.g., `6 days, 22 hours` or `Full`).
+  * **Card 3 (y: 150..242, 376x92): Claude & GPT Models (`3P Models`) Panel:**
+    * *5h Limit:* 14px progress bar showing third-party 5-hour quota and reset countdown.
+    * *Weekly Limit:* 14px progress bar showing third-party weekly quota and reset countdown.
+  * **Footer (y: 252..268): Action & Live Snapshot Age:** Bottom centered hint (`Updated Xm ago | BOOT: Sync`). Offline/unauthenticated status gracefully zeroes progress bars and displays `Check Antigravity CLI Login`.
 
 ---
 
@@ -352,26 +350,8 @@ Published as a **root JSON array** of asset objects. The `type` field drives dis
     "reset_in_seconds_5h": 0,
     "reset_in_seconds_weekly": 0
   },
-  "dynamic_models": [
-    {
-      "key": "gemini-4-argon",
-      "name": "Gemini 4 Argon",
-      "display_name": "Gemini 4 Argon",
-      "weekly_limit_percent": 2.0,
-      "remaining_percent": 2.0,
-      "next_reset": "2 days, 4 hours",
-      "reset_in_seconds": 187200
-    }
-  ],
-  "additional_models": {
-    "gemini_4_argon": {
-      "name": "Gemini 4 Argon",
-      "weekly_limit_percent": 2.0,
-      "remaining_percent": 2.0,
-      "next_reset": "2 days, 4 hours",
-      "reset_in_seconds": 187200
-    }
-  },
+  "dynamic_models": [],
+  "additional_models": {},
   "limit_5h": {
     "used": 31.0,
     "total": 100.0,
