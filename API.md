@@ -48,17 +48,19 @@ Retrieves a profile's current safe configuration (secrets are omitted or represe
       "google_client_secret_configured": true,
       "google_redirect_uri": "http://localhost:8000/google/callback",
       "active_task_lists": ["@default", "list_work_items"],
+      "active_calendars": ["primary", "th.th#holiday@group.v.calendar.google.com"],
       "google_sa_configured": true
     }
     ```
 
 #### `POST /api/profiles/{profile_id}/config`
-Updates configuration settings for a profile.
+Updates configuration settings for a profile. Triggers instant calendar/tasks MQTT sync when `active_calendars` or `active_task_lists` is updated.
 *   **Request Body (`application/json`):**
     ```json
     {
       "ga_property_id": "453120000",
-      "active_task_lists": ["@default", "list_work_items"]
+      "active_task_lists": ["@default", "list_work_items"],
+      "active_calendars": ["primary", "th.th#holiday@group.v.calendar.google.com"]
     }
     ```
 *   **Response (`200 OK`):**
@@ -67,6 +69,16 @@ Updates configuration settings for a profile.
       "status": "success",
       "message": "Profile configuration updated successfully."
     }
+    ```
+
+#### `GET /api/profiles/{profile_id}/google-calendars`
+Lists all non-hidden Google Calendars (Primary, Shared, Subscribed) accessible via the profile's OAuth token.
+*   **Response (`200 OK`):**
+    ```json
+    [
+      { "id": "user@gmail.com", "summary": "Personal", "primary": true, "backgroundColor": "#039be5", "accessRole": "owner" },
+      { "id": "th.th#holiday@group.v.calendar.google.com", "summary": "Holidays in Thailand", "primary": false, "backgroundColor": "#0b8043", "accessRole": "reader" }
+    ]
     ```
 
 #### `POST /api/profiles/{profile_id}/upload-secrets`

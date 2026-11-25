@@ -27,7 +27,7 @@ from app.services.google_auth import (
     DEFAULT_POLLING_INTERVALS
 )
 from app.services.spotify import get_spotify_currently_playing
-from app.services.google_api import get_google_calendar_and_tasks, get_google_task_lists
+from app.services.google_api import get_google_calendar_and_tasks, get_google_task_lists, get_google_calendars
 from app.services.stocks import get_multi_asset_prices, search_stocks_yahoo
 from app.services.analytics import get_combined_analytics
 from app.services.ga4 import get_ga4_analytics, test_ga4_connection
@@ -119,6 +119,7 @@ class ProfileConfigRequest(BaseModel):
     google_client_secret: Optional[str] = None
     google_redirect_uri: Optional[str] = None
     active_task_lists: Optional[List[str]] = None
+    active_calendars: Optional[List[str]] = None
     weather_lat: Optional[float] = None
     weather_lon: Optional[float] = None
     weather_location_name: Optional[str] = None
@@ -795,6 +796,7 @@ def api_get_profile_config(profile_id: str, active_profile_id: Optional[str] = C
         "google_client_secret_configured": bool(settings_data.get("google_client_secret")),
         "google_redirect_uri": settings_data.get("google_redirect_uri", ""),
         "active_task_lists": settings_data.get("active_task_lists", ["@default"]),
+        "active_calendars": settings_data.get("active_calendars", ["primary"]),
         "google_sa_configured": google_sa_configured,
         "weather_lat": settings_data.get("weather_lat", 13.7563),
         "weather_lon": settings_data.get("weather_lon", 100.5018),
@@ -877,6 +879,11 @@ def api_save_profile_config(profile_id: str, config: ProfileConfigRequest, activ
         settings_data[k] = v
         
     save_profile_settings(profile_id, settings_data)
+    if "active_calendars" in updated_fields or "active_task_lists" in updated_fields:
+        try:
+            trigger_calendar_polling(target_profile_id=profile_id, force=True)
+        except Exception as e:
+            logger.error(f"Error triggering instant calendar/tasks sync for profile '{profile_id}': {e}")
     return {"status": "success", "message": "Profile configuration updated successfully."}
 
 
@@ -1143,6 +1150,16 @@ async def api_get_google_lists(profile_id: str, active_profile_id: Optional[str]
         
     lists = await get_google_task_lists(profile_id)
     return lists
+
+
+@app.get("/api/profiles/{profile_id}/google-calendars")
+async def api_get_google_calendars(profile_id: str, active_profile_id: Optional[str] = Cookie(None)):
+    """Fetches non-hidden Google Calendars (Primary, Shared, Subscribed) for dashboard selection."""
+    if not active_profile_id or active_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Permission Denied. You can only manage your own profile.")
+
+    calendars = await get_google_calendars(profile_id)
+    return calendars
 
 
 # --- TV-Style Screen Pairing Endpoints ---

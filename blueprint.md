@@ -145,8 +145,8 @@ This project is an ambient, low-power, reflective desk dashboard based on the **
 ---
 
 ### Page 4: Calendar (Monthly Grid & Upcoming Agendas)
-* **Purpose:** Visual monthly calendar paired with paginated upcoming Google Calendar agendas (today onward, up to 15 events).
-* **Source:** Google Calendar API (with hardware PCF85063 RTC fallback for offline monthly grid rendering).
+* **Purpose:** Visual monthly calendar paired with paginated upcoming Google Calendar agendas (today onward, up to 15 merged & deduplicated events across all selected calendars).
+* **Source:** Google Calendar API (`active_calendars`, defaulting to `["primary"]`, with hardware PCF85063 RTC fallback for offline monthly grid rendering).
 * **Navigation:** Press `BOOT` (GPIO0) to paginate through remaining upcoming agendas (`+ X more | BOOT: Next`) and wrap back to Page 1.
 * **Layout Structure (Dual-Card AuraDeck Theme, 400x274 Active Viewport):**
   * **Top Bar (`y: 4..24`):** Left English month/year (`NOV 2026`, `lv_font_montserrat_16`) + Right page/action indicator (`Page 1/2 | BOOT: Next`).
@@ -506,6 +506,7 @@ The Web Control Center (`backend/app/templates/auth.html`) is structured into 3 
 * **Weather Location (แผนที่พยากรณ์อากาศ):** Interactive Leaflet Map with OpenStreetMap tiles, custom glowing Aura pin, Nominatim POI/ROI autocomplete search, and HTML5 GPS Geolocation locator with independent save and instant screen synchronization.
 * **Stock & Asset Watchlist:** Yahoo Finance autocomplete search and watchlist management table for global/Thai stocks, crypto, and gold.
 * **Spotify Monochrome Cover Preview:** Real-time Floyd-Steinberg 1-bit dithered album cover preview.
+* **Selected Google Calendars:** Multi-calendar checklist (Primary, Shared, Subscribed) with calendar color dots and instant ESP32 sync.
 * **Selected Google Task Lists:** Multi-list selection filter for tasks aggregation.
 
 ### Zone 3: 📺 Hardware, Network & Polling Intervals

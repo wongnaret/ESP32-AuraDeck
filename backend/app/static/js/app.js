@@ -89,11 +89,15 @@ async function loadProfileConfig() {
         updateBadge('google-status', 'google-btn', stateData.google);
         updateBadge('spotify-status', 'spotify-btn', stateData.spotify);
         
+        const calCard = document.getElementById('calendar-lists-card');
         const taskCard = document.getElementById('task-lists-card');
         if (stateData.google) {
+            if (calCard) calCard.style.display = 'block';
             if (taskCard) taskCard.style.display = 'block';
+            loadGoogleCalendars(data.active_calendars);
             loadGoogleTaskLists(data.active_task_lists);
         } else {
+            if (calCard) calCard.style.display = 'none';
             if (taskCard) taskCard.style.display = 'none';
         }
 
@@ -210,6 +214,79 @@ async function savePollingIntervals() {
     } catch (err) {
         console.error(err);
         showToast("Network error updating intervals.", false);
+    }
+}
+
+// Google Calendars Multi-Selection Management
+async function loadGoogleCalendars(selectedCalendars) {
+    const container = document.getElementById('calendar-lists-container');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`/api/profiles/${profileId}/google-calendars`);
+        if (!response.ok) {
+            container.innerHTML = `<div style="font-size: 0.9rem; color: var(--danger);">Google Calendar API query failed. Try re-authorizing Google.</div>`;
+            return;
+        }
+        const data = await response.json();
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted);">No calendars found on this Google account.</div>`;
+            return;
+        }
+
+        const activeSet = Array.isArray(selectedCalendars) ? selectedCalendars : ['primary'];
+        container.innerHTML = '';
+        data.forEach(cal => {
+            const isChecked = activeSet.includes(cal.id) || (cal.primary && activeSet.includes('primary'));
+            const item = document.createElement('label');
+            item.className = 'checkbox-item';
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = cal.id;
+            cb.checked = isChecked;
+            cb.addEventListener('change', updateSelectedCalendars);
+
+            const dot = document.createElement('span');
+            dot.style.display = 'inline-block';
+            dot.style.width = '10px';
+            dot.style.height = '10px';
+            dot.style.borderRadius = '50%';
+            dot.style.backgroundColor = cal.backgroundColor || '#3b82f6';
+            dot.style.flexShrink = '0';
+
+            const labelText = document.createElement('span');
+            labelText.textContent = cal.primary ? `${cal.summary} (Primary)` : cal.summary;
+
+            item.appendChild(cb);
+            item.appendChild(dot);
+            item.appendChild(labelText);
+            container.appendChild(item);
+        });
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = `<div style="font-size: 0.9rem; color: var(--danger);">Error fetching calendar list.</div>`;
+    }
+}
+
+async function updateSelectedCalendars() {
+    const checkboxes = document.querySelectorAll('#calendar-lists-container input[type="checkbox"]');
+    const selected = [];
+    checkboxes.forEach(cb => {
+        if (cb.checked) selected.push(cb.value);
+    });
+
+    try {
+        await fetch(`/api/profiles/${profileId}/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active_calendars: selected })
+        });
+        showToast("Calendars saved & synced to ESP32.");
+    } catch (err) {
+        console.error(err);
+        showToast("Failed to save calendar selection.", false);
     }
 }
 
