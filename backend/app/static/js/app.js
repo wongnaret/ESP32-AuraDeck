@@ -257,7 +257,10 @@ async function loadGoogleCalendars(selectedCalendars) {
             dot.style.flexShrink = '0';
 
             const labelText = document.createElement('span');
-            labelText.textContent = cal.primary ? `${cal.summary} (Primary)` : cal.summary;
+            const fullName = cal.primary ? `${cal.summary} (Primary)` : cal.summary;
+            labelText.textContent = fullName;
+            item.title = fullName;
+            labelText.title = fullName;
 
             item.appendChild(cb);
             item.appendChild(dot);
@@ -313,10 +316,20 @@ async function loadGoogleTaskLists(selectedLists) {
             const isChecked = selectedLists && selectedLists.includes(lst.id);
             const item = document.createElement('label');
             item.className = 'checkbox-item';
-            item.innerHTML = `
-                <input type="checkbox" value="${lst.id}" ${isChecked ? 'checked' : ''} onchange="updateSelectedTaskLists()">
-                <span>${lst.title}</span>
-            `;
+            item.title = lst.title;
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = lst.id;
+            cb.checked = isChecked;
+            cb.addEventListener('change', updateSelectedTaskLists);
+
+            const span = document.createElement('span');
+            span.textContent = lst.title;
+            span.title = lst.title;
+
+            item.appendChild(cb);
+            item.appendChild(span);
             container.appendChild(item);
         });
     } catch (err) {

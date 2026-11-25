@@ -8,10 +8,11 @@
     </div>
 </div>
 
-<div class="zone-grid-2col">
-    <!-- Left Column: Dedicated Interactive Weather Map Location Selector -->
-    <div class="card">
-        <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+<div class="zone-grid-2col zone-balanced">
+    <!-- Left Column: Weather Map Location & Selected Google Calendars -->
+    <div class="zone-col">
+        <div class="card">
+            <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
             <h3 class="card-title">🌦️ Weather Location (แผนที่พยากรณ์อากาศ)</h3>
             <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.8rem;">Open-Meteo Live</span>
         </div>
@@ -60,15 +61,27 @@
         <input type="hidden" id="weather-lat" value="13.7563">
         <input type="hidden" id="weather-lon" value="100.5018">
 
-        <div style="display: flex; justify-content: flex-end;">
-            <button class="btn btn-primary" onclick="saveWeatherConfig()" style="width: auto; padding: 10px 24px;">
-                💾 Save & Sync Weather Location
-            </button>
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="saveWeatherConfig()" style="width: auto; padding: 10px 24px;">
+                    💾 Save & Sync Weather Location
+                </button>
+            </div>
+        </div>
+
+        <!-- Google Calendars Multi-Selection card (moved left to balance column height) -->
+        <div class="card" id="calendar-lists-card" style="display: none;">
+            <h3 class="card-title" style="margin-bottom: 10px;">📅 Selected Google Calendars</h3>
+            <p class="card-desc" style="margin-bottom: 12px;">
+                Select which Google Calendars (Primary, Shared, or Subscribed) to merge onto your ESP32 Calendar screen.
+            </p>
+            <div class="checkbox-grid" id="calendar-lists-container">
+                <div style="font-size: 0.85rem; color: var(--text-muted);">Fetching calendars...</div>
+            </div>
         </div>
     </div>
 
     <!-- Right Column: Stock Watchlist, Spotify Cover, Task Lists -->
-    <div style="display: flex; flex-direction: column; gap: 24px;">
+    <div class="zone-col">
         <!-- Stock Watchlist Configuration Card -->
         <div class="card" id="stock-watchlist-card">
             <div class="card-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
@@ -143,17 +156,6 @@
                         🔄 Refresh Cover
                     </button>
                 </div>
-            </div>
-        </div>
-
-        <!-- Google Calendars Multi-Selection card -->
-        <div class="card" id="calendar-lists-card" style="display: none;">
-            <h3 class="card-title" style="margin-bottom: 10px;">📅 Selected Google Calendars</h3>
-            <p class="card-desc" style="margin-bottom: 12px;">
-                Select which Google Calendars (Primary, Shared, or Subscribed) to merge onto your ESP32 Calendar screen.
-            </p>
-            <div class="checkbox-grid" id="calendar-lists-container">
-                <div style="font-size: 0.85rem; color: var(--text-muted);">Fetching calendars...</div>
             </div>
         </div>
 
