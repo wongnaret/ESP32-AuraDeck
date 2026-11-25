@@ -77,7 +77,34 @@ nmcli connection modify "$CON_NAME" \
   wifi-sec.psk "$PASSWORD" \
   wifi-sec.pmf 1
 
-# 5. Activate the Hotspot
+# 5. Ensure IPv4 Forwarding & Persistent NAT Masquerade (Docker/Tailscale safe)
+UPLINK_INTERFACE=$(ip route | awk '/^default/ {print $5; exit}')
+if [ -z "$UPLINK_INTERFACE" ] || [ "$UPLINK_INTERFACE" = "$WLAN_INTERFACE" ]; then
+  UPLINK_INTERFACE="eth0"
+fi
+echo "🌐 Configuring IPv4 forwarding & NAT sharing ($WLAN_INTERFACE -> $UPLINK_INTERFACE)..."
+sysctl -w net.ipv4.ip_forward=1 >/dev/null
+cat << 'EOF' > /etc/sysctl.d/99-auradeck-forward.conf
+net.ipv4.ip_forward=1
+EOF
+
+mkdir -p /etc/NetworkManager/dispatcher.d
+cat << EOF > /etc/NetworkManager/dispatcher.d/99-auradeck-nat
+#!/bin/bash
+IFACE="\$1"
+STATUS="\$2"
+if [ "\$IFACE" = "$WLAN_INTERFACE" ] && [ "\$STATUS" = "up" ]; then
+    iptables -t nat -C POSTROUTING -s 10.42.0.0/24 -o $UPLINK_INTERFACE -j MASQUERADE 2>/dev/null || \\
+    iptables -t nat -A POSTROUTING -s 10.42.0.0/24 -o $UPLINK_INTERFACE -j MASQUERADE
+fi
+EOF
+chmod +x /etc/NetworkManager/dispatcher.d/99-auradeck-nat
+
+# Apply NAT rule immediately for the active session
+iptables -t nat -C POSTROUTING -s 10.42.0.0/24 -o "$UPLINK_INTERFACE" -j MASQUERADE 2>/dev/null || \
+iptables -t nat -A POSTROUTING -s 10.42.0.0/24 -o "$UPLINK_INTERFACE" -j MASQUERADE
+
+# 6. Activate the Hotspot
 echo "🚀 Starting AuraDeck Local Hotspot..."
 nmcli connection up "$CON_NAME"
 
