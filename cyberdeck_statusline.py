@@ -234,12 +234,13 @@ def extract_quota_bucket(bucket_data: any) -> dict:
     raw_reset_time = bucket_data.get("reset_time")
 
     if not next_reset:
-        if raw_reset_time and any(unit in str(raw_reset_time).lower() for unit in ["hour", "day", "min", "sec", "full"]):
-            next_reset = str(raw_reset_time)
+        raw_str = str(raw_reset_time) if raw_reset_time else ""
+        if raw_str and any(unit in raw_str.lower() for unit in ["hour", "day", "min", "sec", "full"]):
+            next_reset = raw_str
         elif reset_sec > 0:
             next_reset = format_duration(reset_sec)
-        elif raw_reset_time:
-            next_reset = str(raw_reset_time)
+        elif raw_str and not raw_str.startswith("1970-01-01"):
+            next_reset = raw_str
         else:
             next_reset = "Full"
 

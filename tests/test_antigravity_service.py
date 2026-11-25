@@ -249,6 +249,16 @@ class TestAntigravityService(unittest.TestCase):
         self.assertEqual(t3["claude_gpt_models"]["five_hour_limit_percent"], 100.0)
         self.assertEqual(t3["claude_gpt_models"]["next_reset_5h"], "Full")
 
+    def test_epoch_zero_reset_time_normalized_to_full(self):
+        norm = normalize_antigravity_payload({
+            "quota": {
+                "3p-5h": {"remaining_fraction": 1.0, "reset_time": "1970-01-01T00:00:00Z", "reset_in_seconds": 0},
+                "3p-weekly": {"remaining_fraction": 1.0, "reset_time": "1970-01-01T00:00:00Z", "reset_in_seconds": 0},
+            }
+        })
+        self.assertEqual(norm["claude_gpt_models"]["next_reset_5h"], "Full")
+        self.assertEqual(norm["claude_gpt_models"]["next_reset_weekly"], "Full")
+
 
 if __name__ == "__main__":
     unittest.main()

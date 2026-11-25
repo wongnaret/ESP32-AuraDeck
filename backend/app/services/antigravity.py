@@ -122,12 +122,13 @@ def extract_bucket_data(bucket: Any) -> Dict[str, Any]:
     next_reset = bucket.get("next_reset")
     raw_time = bucket.get("reset_time")
     if not next_reset:
-        if raw_time and any(u in str(raw_time).lower() for u in ["hour", "day", "min", "sec", "full"]):
-            next_reset = str(raw_time)
+        raw_str = str(raw_time) if raw_time else ""
+        if raw_str and any(u in raw_str.lower() for u in ["hour", "day", "min", "sec", "full"]):
+            next_reset = raw_str
         elif sec > 0:
             next_reset = format_countdown(sec)
-        elif raw_time:
-            next_reset = str(raw_time)
+        elif raw_str and not raw_str.startswith("1970-01-01"):
+            next_reset = raw_str
         else:
             next_reset = "Full"
 
